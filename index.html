@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PMT Scanner">
+<meta name="theme-color" content="#1F3864">
+<title>PMT Asset Tracker</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    color: #1a1a1a;
+  }
+
+  .header {
+    background: #1F3864;
+    color: white;
+    padding: 20px 16px 16px;
+    text-align: center;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.3px; }
+  .header p { font-size: 13px; opacity: 0.75; margin-top: 3px; }
+
+  .app { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+
+  /* Scan button */
+  .scan-btn {
+    width: 100%;
+    padding: 18px;
+    border: 2px dashed #2E5597;
+    border-radius: 12px;
+    background: #EBF3FB;
+    color: #2E5597;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+  }
+  .scan-btn:active { transform: scale(0.98); }
+  .scan-btn.scanning { background: #FFF2CC; border-color: #C9A84C; color: #C9A84C; }
+
+  #reader { border-radius: 10px; overflow: hidden; margin-top: 12px; }
+  #reader video { border-radius: 10px; width: 100% !important; }
+
+  .divider { text-align: center; font-size: 12px; color: #aaa; margin: 10px 0; }
+
+  .manual-input {
+    width: 100%;
+    padding: 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    color: #1a1a1a;
+    background: white;
+    transition: border-color 0.2s;
+  }
+  .manual-input:focus { outline: none; border-color: #2E5597; }
+
+  .asset-confirmed {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: #E2EFDA;
+    border-radius: 10px;
+    border: 1px solid #70AD47;
+  }
+  .asset-confirmed .number { font-size: 20px; font-weight: 700; color: #3B6D11; flex: 1; }
+  .asset-confirmed .check {
+    width: 26px; height: 26px; background: #70AD47; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .asset-confirmed .check svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 2.5; }
+
+  .timestamp-row {
+    display: none;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .ts-pill {
+    background: #f0f2f5;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #555;
+    font-weight: 500;
+  }
+
+  /* Form fields */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+  }
+
+  select {
+    width: 100%;
+    padding: 14px 40px 14px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    background: white;
+    font-size: 16px;
+    color: #1a1a1a;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select:focus { outline: none; border-color: #2E5597; }
+
+  /* Submit button */
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    background: #1F3864;
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled {
+    background: #ccc;
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .submit-btn.loading { background: #2E5597; }
+
+  /* Toast notifications */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 999;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .toast.success { background: #3B6D11; }
+  .toast.error { background: #A32D2D; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Success flash */
+  .success-flash {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    text-align: center;
+  }
+  .success-flash .big-check {
+    width: 64px; height: 64px; background: #70AD47; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+  }
+  .success-flash .big-check svg { width: 32px; height: 32px; stroke: white; fill: none; stroke-width: 2.5; }
+  .success-flash h2 { font-size: 20px; font-weight: 700; color: #3B6D11; }
+  .success-flash p { font-size: 14px; color: #666; margin-top: 4px; }
+  .next-btn {
+    margin-top: 16px; padding: 14px 32px; background: #1F3864;
+    border: none; border-radius: 10px; color: white; font-size: 16px;
+    font-weight: 600; cursor: pointer;
+  }
+
+  /* Install banner */
+  .install-banner {
+    background: #1F3864;
+    color: white;
+    padding: 10px 16px;
+    font-size: 13px;
+    text-align: center;
+    display: none;
+  }
+  .install-banner b { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="install-banner" id="installBanner">
+  <b>Add to Home Screen</b> for the best experience — tap Share then "Add to Home Screen"
+</div>
+
+<div class="header">
+  <h1>PMT Asset Tracker</h1>
+  <p>Production floor asset scanning</p>
+</div>
+
+<!-- SUCCESS STATE -->
+<div class="app" id="successState" style="display:none">
+  <div class="card">
+    <div class="success-flash" style="display:flex">
+      <div class="big-check">
+        <svg viewBox="0 0 32 32"><polyline points="6,16 13,23 26,9"/></svg>
+      </div>
+      <h2>Scan Saved!</h2>
+      <p id="successDetail">Asset recorded successfully</p>
+      <button class="next-btn" onclick="resetForm()">Scan Next Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN FORM -->
+<div class="app" id="mainForm">
+
+  <!-- Step 1: Scan -->
+  <div class="card">
+    <div class="card-title">Step 1 — Asset Number</div>
+
+    <button class="scan-btn" id="scanBtn" onclick="toggleScanner()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+        <rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+        <line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/>
+      </svg>
+      Tap to Scan Barcode
+    </button>
+
+    <div id="reader"></div>
+
+    <div class="divider">— or type manually —</div>
+
+    <input
+      class="manual-input"
+      id="manualAsset"
+      type="text"
+      inputmode="numeric"
+      placeholder="Enter asset number..."
+      oninput="setAsset(this.value.trim())"
+    >
+
+    <div class="asset-confirmed" id="assetConfirmed">
+      <div class="number" id="assetVal"></div>
+      <div class="check">
+        <svg viewBox="0 0 14 14"><polyline points="2,7 6,11 12,3"/></svg>
+      </div>
+    </div>
+
+    <div class="timestamp-row" id="tsRow">
+      <span class="ts-pill" id="tsTime"></span>
+      <span class="ts-pill" id="tsDate"></span>
+    </div>
+  </div>
+
+  <!-- Step 2: Details -->
+  <div class="card">
+    <div class="card-title">Step 2 — Details</div>
+
+    <div class="field">
+      <label>Your Name</label>
+      <select id="mechanic" onchange="checkReady()">
+        <option value="">Select your name...</option>
+        <option>Wallied</option>
+        <option>Bernard</option>
+        <option>Khanyisa</option>
+        <option>Keenan</option>
+        <option>Mechanic 5</option>
+        <option>Mechanic 6</option>
+        <option>Mechanic 7</option>
+        <option>Mechanic 8</option>
+        <option>Mechanic 9</option>
+        <option>Mechanic 10</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Location</label>
+      <select id="location" onchange="checkReady()">
+        <option value="">Select location...</option>
+        <option>Line 1</option><option>Line 2</option><option>Line 3</option>
+        <option>Line 4</option><option>Line 5</option><option>Line 6</option>
+        <option>Line 7</option><option>Line 8</option><option>Line 9</option>
+        <option>Line 10</option><option>Line 11</option><option>Line 12</option>
+        <option>Line 13</option><option>Line 14</option><option>Line 15</option>
+        <option>Line 16</option><option>Line 17</option><option>Line 18</option>
+        <option>Line 19</option><option>Line 20</option>
+        <option>Pool A</option><option>Pool B</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Status</label>
+      <select id="status" onchange="checkReady()">
+        <option value="">Select status...</option>
+        <option>Active / In Use</option>
+        <option>Under Maintenance</option>
+        <option>Stored</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <button class="submit-btn" id="submitBtn" onclick="submitScan()" disabled>
+    Submit Scan
+  </button>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
+
+let currentAsset = '';
+let scanner = null;
+let scannerActive = false;
+let scanTimestamp = null;
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function formatTime(d) {
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+function formatDate(d) {
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
+function setAsset(val) {
+  currentAsset = val;
+  const confirmed = document.getElementById('assetConfirmed');
+  const tsRow = document.getElementById('tsRow');
+
+  if (val) {
+    scanTimestamp = new Date();
+    document.getElementById('assetVal').textContent = val;
+    confirmed.style.display = 'flex';
+    tsRow.style.display = 'flex';
+    document.getElementById('tsTime').textContent = formatTime(scanTimestamp);
+    document.getElementById('tsDate').textContent = formatDate(scanTimestamp);
+  } else {
+    confirmed.style.display = 'none';
+    tsRow.style.display = 'none';
+    scanTimestamp = null;
+  }
+  checkReady();
+}
+
+function checkReady() {
+  const ready = currentAsset &&
+    document.getElementById('mechanic').value &&
+    document.getElementById('location').value &&
+    document.getElementById('status').value;
+  document.getElementById('submitBtn').disabled = !ready;
+}
+
+function toggleScanner() {
+  if (scannerActive) {
+    stopScanner();
+  } else {
+    startScanner();
+  }
+}
+
+function startScanner() {
+  const btn = document.getElementById('scanBtn');
+  btn.classList.add('scanning');
+  btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
+  scannerActive = true;
+
+  document.getElementById('reader').style.display = 'block';
+  scanner = new Html5Qrcode('reader');
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 260, height: 100 } },
+    (decoded) => {
+      setAsset(decoded);
+      document.getElementById('manualAsset').value = decoded;
+      stopScanner();
+      showToast('Barcode scanned!', 'success');
+    },
+    () => {}
+  ).catch((err) => {
+    showToast('Camera blocked. Use manual entry.', 'error');
+    stopScanner();
+  });
+}
+
+function stopScanner() {
+  if (scanner) {
+    scanner.stop().catch(() => {});
+    scanner = null;
+  }
+  document.getElementById('reader').style.display = 'none';
+  const btn = document.getElementById('scanBtn');
+  btn.classList.remove('scanning');
+  btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/></svg> Tap to Scan Barcode`;
+  scannerActive = false;
+}
+
+async function submitScan() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'Saving...';
+
+  const ts = scanTimestamp || new Date();
+  const mechanic = document.getElementById('mechanic').value;
+  const location = document.getElementById('location').value;
+  const status = document.getElementById('status').value;
+
+  const payload = {
+    asset_no: currentAsset,
+    mechanic: mechanic,
+    location: location,
+    status: status,
+    scan_timestamp: ts.toISOString(),
+    shift_date: ts.toISOString().split('T')[0]
+  };
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/scan_log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok || res.status === 201) {
+      document.getElementById('mainForm').style.display = 'none';
+      document.getElementById('successState').style.display = 'block';
+      document.getElementById('successDetail').textContent =
+        currentAsset + ' → ' + location + ' (' + status + ')';
+    } else {
+      const errText = await res.text();
+      if (errText.includes('does not exist')) {
+        showToast('Table not created yet. Run SQL in Supabase first.', 'error');
+      } else {
+        showToast('Save failed: ' + res.status, 'error');
+      }
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.textContent = 'Submit Scan';
+      checkReady();
+    }
+  } catch (e) {
+    showToast('No connection. Check your internet.', 'error');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = 'Submit Scan';
+    checkReady();
+  }
+}
+
+function resetForm() {
+  currentAsset = '';
+  scanTimestamp = null;
+  document.getElementById('manualAsset').value = '';
+  document.getElementById('assetConfirmed').style.display = 'none';
+  document.getElementById('tsRow').style.display = 'none';
+  document.getElementById('status').value = '';
+  document.getElementById('mainForm').style.display = 'block';
+  document.getElementById('successState').style.display = 'none';
+  checkReady();
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Show install banner on iOS
+if (window.navigator.standalone === false &&
+    /iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  document.getElementById('installBanner').style.display = 'block';
+}
+</script>
+</body>
+</html>
