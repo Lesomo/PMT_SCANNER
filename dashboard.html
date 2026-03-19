@@ -234,6 +234,54 @@ tbody td {
 .status-badge.maintenance { background: #FCE4D6; color: #843C0C; }
 .status-badge.stored { background: #DEEAF1; color: #1F497D; }
 
+.view-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.view-tab { padding: 7px 18px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: #666; background: white; transition: all 0.15s; }
+.view-tab.active { background: #1F3864; color: white; border-color: #1F3864; }
+.view-tab:hover:not(.active) { background: #f5f5f5; }
+.tab-view { display: none; }
+.tab-view.active { display: block; }
+
+.hm-wrap { overflow-x: auto; }
+.hm-table { border-collapse: separate; border-spacing: 3px; min-width: 700px; }
+.hm-table th { font-size: 11px; font-weight: 600; color: #888; padding: 4px 6px; text-align: center; white-space: nowrap; }
+.hm-table th.row-hdr { text-align: left; min-width: 140px; padding-right: 10px; }
+.hm-cell { width: 40px; height: 34px; border-radius: 4px; text-align: center; vertical-align: middle; font-size: 11px; font-weight: 600; cursor: default; }
+.hm-cell.c-empty { background: #f5f5f5; color: #ccc; }
+.hm-cell.c-all-active { background: #E2EFDA; color: #27500A; }
+.hm-cell.c-mostly { background: #C0DD97; color: #27500A; }
+.hm-cell.c-mixed { background: #FAEEDA; color: #633806; }
+.hm-cell.c-some-maint { background: #F5C4B3; color: #712B13; }
+.hm-cell.c-high-maint { background: #F0997B; color: #4A1B0C; }
+.hm-row-label { font-size: 12px; font-weight: 500; color: #333; padding: 4px 10px 4px 0; white-space: nowrap; }
+.hm-legend { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.hm-leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
+.hm-leg-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+.sl-table { width: 100%; border-collapse: collapse; }
+.sl-table th { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 12px; text-align: left; border-bottom: 2px solid #f0f2f5; }
+.sl-table th.num { text-align: center; }
+.sl-table td { padding: 10px 12px; font-size: 13px; color: #333; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+.sl-table tr:last-child td { border-bottom: none; }
+.sl-table tr:hover td { background: #fafafa; }
+.count-pill { display: inline-block; min-width: 28px; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-align: center; }
+.pill-a { background: #E2EFDA; color: #27500A; }
+.pill-m { background: #F5C4B3; color: #712B13; }
+.pill-s { background: #DEEAF1; color: #0C447C; }
+.mini-bar-wrap { display: flex; align-items: center; gap: 3px; }
+.mini-bar { height: 8px; border-radius: 2px; min-width: 3px; }
+.mb-a { background: #639922; }
+.mb-m { background: #D85A30; }
+.mb-s { background: #185FA5; }
+
+.search-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.search-row label { font-size: 13px; font-weight: 600; color: #555; white-space: nowrap; }
+.search-row select { padding: 10px 36px 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; color: #1a1a1a; background: white; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; min-width: 240px; }
+.search-row select:focus { outline: none; border-color: #2E5597; }
+.search-placeholder { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+.search-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.search-sub { font-size: 12px; color: #aaa; margin-bottom: 16px; }
+
 /* LOADING / EMPTY */
 .loading-state, .empty-state {
   text-align: center;
@@ -368,18 +416,61 @@ tbody td {
     </div>
   </div>
 
-  <!-- CHARTS ROW 2: Status per location (stacked bar) -->
+  <!-- STATUS PER LINE: toggling heatmap / table -->
   <div class="chart-card" style="margin-bottom:16px;">
-    <div class="chart-title">Condition per Location</div>
-    <div class="chart-sub">Status breakdown (Active / Maintenance / Stored) for each line</div>
-    <div class="chart-wrap" style="height:300px;">
-      <canvas id="conditionChart"></canvas>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <div>
+        <div class="chart-title">Asset status per line</div>
+        <div class="chart-sub">Toggle between heatmap and table view</div>
+      </div>
+      <div class="view-tabs">
+        <div class="view-tab active" onclick="switchStatusView('heatmap')">Heatmap</div>
+        <div class="view-tab" onclick="switchStatusView('table')">Table</div>
+      </div>
+    </div>
+
+    <!-- Heatmap view -->
+    <div class="tab-view active" id="statusView-heatmap">
+      <div class="hm-legend">
+        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#E2EFDA;"></div> All active</div>
+        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#C0DD97;"></div> Mostly active</div>
+        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#FAEEDA;"></div> Mixed</div>
+        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F5C4B3;"></div> Some maintenance</div>
+        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F0997B;"></div> High maintenance</div>
+        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#f5f5f5;border:1px solid #ddd;"></div> No assets</div>
+      </div>
+      <div class="hm-wrap" id="heatmapContainer">
+        <div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Loading...</div>
+      </div>
+      <div style="font-size:11px;color:#bbb;margin-top:8px;">Hover over any cell for exact counts</div>
+    </div>
+
+    <!-- Table view -->
+    <div class="tab-view" id="statusView-table">
+      <div style="overflow-x:auto;" id="statusTableContainer">
+        <div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Loading...</div>
+      </div>
     </div>
   </div>
 
-  <!-- CHART ROW 3: Machine types horizontal bar -->
+  <!-- MACHINE TYPE SEARCH -->
+  <div class="search-section">
+    <div class="search-title">Machine type distribution</div>
+    <div class="search-sub">Select a machine type to see how it is distributed across all lines</div>
+    <div class="search-row">
+      <label>Machine type:</label>
+      <select id="machineTypeSearch" onchange="renderMachineSearch()">
+        <option value="">— Select a machine type —</option>
+      </select>
+    </div>
+    <div id="machineSearchResult">
+      <div class="search-placeholder">Select a machine type above to see its distribution</div>
+    </div>
+  </div>
+
+  <!-- MACHINE TYPES ACROSS FACTORY -->
   <div class="chart-card" style="margin-bottom:16px;">
-    <div class="chart-title">Machine Types Across Factory</div>
+    <div class="chart-title">Machine types across factory</div>
     <div class="chart-sub">Total scanned assets by machine type — ranked highest to lowest</div>
     <div id="machineTypeChartWrap" style="position:relative;">
       <canvas id="machineTypeChart"></canvas>
@@ -423,7 +514,6 @@ let autoInterval = null;
 let autoEnabled = true;
 let locationChart = null;
 let statusChart = null;
-let conditionChart = null;
 let machineTypeChart = null;
 
 // ── FETCH DATA ───────────────────────────────────────────────────────────────
@@ -505,8 +595,11 @@ function renderAll() {
   renderKPIs();
   renderLocationChart();
   renderStatusChart();
-  renderConditionChart();
+  renderStatusHeatmap();
+  renderStatusTable();
   renderMachineTypeChart();
+  populateMachineTypeDropdown();
+  renderMachineSearch();
   renderTable();
 }
 
@@ -603,65 +696,183 @@ function renderStatusChart() {
 }
 
 // ── CONDITION PER LOCATION (STACKED BAR) ─────────────────────────────────────
-function renderConditionChart() {
-  const activeData  = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc && r.status === 'Active / In Use').length);
-  const maintData   = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc && r.status === 'Under Maintenance').length);
-  const storedData  = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc && r.status === 'Stored').length);
-  const ctx = document.getElementById('conditionChart').getContext('2d');
+function switchStatusView(name) {
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+  document.querySelector(`.view-tab[onclick*="${name}"]`).classList.add('active');
+  document.getElementById('statusView-' + name).classList.add('active');
+}
 
-  if (conditionChart) conditionChart.destroy();
-  conditionChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ALL_LOCS,
-      datasets: [
-        {
-          label: 'Active / In Use',
-          data: activeData,
-          backgroundColor: '#70AD47',
-          borderRadius: 4,
-          borderSkipped: false
-        },
-        {
-          label: 'Under Maintenance',
-          data: maintData,
-          backgroundColor: '#ED7D31',
-          borderRadius: 0,
-          borderSkipped: false
-        },
-        {
-          label: 'Stored',
-          data: storedData,
-          backgroundColor: '#2E5597',
-          borderRadius: 0,
-          borderSkipped: false
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: { font: { size: 12 }, padding: 16, usePointStyle: true }
-        }
-      },
-      scales: {
-        x: {
-          stacked: true,
-          grid: { display: false },
-          ticks: { font: { size: 11 }, color: '#888' }
-        },
-        y: {
-          stacked: true,
-          grid: { color: '#f0f2f5' },
-          ticks: { font: { size: 11 }, color: '#888', stepSize: 1 },
-          beginAtZero: true
-        }
-      }
-    }
+function cellClass(a, m, s) {
+  const total = a + m + s;
+  if (total === 0) return 'c-empty';
+  const mp = m / total;
+  if (mp === 0) return 'c-all-active';
+  if (mp < 0.2) return 'c-mostly';
+  if (mp < 0.4) return 'c-mixed';
+  if (mp < 0.7) return 'c-some-maint';
+  return 'c-high-maint';
+}
+
+function renderStatusHeatmap() {
+  const types = [...new Set(filteredData.map(r => r.machine_type).filter(Boolean))].sort();
+  if (types.length === 0) {
+    document.getElementById('heatmapContainer').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">No data available</div>';
+    return;
+  }
+
+  let html = '<table class="hm-table"><thead><tr><th class="row-hdr">Machine type</th>';
+  ALL_LOCS.forEach(l => { html += `<th>${l.replace('Line ','L').replace('Pool ','P')}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  types.forEach(type => {
+    html += `<tr><td class="hm-row-label">${type}</td>`;
+    ALL_LOCS.forEach(loc => {
+      const recs = filteredData.filter(r => r.machine_type === type && r.location === loc);
+      const a = recs.filter(r => r.status === 'Active / In Use').length;
+      const m = recs.filter(r => r.status === 'Under Maintenance').length;
+      const s = recs.filter(r => r.status === 'Stored').length;
+      const total = a + m + s;
+      const cls = cellClass(a, m, s);
+      const tip = total === 0 ? 'No assets' : `Active:${a} Maint:${m} Stored:${s}`;
+      html += `<td class="hm-cell ${cls}" title="${loc} — ${type}: ${tip}">${total > 0 ? total : ''}</td>`;
+    });
+    html += '</tr>';
   });
+  html += '</tbody></table>';
+  document.getElementById('heatmapContainer').innerHTML = html;
+}
+
+function renderStatusTable() {
+  let html = '<table class="sl-table"><thead><tr><th>Line</th><th class="num">Active</th><th class="num">Maintenance</th><th class="num">Stored</th><th class="num">Total</th><th>Breakdown</th></tr></thead><tbody>';
+  let hasData = false;
+
+  ALL_LOCS.forEach(loc => {
+    const a = filteredData.filter(r => r.location === loc && r.status === 'Active / In Use').length;
+    const m = filteredData.filter(r => r.location === loc && r.status === 'Under Maintenance').length;
+    const s = filteredData.filter(r => r.location === loc && r.status === 'Stored').length;
+    const total = a + m + s;
+    if (total === 0) return;
+    hasData = true;
+    const aW = Math.round((a / total) * 100);
+    const mW = Math.round((m / total) * 100);
+    const sW = 100 - aW - mW;
+    html += `<tr>
+      <td style="font-weight:600;">${loc}</td>
+      <td style="text-align:center;"><span class="count-pill pill-a">${a}</span></td>
+      <td style="text-align:center;"><span class="count-pill pill-m">${m}</span></td>
+      <td style="text-align:center;"><span class="count-pill pill-s">${s}</span></td>
+      <td style="text-align:center;font-weight:600;">${total}</td>
+      <td><div class="mini-bar-wrap">
+        ${aW > 0 ? `<div class="mini-bar mb-a" style="width:${aW}px;" title="Active: ${a}"></div>` : ''}
+        ${mW > 0 ? `<div class="mini-bar mb-m" style="width:${mW}px;" title="Maintenance: ${m}"></div>` : ''}
+        ${sW > 0 ? `<div class="mini-bar mb-s" style="width:${sW}px;" title="Stored: ${s}"></div>` : ''}
+      </div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+
+  if (!hasData) {
+    document.getElementById('statusTableContainer').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">No data available</div>';
+    return;
+  }
+  document.getElementById('statusTableContainer').innerHTML = html;
+}
+
+function populateMachineTypeDropdown() {
+  const types = [...new Set(filteredData.map(r => r.machine_type).filter(Boolean))].sort();
+  const sel = document.getElementById('machineTypeSearch');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Select a machine type —</option>';
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    if (t === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderMachineSearch() {
+  const type = document.getElementById('machineTypeSearch').value;
+  const container = document.getElementById('machineSearchResult');
+  if (!type) {
+    container.innerHTML = '<div class="search-placeholder">Select a machine type above to see its distribution</div>';
+    return;
+  }
+
+  const recs = filteredData.filter(r => r.machine_type === type);
+  const total = recs.length;
+  if (total === 0) {
+    container.innerHTML = `<div class="search-placeholder">No scans found for "${type}" in the selected period</div>`;
+    return;
+  }
+
+  let rows = '';
+  let hasData = false;
+  ALL_LOCS.forEach(loc => {
+    const a = recs.filter(r => r.location === loc && r.status === 'Active / In Use').length;
+    const m = recs.filter(r => r.location === loc && r.status === 'Under Maintenance').length;
+    const s = recs.filter(r => r.location === loc && r.status === 'Stored').length;
+    const t = a + m + s;
+    if (t === 0) return;
+    hasData = true;
+    const pct = Math.round((t / total) * 100);
+    const aW = Math.round((a / t) * 120);
+    const mW = Math.round((m / t) * 120);
+    const sW = 120 - aW - mW;
+    rows += `<tr>
+      <td style="font-weight:600;">${loc}</td>
+      <td style="text-align:center;"><span class="count-pill pill-a">${a}</span></td>
+      <td style="text-align:center;"><span class="count-pill pill-m">${m}</span></td>
+      <td style="text-align:center;"><span class="count-pill pill-s">${s}</span></td>
+      <td style="text-align:center;font-weight:600;">${t}</td>
+      <td style="font-size:12px;color:#888;">${pct}%</td>
+      <td><div class="mini-bar-wrap">
+        ${aW > 0 ? `<div class="mini-bar mb-a" style="width:${aW}px;"></div>` : ''}
+        ${mW > 0 ? `<div class="mini-bar mb-m" style="width:${mW}px;"></div>` : ''}
+        ${sW > 0 ? `<div class="mini-bar mb-s" style="width:${sW}px;"></div>` : ''}
+      </div></td>
+    </tr>`;
+  });
+
+  if (!hasData) {
+    container.innerHTML = `<div class="search-placeholder">No location data found for "${type}"</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px 16px;font-size:13px;">
+        <div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Total</div>
+        <div style="font-size:22px;font-weight:700;color:#1a1a1a;">${total}</div>
+      </div>
+      <div style="background:#E2EFDA;border-radius:8px;padding:10px 16px;font-size:13px;">
+        <div style="font-size:11px;color:#3B6D11;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Active</div>
+        <div style="font-size:22px;font-weight:700;color:#27500A;">${recs.filter(r=>r.status==='Active / In Use').length}</div>
+      </div>
+      <div style="background:#F5C4B3;border-radius:8px;padding:10px 16px;font-size:13px;">
+        <div style="font-size:11px;color:#712B13;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Maintenance</div>
+        <div style="font-size:22px;font-weight:700;color:#4A1B0C;">${recs.filter(r=>r.status==='Under Maintenance').length}</div>
+      </div>
+      <div style="background:#DEEAF1;border-radius:8px;padding:10px 16px;font-size:13px;">
+        <div style="font-size:11px;color:#185FA5;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Stored</div>
+        <div style="font-size:22px;font-weight:700;color:#0C447C;">${recs.filter(r=>r.status==='Stored').length}</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="sl-table">
+        <thead><tr>
+          <th>Line</th>
+          <th class="num">Active</th>
+          <th class="num">Maintenance</th>
+          <th class="num">Stored</th>
+          <th class="num">Total</th>
+          <th class="num">Share</th>
+          <th>Breakdown</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 // ── MACHINE TYPE HORIZONTAL BAR CHART ────────────────────────────────────────
