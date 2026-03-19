@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1F3864">
+<title>PMT Asset Tracking Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f2f5;
+  color: #1a1a1a;
+  min-height: 100vh;
+}
+
+/* HEADER */
+.header {
+  background: #1F3864;
+  color: white;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.3px; }
+.header-sub { font-size: 12px; opacity: 0.6; margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.live-dot {
+  width: 7px; height: 7px;
+  background: #70AD47;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.live-dot.paused { background: #aaa; animation: none; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.refresh-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  color: white;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: background 0.2s;
+}
+.refresh-btn:hover { background: rgba(255,255,255,0.25); }
+.refresh-btn svg { width: 14px; height: 14px; }
+.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.auto-toggle {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: white;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.auto-toggle.active { background: rgba(112,173,71,0.4); border-color: #70AD47; }
+
+/* MAIN LAYOUT */
+.main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+/* FILTER BAR */
+.filter-bar {
+  background: white;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.filter-bar label { font-size: 13px; font-weight: 600; color: #555; white-space: nowrap; }
+.filter-bar input[type="date"] {
+  padding: 8px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: white;
+  cursor: pointer;
+}
+.filter-bar input[type="date"]:focus { outline: none; border-color: #2E5597; }
+.filter-sep { color: #aaa; font-size: 13px; }
+.filter-clear {
+  padding: 8px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-clear:hover { border-color: #2E5597; color: #2E5597; }
+.filter-info { margin-left: auto; font-size: 12px; color: #888; }
+
+/* KPI CARDS */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.kpi-card {
+  background: white;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-left: 4px solid #ddd;
+}
+.kpi-card.blue { border-left-color: #2E5597; }
+.kpi-card.green { border-left-color: #70AD47; }
+.kpi-card.orange { border-left-color: #ED7D31; }
+.kpi-card.grey { border-left-color: #888; }
+.kpi-label { font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.kpi-value { font-size: 32px; font-weight: 700; color: #1a1a1a; line-height: 1; }
+.kpi-sub { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+/* CHART GRID */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.chart-grid.three { grid-template-columns: 2fr 1fr; }
+
+@media (max-width: 900px) {
+  .chart-grid, .chart-grid.three { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+.chart-sub {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 16px;
+}
+.chart-wrap { position: relative; }
+.chart-wrap.tall { height: 320px; }
+.chart-wrap.medium { height: 260px; }
+
+/* SCANS TABLE */
+.table-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.table-title { font-size: 14px; font-weight: 600; color: #333; }
+.table-count { font-size: 12px; color: #aaa; }
+
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
+thead tr { border-bottom: 2px solid #f0f2f5; }
+thead th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 8px 12px;
+}
+tbody tr {
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.1s;
+}
+tbody tr:hover { background: #fafafa; }
+tbody tr:last-child { border-bottom: none; }
+tbody td {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #333;
+}
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.status-badge.active { background: #E2EFDA; color: #3B6D11; }
+.status-badge.maintenance { background: #FCE4D6; color: #843C0C; }
+.status-badge.stored { background: #DEEAF1; color: #1F497D; }
+
+/* LOADING / EMPTY */
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #aaa;
+}
+.loading-state .spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #f0f2f5;
+  border-top-color: #2E5597;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 14px;
+}
+.empty-state p { font-size: 14px; }
+
+/* LAST UPDATED */
+.footer {
+  text-align: center;
+  font-size: 12px;
+  color: #bbb;
+  padding: 12px 0 24px;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.toast.success { background: #3B6D11; }
+.toast.error { background: #A32D2D; }
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="header h1" style="font-size:18px;font-weight:600;">PMT Asset Tracking</div>
+      <div class="header-sub">Production Floor Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot" id="liveDot"></div>
+      <span id="liveLabel">Live</span>
+    </div>
+    <button class="auto-toggle active" id="autoToggle" onclick="toggleAuto()">Auto 30s</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M23 4v6h-6M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <label>Filter by date:</label>
+    <input type="date" id="dateFrom" onchange="applyFilter()">
+    <span class="filter-sep">to</span>
+    <input type="date" id="dateTo" onchange="applyFilter()">
+    <button class="filter-clear" onclick="clearFilter()">Clear</button>
+    <span class="filter-info" id="filterInfo"></span>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Scanned</div>
+      <div class="kpi-value" id="kpiTotal">—</div>
+      <div class="kpi-sub">all records</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Active / In Use</div>
+      <div class="kpi-value" id="kpiActive">—</div>
+      <div class="kpi-sub">currently active</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Under Maintenance</div>
+      <div class="kpi-value" id="kpiMaint">—</div>
+      <div class="kpi-sub">being serviced</div>
+    </div>
+    <div class="kpi-card grey">
+      <div class="kpi-label">Stored</div>
+      <div class="kpi-value" id="kpiStored">—</div>
+      <div class="kpi-sub">in storage</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1: Location bar + Status pie -->
+  <div class="chart-grid" style="margin-bottom:16px;">
+    <div class="chart-card">
+      <div class="chart-title">Assets per Location</div>
+      <div class="chart-sub">Total scans by production line and pool</div>
+      <div class="chart-wrap tall">
+        <canvas id="locationChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Assets by Status</div>
+      <div class="chart-sub">Breakdown of current asset conditions</div>
+      <div class="chart-wrap medium" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2: Status per location (stacked bar) -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-title">Condition per Location</div>
+    <div class="chart-sub">Status breakdown (Active / Maintenance / Stored) for each line</div>
+    <div class="chart-wrap" style="height:300px;">
+      <canvas id="conditionChart"></canvas>
+    </div>
+  </div>
+
+  <!-- RECENT SCANS TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <div class="table-title">Recent Scans</div>
+        <div class="table-count" id="tableCount"></div>
+      </div>
+    </div>
+    <div id="tableContainer">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading scan data...</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer" id="lastUpdated">Last updated: —</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
+
+const ALL_LOCS = [
+  'Line 1','Line 2','Line 3','Line 4','Line 5','Line 6','Line 7','Line 8',
+  'Line 9','Line 10','Line 11','Line 12','Line 13','Line 14','Line 15',
+  'Line 16','Line 17','Line 18','Line 19','Line 20','Pool A','Pool B'
+];
+
+let allData = [];
+let filteredData = [];
+let autoInterval = null;
+let autoEnabled = true;
+let locationChart = null;
+let statusChart = null;
+let conditionChart = null;
+
+// ── FETCH DATA ───────────────────────────────────────────────────────────────
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/scan_log?select=asset_no,mechanic,location,status,scan_timestamp,shift_date&order=scan_timestamp.desc&limit=1000',
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY
+        }
+      }
+    );
+
+    if (!res.ok) throw new Error('Status ' + res.status);
+
+    allData = await res.json();
+    applyFilter();
+
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      'Last updated: ' + now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    showToast('Data refreshed — ' + allData.length + ' records', 'success');
+
+  } catch (e) {
+    showToast('Connection error. Retrying...', 'error');
+  }
+
+  btn.classList.remove('spinning');
+}
+
+// ── FILTER ───────────────────────────────────────────────────────────────────
+function applyFilter() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+
+  if (from || to) {
+    filteredData = allData.filter(r => {
+      const d = (r.shift_date || (r.scan_timestamp || '').split('T')[0]);
+      if (from && d < from) return false;
+      if (to   && d > to)   return false;
+      return true;
+    });
+    const info = from && to
+      ? 'Showing ' + filteredData.length + ' records from ' + fmt(from) + ' to ' + fmt(to)
+      : from
+        ? 'Showing ' + filteredData.length + ' records from ' + fmt(from)
+        : 'Showing ' + filteredData.length + ' records up to ' + fmt(to);
+    document.getElementById('filterInfo').textContent = info;
+  } else {
+    filteredData = allData;
+    document.getElementById('filterInfo').textContent = '';
+  }
+
+  renderAll();
+}
+
+function fmt(d) {
+  if (!d) return '';
+  const [y,m,day] = d.split('-');
+  return day + '/' + m + '/' + y;
+}
+
+function clearFilter() {
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  filteredData = allData;
+  document.getElementById('filterInfo').textContent = '';
+  renderAll();
+}
+
+// ── RENDER ALL ───────────────────────────────────────────────────────────────
+function renderAll() {
+  renderKPIs();
+  renderLocationChart();
+  renderStatusChart();
+  renderConditionChart();
+  renderTable();
+}
+
+// ── KPIs ─────────────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const d = filteredData;
+  document.getElementById('kpiTotal').textContent  = d.length;
+  document.getElementById('kpiActive').textContent  = d.filter(r => r.status === 'Active / In Use').length;
+  document.getElementById('kpiMaint').textContent   = d.filter(r => r.status === 'Under Maintenance').length;
+  document.getElementById('kpiStored').textContent  = d.filter(r => r.status === 'Stored').length;
+}
+
+// ── LOCATION BAR CHART ───────────────────────────────────────────────────────
+function renderLocationChart() {
+  const counts = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc).length);
+  const ctx = document.getElementById('locationChart').getContext('2d');
+
+  if (locationChart) locationChart.destroy();
+  locationChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ALL_LOCS,
+      datasets: [{
+        label: 'Assets',
+        data: counts,
+        backgroundColor: '#2E5597',
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => ' ' + item.raw + ' assets'
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 }, color: '#888' }
+        },
+        y: {
+          grid: { color: '#f0f2f5' },
+          ticks: { font: { size: 11 }, color: '#888', stepSize: 1 },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+// ── STATUS PIE CHART ─────────────────────────────────────────────────────────
+function renderStatusChart() {
+  const active = filteredData.filter(r => r.status === 'Active / In Use').length;
+  const maint  = filteredData.filter(r => r.status === 'Under Maintenance').length;
+  const stored = filteredData.filter(r => r.status === 'Stored').length;
+  const ctx = document.getElementById('statusChart').getContext('2d');
+
+  if (statusChart) statusChart.destroy();
+  statusChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Active / In Use', 'Under Maintenance', 'Stored'],
+      datasets: [{
+        data: [active, maint, stored],
+        backgroundColor: ['#70AD47', '#ED7D31', '#2E5597'],
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 12 }, padding: 16, usePointStyle: true }
+        },
+        tooltip: {
+          callbacks: {
+            label: (item) => ' ' + item.label + ': ' + item.raw
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── CONDITION PER LOCATION (STACKED BAR) ─────────────────────────────────────
+function renderConditionChart() {
+  const activeData  = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc && r.status === 'Active / In Use').length);
+  const maintData   = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc && r.status === 'Under Maintenance').length);
+  const storedData  = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc && r.status === 'Stored').length);
+  const ctx = document.getElementById('conditionChart').getContext('2d');
+
+  if (conditionChart) conditionChart.destroy();
+  conditionChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ALL_LOCS,
+      datasets: [
+        {
+          label: 'Active / In Use',
+          data: activeData,
+          backgroundColor: '#70AD47',
+          borderRadius: 4,
+          borderSkipped: false
+        },
+        {
+          label: 'Under Maintenance',
+          data: maintData,
+          backgroundColor: '#ED7D31',
+          borderRadius: 0,
+          borderSkipped: false
+        },
+        {
+          label: 'Stored',
+          data: storedData,
+          backgroundColor: '#2E5597',
+          borderRadius: 0,
+          borderSkipped: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { font: { size: 12 }, padding: 16, usePointStyle: true }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { font: { size: 11 }, color: '#888' }
+        },
+        y: {
+          stacked: true,
+          grid: { color: '#f0f2f5' },
+          ticks: { font: { size: 11 }, color: '#888', stepSize: 1 },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+// ── RECENT SCANS TABLE ───────────────────────────────────────────────────────
+function renderTable() {
+  const container = document.getElementById('tableContainer');
+  const display = filteredData.slice(0, 100);
+  document.getElementById('tableCount').textContent =
+    'Showing ' + display.length + ' of ' + filteredData.length + ' records';
+
+  if (display.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>No scan records found for the selected period.</p></div>';
+    return;
+  }
+
+  let rows = display.map(r => {
+    const ts = r.scan_timestamp
+      ? new Date(r.scan_timestamp).toLocaleString('en-ZA', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        })
+      : '—';
+    const sd = r.shift_date || '—';
+    const badgeClass = r.status === 'Active / In Use' ? 'active'
+                     : r.status === 'Under Maintenance' ? 'maintenance'
+                     : 'stored';
+    return `<tr>
+      <td><strong>${r.asset_no || '—'}</strong></td>
+      <td>${r.mechanic || '—'}</td>
+      <td>${r.location || '—'}</td>
+      <td><span class="status-badge ${badgeClass}">${r.status || '—'}</span></td>
+      <td>${ts}</td>
+      <td>${sd}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Asset No</th>
+          <th>Mechanic</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Scan Timestamp</th>
+          <th>Shift Date</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── AUTO REFRESH ──────────────────────────────────────────────────────────────
+function toggleAuto() {
+  autoEnabled = !autoEnabled;
+  const btn   = document.getElementById('autoToggle');
+  const dot   = document.getElementById('liveDot');
+  const label = document.getElementById('liveLabel');
+
+  if (autoEnabled) {
+    btn.classList.add('active');
+    btn.textContent = 'Auto 30s';
+    dot.classList.remove('paused');
+    label.textContent = 'Live';
+    startAutoRefresh();
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = 'Auto off';
+    dot.classList.add('paused');
+    label.textContent = 'Paused';
+    clearInterval(autoInterval);
+  }
+}
+
+function startAutoRefresh() {
+  clearInterval(autoInterval);
+  autoInterval = setInterval(loadData, 30000);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadData();
+startAutoRefresh();
+</script>
+</body>
+</html>
