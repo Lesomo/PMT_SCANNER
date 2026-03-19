@@ -377,6 +377,15 @@ tbody td {
     </div>
   </div>
 
+  <!-- CHART ROW 3: Machine types horizontal bar -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-title">Machine Types Across Factory</div>
+    <div class="chart-sub">Total scanned assets by machine type — ranked highest to lowest</div>
+    <div id="machineTypeChartWrap" style="position:relative;">
+      <canvas id="machineTypeChart"></canvas>
+    </div>
+  </div>
+
   <!-- RECENT SCANS TABLE -->
   <div class="table-card">
     <div class="table-header">
@@ -415,6 +424,7 @@ let autoEnabled = true;
 let locationChart = null;
 let statusChart = null;
 let conditionChart = null;
+let machineTypeChart = null;
 
 // ── FETCH DATA ───────────────────────────────────────────────────────────────
 async function loadData() {
@@ -423,7 +433,7 @@ async function loadData() {
 
   try {
     const res = await fetch(
-      SUPABASE_URL + '/rest/v1/scan_log?select=asset_no,mechanic,location,status,scan_timestamp,shift_date&order=scan_timestamp.desc&limit=1000',
+      SUPABASE_URL + '/rest/v1/scan_log?select=asset_no,machine_type,mechanic,location,status,scan_timestamp,shift_date&order=scan_timestamp.desc&limit=1000',
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -496,6 +506,7 @@ function renderAll() {
   renderLocationChart();
   renderStatusChart();
   renderConditionChart();
+  renderMachineTypeChart();
   renderTable();
 }
 
@@ -653,6 +664,83 @@ function renderConditionChart() {
   });
 }
 
+// ── MACHINE TYPE HORIZONTAL BAR CHART ────────────────────────────────────────
+function renderMachineTypeChart() {
+  // Count all machine types from filtered data
+  const typeCounts = {};
+  filteredData.forEach(r => {
+    const t = r.machine_type || 'Unknown';
+    typeCounts[t] = (typeCounts[t] || 0) + 1;
+  });
+
+  // Sort highest to lowest
+  const sorted = Object.entries(typeCounts)
+    .sort((a, b) => b[1] - a[1]);
+
+  const labels = sorted.map(e => e[0]);
+  const counts = sorted.map(e => e[1]);
+
+  // Dynamic height based on number of types — 28px per bar minimum
+  const barHeight = 28;
+  const chartHeight = Math.max(300, labels.length * barHeight + 60);
+  document.getElementById('machineTypeChartWrap').style.height = chartHeight + 'px';
+
+  // Generate a colour palette — cycle through blues and teals
+  const palette = [
+    '#1F3864','#2E5597','#378ADD','#185FA5','#0C447C',
+    '#0F6E56','#1D9E75','#5DCAA5','#9FE1CB','#3B6D11',
+    '#639922','#97C459','#ED7D31','#C9A84C','#BA7517',
+    '#A32D2D','#D85A30','#E24B4A','#534AB7','#7F77DD',
+  ];
+  const colors = labels.map((_, i) => palette[i % palette.length]);
+
+  const ctx = document.getElementById('machineTypeChart').getContext('2d');
+  if (machineTypeChart) machineTypeChart.destroy();
+
+  machineTypeChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Assets',
+        data: counts,
+        backgroundColor: colors,
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => '  ' + item.raw + ' asset' + (item.raw !== 1 ? 's' : '')
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#f0f2f5' },
+          ticks: { font: { size: 11 }, color: '#888', stepSize: 1 },
+          beginAtZero: true
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            font: { size: 11 },
+            color: '#444',
+            autoSkip: false
+          }
+        }
+      }
+    }
+  });
+}
+
 // ── RECENT SCANS TABLE ───────────────────────────────────────────────────────
 function renderTable() {
   const container = document.getElementById('tableContainer');
@@ -678,6 +766,7 @@ function renderTable() {
                      : 'stored';
     return `<tr>
       <td><strong>${r.asset_no || '—'}</strong></td>
+      <td>${r.machine_type || '—'}</td>
       <td>${r.mechanic || '—'}</td>
       <td>${r.location || '—'}</td>
       <td><span class="status-badge ${badgeClass}">${r.status || '—'}</span></td>
@@ -691,6 +780,7 @@ function renderTable() {
       <thead>
         <tr>
           <th>Asset No</th>
+          <th>Machine Type</th>
           <th>Mechanic</th>
           <th>Location</th>
           <th>Status</th>
@@ -747,7 +837,7 @@ function exportCSV() {
   const btn = document.getElementById('exportBtn');
   btn.textContent = 'Exporting...';
 
-  const headers = ['Asset No', 'Mechanic', 'Location', 'Status', 'Scan Timestamp', 'Shift Date'];
+  const headers = ['Asset No', 'Machine Type', 'Mechanic', 'Location', 'Status', 'Scan Timestamp', 'Shift Date'];
 
   const rows = filteredData.map(r => {
     const ts = r.scan_timestamp
@@ -758,10 +848,11 @@ function exportCSV() {
       : '';
     const sd = r.shift_date || '';
     return [
-      '"' + (r.asset_no  || '').replace(/"/g, '""') + '"',
-      '"' + (r.mechanic  || '').replace(/"/g, '""') + '"',
-      '"' + (r.location  || '').replace(/"/g, '""') + '"',
-      '"' + (r.status    || '').replace(/"/g, '""') + '"',
+      '"' + (r.asset_no     || '').replace(/"/g, '""') + '"',
+      '"' + (r.machine_type || '').replace(/"/g, '""') + '"',
+      '"' + (r.mechanic     || '').replace(/"/g, '""') + '"',
+      '"' + (r.location     || '').replace(/"/g, '""') + '"',
+      '"' + (r.status       || '').replace(/"/g, '""') + '"',
       '"' + ts + '"',
       '"' + sd + '"'
     ].join(',');
@@ -796,4 +887,3 @@ startAutoRefresh();
 </script>
 </body>
 </html>
-
