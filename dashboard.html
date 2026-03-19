@@ -295,6 +295,14 @@ tbody td {
       <span id="liveLabel">Live</span>
     </div>
     <button class="auto-toggle active" id="autoToggle" onclick="toggleAuto()">Auto 30s</button>
+    <button class="refresh-btn" id="exportBtn" onclick="exportCSV()" style="background:rgba(112,173,71,0.25);border-color:rgba(112,173,71,0.5);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="7,10 12,15 17,10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Export CSV
+    </button>
     <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M23 4v6h-6M1 20v-6h6"/>
@@ -729,9 +737,63 @@ function showToast(msg, type) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ── EXPORT CSV ───────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (filteredData.length === 0) {
+    showToast('No data to export.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('exportBtn');
+  btn.textContent = 'Exporting...';
+
+  const headers = ['Asset No', 'Mechanic', 'Location', 'Status', 'Scan Timestamp', 'Shift Date'];
+
+  const rows = filteredData.map(r => {
+    const ts = r.scan_timestamp
+      ? new Date(r.scan_timestamp).toLocaleString('en-ZA', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        })
+      : '';
+    const sd = r.shift_date || '';
+    return [
+      '"' + (r.asset_no  || '').replace(/"/g, '""') + '"',
+      '"' + (r.mechanic  || '').replace(/"/g, '""') + '"',
+      '"' + (r.location  || '').replace(/"/g, '""') + '"',
+      '"' + (r.status    || '').replace(/"/g, '""') + '"',
+      '"' + ts + '"',
+      '"' + sd + '"'
+    ].join(',');
+  });
+
+  const csv = [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const datePart = now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
+  const fileName = 'PMT_Scan_Log_' + datePart + '.csv';
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('Exported ' + filteredData.length + ' records to ' + fileName, 'success');
+
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV`;
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadData();
 startAutoRefresh();
 </script>
 </body>
 </html>
+
