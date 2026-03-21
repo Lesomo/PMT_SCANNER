@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PMT Downtime">
+<meta name="theme-color" content="#1F3864">
+<title>PMT Downtime Tracker</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; color: #1a1a1a; }
+
+.header { background: #1F3864; color: white; padding: 16px; text-align: center; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+.app { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+/* ROLE SELECTOR */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.role-btn { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.role-btn:active { transform: scale(0.97); }
+.role-btn.supervisor:hover, .role-btn.supervisor.active { border-color: #1F3864; background: #EBF3FB; }
+.role-btn.mechanic:hover, .role-btn.mechanic.active { border-color: #70AD47; background: #E2EFDA; }
+.role-icon { font-size: 32px; margin-bottom: 10px; }
+.role-title { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.role-sub { font-size: 11px; color: #888; margin-top: 3px; }
+
+/* SCREENS */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* CARDS */
+.card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+.card-title { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+
+/* FORM */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+select, textarea { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; background: white; transition: border-color 0.2s; font-family: inherit; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer; }
+select:focus, textarea:focus { outline: none; border-color: #2E5597; }
+textarea { min-height: 90px; resize: vertical; }
+
+.asset-confirmed { display: none; align-items: center; gap: 10px; margin-top: 10px; padding: 12px 14px; background: #E2EFDA; border-radius: 10px; border: 1px solid #70AD47; }
+.asset-confirmed .num { font-size: 18px; font-weight: 700; color: #3B6D11; flex: 1; }
+.asset-confirmed .type { font-size: 11px; color: #3B6D11; font-weight: 600; }
+.asset-check { width: 24px; height: 24px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.asset-check svg { width: 13px; height: 13px; stroke: white; fill: none; stroke-width: 2.5; }
+
+.manual-input { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; margin-top: 8px; }
+.manual-input:focus { outline: none; border-color: #2E5597; }
+.or-divider { text-align: center; font-size: 11px; color: #bbb; margin: 8px 0; }
+
+/* SCAN BTN */
+.scan-btn { width: 100%; padding: 15px; border: 2px dashed #2E5597; border-radius: 12px; background: #EBF3FB; color: #2E5597; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.scan-btn.scanning { border-color: #ED7D31; background: #FFF2CC; color: #ED7D31; }
+#readerSup { border-radius: 8px; overflow: hidden; margin-top: 10px; display: none; }
+
+/* SUBMIT BTN */
+.submit-btn { width: 100%; padding: 17px; border: none; border-radius: 14px; color: white; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; }
+.submit-btn.navy { background: #1F3864; }
+.submit-btn.navy:hover { background: #162B4D; }
+.submit-btn.green { background: #70AD47; }
+.submit-btn.green:hover { background: #5A9438; }
+.submit-btn.orange { background: #ED7D31; }
+.submit-btn.orange:hover { background: #D4691E; }
+.submit-btn:disabled { background: #ccc; color: #999; cursor: not-allowed; }
+.submit-btn:active:not(:disabled) { transform: scale(0.98); }
+
+/* BACK BTN */
+.back-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: #2E5597; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; }
+.back-btn svg { width: 16px; height: 16px; stroke: #2E5597; fill: none; stroke-width: 2.5; }
+
+/* SUCCESS */
+.success-screen { text-align: center; padding: 40px 20px; }
+.success-screen .big-check { width: 72px; height: 72px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.success-screen .big-check svg { width: 36px; height: 36px; stroke: white; fill: none; stroke-width: 2.5; }
+.success-screen h2 { font-size: 22px; font-weight: 700; color: #1F3864; }
+.success-screen p { font-size: 13px; color: #666; margin-top: 6px; }
+.next-btn { margin-top: 20px; padding: 14px 32px; background: #1F3864; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+/* JOB CARD LIST */
+.job-card { background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 4px solid #ED7D31; cursor: pointer; transition: background 0.15s; }
+.job-card:hover { background: #fafafa; }
+.job-card.completed { border-left-color: #70AD47; }
+.job-card.investigating { border-left-color: #2E5597; }
+.job-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.job-card-asset { font-size: 16px; font-weight: 700; color: #1F3864; }
+.job-card-line { font-size: 12px; font-weight: 600; color: #888; }
+.job-card-fault { font-size: 13px; color: #444; margin-bottom: 4px; }
+.job-card-meta { font-size: 11px; color: #aaa; }
+.status-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.pill-open { background: #FCE4D6; color: #843C0C; }
+.pill-investigating { background: #DEEAF1; color: #1F497D; }
+.pill-completed { background: #E2EFDA; color: #3B6D11; }
+
+/* SUMMARY CARDS */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.summary-card { background: white; border-radius: 10px; padding: 14px 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.summary-val { font-size: 26px; font-weight: 700; color: #1F3864; }
+.summary-lbl { font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+
+/* DOWNTIME TABLE */
+.dt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dt-table th { text-align: left; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 8px; border-bottom: 2px solid #f0f2f5; }
+.dt-table td { padding: 8px 8px; border-bottom: 1px solid #f5f5f5; color: #333; }
+.dt-table tr:last-child td { border-bottom: none; }
+
+/* SECTION TABS */
+.mech-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.mech-tab { flex: 1; padding: 9px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; color: #666; background: white; transition: all 0.15s; }
+.mech-tab.active { background: #1F3864; color: white; border-color: #1F3864; }
+
+.section { display: none; }
+.section.active { display: block; }
+
+/* DETAIL SCREEN */
+.detail-header { background: #1F3864; color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.detail-asset { font-size: 22px; font-weight: 700; }
+.detail-type { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+.detail-line { font-size: 13px; opacity: 0.85; margin-top: 6px; }
+.detail-fault { font-size: 13px; margin-top: 4px; opacity: 0.9; }
+.detail-time { font-size: 11px; opacity: 0.65; margin-top: 8px; }
+.time-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.time-pill { background: white; border-radius: 8px; padding: 8px 12px; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); flex: 1; min-width: 120px; }
+.time-pill-label { color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
+.time-pill-value { color: #1F3864; font-weight: 600; font-size: 12px; margin-top: 2px; }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 50px 20px; color: #bbb; font-size: 14px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; opacity: 0; transition: all 0.3s; z-index: 999; max-width: 340px; text-align: center; }
+.toast.success { background: #3B6D11; }
+.toast.error { background: #A32D2D; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f2f5; border-top-color: #2E5597; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PMT Downtime Tracker</h1>
+  <p>Production floor incident management</p>
+</div>
+
+<!-- ── HOME: ROLE SELECTOR ────────────────────────────────────────── -->
+<div class="app" id="screenHome">
+  <div class="card" style="margin-top:8px;">
+    <div class="card-title">Select your role</div>
+    <div class="role-grid">
+      <div class="role-btn supervisor" onclick="goScreen('screenSupervisor')">
+        <div class="role-icon">👔</div>
+        <div class="role-title">Supervisor</div>
+        <div class="role-sub">Log a machine down</div>
+      </div>
+      <div class="role-btn mechanic" onclick="loadMechanicScreen()">
+        <div class="role-icon">🔧</div>
+        <div class="role-title">Mechanic</div>
+        <div class="role-sub">View open job cards</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUPERVISOR: LOG DOWNTIME ───────────────────────────────────── -->
+<div class="app screen" id="screenSupervisor">
+  <button class="back-btn" onclick="goScreen('screenHome')">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+    Back
+  </button>
+
+  <div id="supFormView">
+    <div class="card">
+      <div class="card-title">Step 1 — Asset</div>
+      <button class="scan-btn" id="scanBtnSup" onclick="toggleScannerSup()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg>
+        Scan Machine Barcode
+      </button>
+      <div id="readerSup"></div>
+      <div class="or-divider">— or enter manually —</div>
+      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(this.value.trim())">
+      <div class="asset-confirmed" id="supAssetConfirmed">
+        <div style="flex:1">
+          <div class="num" id="supAssetVal"></div>
+          <div class="type" id="supMachineType"></div>
+        </div>
+        <div class="asset-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 2 — Incident details</div>
+      <div class="field">
+        <label>Line</label>
+        <select id="supLine" onchange="checkSupReady()">
+          <option value="">Select line...</option>
+          <option>Line 1</option><option>Line 2</option><option>Line 3</option>
+          <option>Line 4</option><option>Line 5</option><option>Line 6</option>
+          <option>Line 7</option><option>Line 8</option><option>Line 9</option>
+          <option>Line 10</option><option>Line 11</option><option>Line 12</option>
+          <option>Line 13</option><option>Line 14</option><option>Line 15</option>
+          <option>Line 16</option><option>Line 17</option><option>Line 18</option>
+          <option>Line 19</option><option>Line 20</option><option>Line 21</option>
+          <option>Line 22</option><option>Line 23</option><option>Line 24</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fault reported by operator</label>
+        <select id="supFault" onchange="checkSupReady()">
+          <option value="">Select fault...</option>
+          <option>Thread breaking</option>
+          <option>Needle breaking</option>
+          <option>Skipped stitches</option>
+          <option>Machine not feeding</option>
+          <option>Machine not sewing</option>
+          <option>Unusual noise / vibration</option>
+          <option>Machine stopped — error light</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="submit-btn navy" id="supSubmitBtn" onclick="submitDowntime()" disabled>
+      Log Machine Down
+    </button>
+  </div>
+
+  <!-- Success -->
+  <div id="supSuccessView" style="display:none">
+    <div class="card">
+      <div class="success-screen">
+        <div class="big-check"><svg viewBox="0 0 36 36"><polyline points="6,18 14,26 30,10"/></svg></div>
+        <h2>Job Card Created</h2>
+        <p id="supSuccessDetail">Machine logged as down</p>
+        <p style="font-size:12px;color:#aaa;margin-top:8px;">Mechanic has been notified via the app</p>
+        <button class="next-btn" onclick="resetSupervisor()">Log Another</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MECHANIC: JOB CARDS ────────────────────────────────────────── -->
+<div class="app screen" id="screenMechanic">
+  <button class="back-btn" onclick="goScreen('screenHome')">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+    Back
+  </button>
+
+  <div id="mechListView">
+    <!-- Summary -->
+    <div class="summary-grid" id="mechSummary">
+      <div class="summary-card">
+        <div class="summary-val" id="sumOpen">—</div>
+        <div class="summary-lbl">Open</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumInvestigating">—</div>
+        <div class="summary-lbl">Active</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumDone">—</div>
+        <div class="summary-lbl">Done today</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mech-tabs">
+      <div class="mech-tab active" id="tabOpen" onclick="switchMechTab('open')">Open Jobs</div>
+      <div class="mech-tab" id="tabDone" onclick="switchMechTab('done')">Completed</div>
+      <div class="mech-tab" id="tabDowntime" onclick="switchMechTab('downtime')">Downtime</div>
+    </div>
+
+    <!-- Open jobs -->
+    <div class="section active" id="sectionOpen">
+      <div id="openJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </div>
+
+    <!-- Completed -->
+    <div class="section" id="sectionDone">
+      <div id="doneJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </div>
+
+    <!-- Downtime summary -->
+    <div class="section" id="sectionDowntime">
+      <div class="card">
+        <div class="card-title">Total downtime per line — today</div>
+        <div id="downtimeTable"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Job detail view -->
+  <div id="mechDetailView" style="display:none">
+    <button class="back-btn" onclick="backToList()">
+      <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+      Back to job cards
+    </button>
+
+    <div class="detail-header" id="detailHeader"></div>
+
+    <div class="time-row" id="detailTimes"></div>
+
+    <!-- Investigate section -->
+    <div id="investigateSection" style="display:none">
+      <button class="submit-btn navy" id="investigateBtn" onclick="markInvestigate()" style="margin-bottom:14px;">
+        Investigate — Take this job
+      </button>
+    </div>
+
+    <!-- Resolve section -->
+    <div id="resolveSection" style="display:none">
+      <div class="card">
+        <div class="card-title">Resolve job card</div>
+        <div class="field">
+          <label>Your name</label>
+          <select id="mechName">
+            <option value="">Select your name...</option>
+            <option>Ashley</option>
+            <option>Bernard</option>
+            <option>Bradwin</option>
+            <option>Keenan</option>
+            <option>Khanyisa</option>
+            <option>Lele</option>
+            <option>Monray</option>
+            <option>Nur</option>
+            <option>Phillip</option>
+            <option>Phumzi</option>
+            <option>Rameez</option>
+            <option>Ralton</option>
+            <option>Riedaw</option>
+            <option>Wallied</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Error code</label>
+          <select id="mechErrorCode">
+            <option value="">Select error code...</option>
+            <option>Feed system fault</option>
+            <option>Mechanical / timing fault</option>
+            <option>Thread system fault</option>
+            <option>Needle / hook fault</option>
+            <option>Setup / operator error</option>
+            <option>Electrical / sensor fault</option>
+            <option>Other — see comments</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Corrective measures taken</label>
+          <textarea id="mechCorrectiveMeasures" placeholder="Describe what you did to fix the machine..."></textarea>
+        </div>
+        <button class="submit-btn green" id="resolveBtn" onclick="markResolved()">
+          Mark as Resolved
+        </button>
+      </div>
+    </div>
+
+    <!-- Completed view -->
+    <div id="completedSection" style="display:none">
+      <div class="card" id="completedDetails"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
+
+let currentAssetNo = '';
+let currentMachineType = '';
+let currentJobId = null;
+let currentJobData = null;
+let supScanner = null;
+let supScannerActive = false;
+let allJobs = [];
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screenHome') {
+    document.getElementById('screenHome').style.display = 'block';
+  }
+}
+
+function showScreen(id) {
+  document.getElementById('screenHome').style.display = 'none';
+  goScreen(id);
+}
+
+// ── SUPERVISOR SCANNER ────────────────────────────────────────────
+function toggleScannerSup() {
+  if (supScannerActive) stopScannerSup();
+  else startScannerSup();
+}
+
+function startScannerSup() {
+  const btn = document.getElementById('scanBtnSup');
+  btn.classList.add('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
+  document.getElementById('readerSup').style.display = 'block';
+  supScannerActive = true;
+  supScanner = new Html5Qrcode('readerSup');
+  supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
+    (decoded) => {
+      supSetAsset(decoded);
+      document.getElementById('supAssetInput').value = decoded;
+      stopScannerSup();
+      showToast('Barcode scanned!', 'success');
+    }, () => {}
+  ).catch(() => { showToast('Camera blocked. Use manual entry.', 'error'); stopScannerSup(); });
+}
+
+function stopScannerSup() {
+  if (supScanner) { supScanner.stop().catch(() => {}); supScanner = null; }
+  document.getElementById('readerSup').style.display = 'none';
+  const btn = document.getElementById('scanBtnSup');
+  btn.classList.remove('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg> Scan Machine Barcode`;
+  supScannerActive = false;
+}
+
+async function supSetAsset(val) {
+  currentAssetNo = val;
+  const conf = document.getElementById('supAssetConfirmed');
+  if (!val) { conf.style.display = 'none'; checkSupReady(); return; }
+  document.getElementById('supAssetVal').textContent = val;
+  document.getElementById('supMachineType').textContent = 'Looking up...';
+  conf.style.display = 'flex';
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(val) + '&select=asset_type', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    const data = await res.json();
+    currentMachineType = (data.length > 0 && data[0].asset_type) ? data[0].asset_type : 'Unknown';
+  } catch(e) { currentMachineType = 'Unknown'; }
+  document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+  checkSupReady();
+}
+
+function checkSupReady() {
+  const ready = currentAssetNo &&
+    document.getElementById('supLine').value &&
+    document.getElementById('supFault').value;
+  document.getElementById('supSubmitBtn').disabled = !ready;
+}
+
+async function submitDowntime() {
+  const btn = document.getElementById('supSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Logging...';
+  const payload = {
+    asset_no: currentAssetNo,
+    machine_type: currentMachineType,
+    line: document.getElementById('supLine').value,
+    fault: document.getElementById('supFault').value,
+    reported_time: new Date().toISOString(),
+    status: 'Open'
+  };
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok || res.status === 201) {
+      document.getElementById('supFormView').style.display = 'none';
+      document.getElementById('supSuccessView').style.display = 'block';
+      document.getElementById('supSuccessDetail').textContent =
+        currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
+    } else {
+      showToast('Error submitting. Please try again.', 'error');
+      btn.disabled = false; btn.textContent = 'Log Machine Down';
+    }
+  } catch(e) {
+    showToast('Connection error.', 'error');
+    btn.disabled = false; btn.textContent = 'Log Machine Down';
+  }
+}
+
+function resetSupervisor() {
+  currentAssetNo = ''; currentMachineType = '';
+  document.getElementById('supAssetInput').value = '';
+  document.getElementById('supAssetConfirmed').style.display = 'none';
+  document.getElementById('supLine').value = '';
+  document.getElementById('supFault').value = '';
+  document.getElementById('supReportedBy').value = '';
+  document.getElementById('supFormView').style.display = 'block';
+  document.getElementById('supSuccessView').style.display = 'none';
+  document.getElementById('supSubmitBtn').disabled = true;
+  document.getElementById('supSubmitBtn').textContent = 'Log Machine Down';
+}
+
+// ── MECHANIC SCREEN ───────────────────────────────────────────────
+async function loadMechanicScreen() {
+  showScreen('screenMechanic');
+  document.getElementById('mechListView').style.display = 'block';
+  document.getElementById('mechDetailView').style.display = 'none';
+  await fetchJobs();
+}
+
+async function fetchJobs() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    allJobs = await res.json();
+    renderMechanicView();
+  } catch(e) {
+    showToast('Could not load job cards.', 'error');
+  }
+}
+
+function renderMechanicView() {
+  const today = new Date().toISOString().split('T')[0];
+  const open  = allJobs.filter(j => j.status === 'Open');
+  const investigating = allJobs.filter(j => j.status === 'Investigating');
+  const openAndInv = [...open, ...investigating];
+  const done  = allJobs.filter(j => j.status === 'Resolved' && (j.resolved_time || '').startsWith(today));
+
+  document.getElementById('sumOpen').textContent = openAndInv.length;
+  document.getElementById('sumInvestigating').textContent = investigating.length;
+  document.getElementById('sumDone').textContent = done.length;
+
+  // Open jobs list
+  if (openAndInv.length === 0) {
+    document.getElementById('openJobsList').innerHTML = '<div class="empty">No open job cards — all clear!</div>';
+  } else {
+    document.getElementById('openJobsList').innerHTML = openAndInv.map(j => jobCardHTML(j)).join('');
+  }
+
+  // Completed jobs
+  if (done.length === 0) {
+    document.getElementById('doneJobsList').innerHTML = '<div class="empty">No completed jobs today yet.</div>';
+  } else {
+    document.getElementById('doneJobsList').innerHTML = done.map(j => jobCardHTML(j)).join('');
+  }
+
+  // Downtime table
+  renderDowntimeTable(done);
+}
+
+function jobCardHTML(j) {
+  const statusClass = j.status === 'Resolved' ? 'completed' : j.status === 'Investigating' ? 'investigating' : '';
+  const pillClass   = j.status === 'Resolved' ? 'pill-completed' : j.status === 'Investigating' ? 'pill-investigating' : 'pill-open';
+  const time = j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const downtime = j.total_downtime_minutes ? formatMins(j.total_downtime_minutes) : '';
+  return `<div class="job-card ${statusClass}" onclick="openJobDetail(${j.id})">
+    <div class="job-card-top">
+      <div class="job-card-asset">${j.asset_no || '—'}</div>
+      <div><span class="status-pill ${pillClass}">${j.status}</span></div>
+    </div>
+    <div class="job-card-line">${j.line || '—'} &nbsp;|&nbsp; ${j.machine_type || '—'}</div>
+    <div class="job-card-fault">${j.fault || '—'}</div>
+    <div class="job-card-meta">Reported: ${time}${downtime ? ' &nbsp;|&nbsp; Downtime: ' + downtime : ''}</div>
+  </div>`;
+}
+
+function renderDowntimeTable(jobs) {
+  if (jobs.length === 0) {
+    document.getElementById('downtimeTable').innerHTML = '<div class="empty" style="padding:20px;">No completed jobs today.</div>';
+    return;
+  }
+  const byLine = {};
+  jobs.forEach(j => {
+    if (!byLine[j.line]) byLine[j.line] = 0;
+    byLine[j.line] += j.total_downtime_minutes || 0;
+  });
+  const sorted = Object.entries(byLine).sort((a,b) => b[1]-a[1]);
+  let html = '<table class="dt-table"><thead><tr><th>Line</th><th>Incidents</th><th>Total downtime</th></tr></thead><tbody>';
+  sorted.forEach(([line, mins]) => {
+    const count = jobs.filter(j => j.line === line).length;
+    html += `<tr><td><strong>${line}</strong></td><td>${count}</td><td>${formatMins(mins)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('downtimeTable').innerHTML = html;
+}
+
+function formatMins(mins) {
+  if (!mins) return '0min';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}hr ${m}min` : `${m}min`;
+}
+
+function switchMechTab(tab) {
+  document.querySelectorAll('.mech-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('section' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// ── JOB DETAIL ────────────────────────────────────────────────────
+function openJobDetail(id) {
+  currentJobId = id;
+  currentJobData = allJobs.find(j => j.id === id);
+  if (!currentJobData) return;
+  const j = currentJobData;
+
+  document.getElementById('mechListView').style.display = 'none';
+  document.getElementById('mechDetailView').style.display = 'block';
+
+  // Header
+  document.getElementById('detailHeader').innerHTML = `
+    <div class="detail-asset">${j.asset_no}</div>
+    <div class="detail-type">${j.machine_type || ''}</div>
+    <div class="detail-line">${j.line} &nbsp;|&nbsp; <span class="status-pill ${j.status==='Resolved'?'pill-completed':j.status==='Investigating'?'pill-investigating':'pill-open'}">${j.status}</span></div>
+    <div class="detail-fault">Fault: ${j.fault}</div>
+    <div class="detail-time">Reported by ${j.reported_by} at ${j.reported_time ? new Date(j.reported_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '—'}</div>`;
+
+  // Time pills
+  let timesHTML = `<div class="time-pill"><div class="time-pill-label">Reported</div><div class="time-pill-value">${j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—'}</div></div>`;
+  if (j.investigate_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Investigated</div><div class="time-pill-value">${new Date(j.investigate_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  if (j.resolved_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Resolved</div><div class="time-pill-value">${new Date(j.resolved_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  if (j.total_downtime_minutes) timesHTML += `<div class="time-pill" style="background:#FCE4D6;"><div class="time-pill-label">Total downtime</div><div class="time-pill-value" style="color:#843C0C;">${formatMins(j.total_downtime_minutes)}</div></div>`;
+  document.getElementById('detailTimes').innerHTML = timesHTML;
+
+  // Show correct action section
+  document.getElementById('investigateSection').style.display = 'none';
+  document.getElementById('resolveSection').style.display = 'none';
+  document.getElementById('completedSection').style.display = 'none';
+
+  if (j.status === 'Open') {
+    document.getElementById('investigateSection').style.display = 'block';
+  } else if (j.status === 'Investigating') {
+    document.getElementById('resolveSection').style.display = 'block';
+  } else if (j.status === 'Resolved') {
+    document.getElementById('completedSection').style.display = 'block';
+    document.getElementById('completedDetails').innerHTML = `
+      <div class="card-title">Resolution details</div>
+      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Mechanic:</strong> ${j.mechanic || '—'}</p>
+      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Error code:</strong> ${j.error_code || '—'}</p>
+      <p style="font-size:13px;color:#555;margin-bottom:4px;"><strong>Corrective measures:</strong></p>
+      <p style="font-size:13px;color:#333;line-height:1.6;">${j.corrective_measures || '—'}</p>`;
+  }
+}
+
+function backToList() {
+  document.getElementById('mechListView').style.display = 'block';
+  document.getElementById('mechDetailView').style.display = 'none';
+  fetchJobs();
+}
+
+async function markInvestigate() {
+  const btn = document.getElementById('investigateBtn');
+  btn.disabled = true; btn.textContent = 'Updating...';
+  const now = new Date().toISOString();
+  const reported = currentJobData.reported_time ? new Date(currentJobData.reported_time) : new Date();
+  const responseMins = Math.round((new Date(now) - reported) / 60000);
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: 'Investigating', investigate_time: now, response_minutes: responseMins })
+    });
+    if (res.ok) {
+      showToast('Job card taken — go fix it!', 'success');
+      await fetchJobs();
+      currentJobData = allJobs.find(j => j.id === currentJobId);
+      openJobDetail(currentJobId);
+    } else {
+      showToast('Update failed.', 'error');
+      btn.disabled = false; btn.textContent = 'Investigate — Take this job';
+    }
+  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Investigate — Take this job'; }
+}
+
+async function markResolved() {
+  const mechName   = document.getElementById('mechName').value;
+  const errorCode  = document.getElementById('mechErrorCode').value;
+  const corrective = document.getElementById('mechCorrectiveMeasures').value.trim();
+  if (!mechName)   { showToast('Please select your name.', 'error'); return; }
+  if (!errorCode)  { showToast('Please select an error code.', 'error'); return; }
+  if (!corrective) { showToast('Please describe corrective measures.', 'error'); return; }
+
+  const btn = document.getElementById('resolveBtn');
+  btn.disabled = true; btn.textContent = 'Resolving...';
+
+  const now = new Date().toISOString();
+  const reported = currentJobData.reported_time ? new Date(currentJobData.reported_time) : new Date();
+  const investigate = currentJobData.investigate_time ? new Date(currentJobData.investigate_time) : new Date();
+  const totalMins  = Math.round((new Date(now) - reported) / 60000);
+  const repairMins = Math.round((new Date(now) - investigate) / 60000);
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        status: 'Resolved',
+        mechanic: mechName,
+        error_code: errorCode,
+        corrective_measures: corrective,
+        resolved_time: now,
+        repair_minutes: repairMins,
+        total_downtime_minutes: totalMins
+      })
+    });
+    if (res.ok) {
+      showToast('Job card resolved! Downtime: ' + formatMins(totalMins), 'success');
+      await fetchJobs();
+      backToList();
+    } else {
+      showToast('Update failed.', 'error');
+      btn.disabled = false; btn.textContent = 'Mark as Resolved';
+    }
+  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Mark as Resolved'; }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
