@@ -2,517 +2,370 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PMT Downtime">
 <meta name="theme-color" content="#1F3864">
-<title>PMT Asset Tracking Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<title>PMT Downtime Tracker</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; color: #1a1a1a; }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #f0f2f5;
-  color: #1a1a1a;
-  min-height: 100vh;
-}
+.header { background: #1F3864; color: white; padding: 16px; text-align: center; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
 
-/* HEADER */
-.header {
-  background: #1F3864;
-  color: white;
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 60px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-.header-left { display: flex; align-items: center; gap: 12px; }
-.header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.3px; }
-.header-sub { font-size: 12px; opacity: 0.6; margin-top: 1px; }
-.header-right { display: flex; align-items: center; gap: 10px; }
+.app { max-width: 480px; margin: 0 auto; padding: 16px; }
 
-.live-badge {
-  display: flex; align-items: center; gap: 6px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.live-dot {
-  width: 7px; height: 7px;
-  background: #70AD47;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-.live-dot.paused { background: #aaa; animation: none; }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
+/* ROLE SELECTOR */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.role-btn { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.role-btn:active { transform: scale(0.97); }
+.role-btn.supervisor:hover, .role-btn.supervisor.active { border-color: #1F3864; background: #EBF3FB; }
+.role-btn.mechanic:hover, .role-btn.mechanic.active { border-color: #70AD47; background: #E2EFDA; }
+.role-icon { font-size: 32px; margin-bottom: 10px; }
+.role-title { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.role-sub { font-size: 11px; color: #888; margin-top: 3px; }
 
-.refresh-btn {
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 8px;
-  color: white;
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 6px;
-  transition: background 0.2s;
-}
-.refresh-btn:hover { background: rgba(255,255,255,0.25); }
-.refresh-btn svg { width: 14px; height: 14px; }
-.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* SCREENS */
+.screen { display: none; }
+.screen.active { display: block; }
 
-.auto-toggle {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 8px;
-  color: white;
-  padding: 7px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.auto-toggle.active { background: rgba(112,173,71,0.4); border-color: #70AD47; }
+/* CARDS */
+.card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+.card-title { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
 
-/* MAIN LAYOUT */
-.main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+/* FORM */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+select, textarea { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; background: white; transition: border-color 0.2s; font-family: inherit; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer; }
+select:focus, textarea:focus { outline: none; border-color: #2E5597; }
+textarea { min-height: 90px; resize: vertical; }
 
-/* FILTER BAR */
-.filter-bar {
-  background: white;
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 18px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
-.filter-bar label { font-size: 13px; font-weight: 600; color: #555; white-space: nowrap; }
-.filter-bar input[type="date"] {
-  padding: 8px 12px;
-  border: 1.5px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #1a1a1a;
-  background: white;
-  cursor: pointer;
-}
-.filter-bar input[type="date"]:focus { outline: none; border-color: #2E5597; }
-.filter-sep { color: #aaa; font-size: 13px; }
-.filter-clear {
-  padding: 8px 14px;
-  border: 1.5px solid #ddd;
-  border-radius: 8px;
-  background: white;
-  font-size: 13px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.filter-clear:hover { border-color: #2E5597; color: #2E5597; }
-.filter-info { margin-left: auto; font-size: 12px; color: #888; }
+.asset-confirmed { display: none; align-items: center; gap: 10px; margin-top: 10px; padding: 12px 14px; background: #E2EFDA; border-radius: 10px; border: 1px solid #70AD47; }
+.asset-confirmed .num { font-size: 18px; font-weight: 700; color: #3B6D11; flex: 1; }
+.asset-confirmed .type { font-size: 11px; color: #3B6D11; font-weight: 600; }
+.asset-check { width: 24px; height: 24px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.asset-check svg { width: 13px; height: 13px; stroke: white; fill: none; stroke-width: 2.5; }
 
-/* KPI CARDS */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
-}
-.kpi-card {
-  background: white;
-  border-radius: 12px;
-  padding: 18px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  border-left: 4px solid #ddd;
-}
-.kpi-card.blue { border-left-color: #2E5597; }
-.kpi-card.green { border-left-color: #70AD47; }
-.kpi-card.orange { border-left-color: #ED7D31; }
-.kpi-card.grey { border-left-color: #888; }
+.manual-input { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; margin-top: 8px; }
+.manual-input:focus { outline: none; border-color: #2E5597; }
+.or-divider { text-align: center; font-size: 11px; color: #bbb; margin: 8px 0; }
 
-.storage-bar-card {
-  background: white;
-  border-radius: 12px;
-  padding: 14px 20px;
-  margin-bottom: 18px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-.storage-label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
-.storage-track { flex: 1; min-width: 200px; height: 10px; background: #f0f2f5; border-radius: 10px; overflow: hidden; }
-.storage-fill { height: 100%; border-radius: 10px; transition: width 0.6s ease; background: #70AD47; }
-.storage-fill.warn { background: #ED7D31; }
-.storage-fill.danger { background: #C00000; }
-.storage-text { font-size: 13px; font-weight: 600; color: #333; white-space: nowrap; }
-.storage-pct { font-size: 12px; color: #aaa; white-space: nowrap; }
-.kpi-label { font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-.kpi-value { font-size: 32px; font-weight: 700; color: #1a1a1a; line-height: 1; }
-.kpi-sub { font-size: 12px; color: #aaa; margin-top: 4px; }
+/* SCAN BTN */
+.scan-btn { width: 100%; padding: 15px; border: 2px dashed #2E5597; border-radius: 12px; background: #EBF3FB; color: #2E5597; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.scan-btn.scanning { border-color: #ED7D31; background: #FFF2CC; color: #ED7D31; }
+#readerSup { border-radius: 8px; overflow: hidden; margin-top: 10px; display: none; }
 
-/* CHART GRID */
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-.chart-grid.three { grid-template-columns: 2fr 1fr; }
+/* SUBMIT BTN */
+.submit-btn { width: 100%; padding: 17px; border: none; border-radius: 14px; color: white; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; }
+.submit-btn.navy { background: #1F3864; }
+.submit-btn.navy:hover { background: #162B4D; }
+.submit-btn.green { background: #70AD47; }
+.submit-btn.green:hover { background: #5A9438; }
+.submit-btn.orange { background: #ED7D31; }
+.submit-btn.orange:hover { background: #D4691E; }
+.submit-btn:disabled { background: #ccc; color: #999; cursor: not-allowed; }
+.submit-btn:active:not(:disabled) { transform: scale(0.98); }
 
-@media (max-width: 900px) {
-  .chart-grid, .chart-grid.three { grid-template-columns: 1fr; }
-}
+/* BACK BTN */
+.back-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: #2E5597; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; }
+.back-btn svg { width: 16px; height: 16px; stroke: #2E5597; fill: none; stroke-width: 2.5; }
 
-.chart-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
-.chart-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-.chart-sub {
-  font-size: 12px;
-  color: #aaa;
-  margin-bottom: 16px;
-}
-.chart-wrap { position: relative; }
-.chart-wrap.tall { height: 320px; }
-.chart-wrap.medium { height: 260px; }
+/* SUCCESS */
+.success-screen { text-align: center; padding: 40px 20px; }
+.success-screen .big-check { width: 72px; height: 72px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.success-screen .big-check svg { width: 36px; height: 36px; stroke: white; fill: none; stroke-width: 2.5; }
+.success-screen h2 { font-size: 22px; font-weight: 700; color: #1F3864; }
+.success-screen p { font-size: 13px; color: #666; margin-top: 6px; }
+.next-btn { margin-top: 20px; padding: 14px 32px; background: #1F3864; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
 
-/* SCANS TABLE */
-.table-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  margin-bottom: 18px;
-  overflow-x: auto;
-}
-.table-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.table-title { font-size: 14px; font-weight: 600; color: #333; }
-.table-count { font-size: 12px; color: #aaa; }
+/* JOB CARD LIST */
+.job-card { background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 4px solid #ED7D31; cursor: pointer; transition: background 0.15s; }
+.job-card:hover { background: #fafafa; }
+.job-card.completed { border-left-color: #70AD47; }
+.job-card.investigating { border-left-color: #2E5597; }
+.job-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.job-card-asset { font-size: 16px; font-weight: 700; color: #1F3864; }
+.job-card-line { font-size: 12px; font-weight: 600; color: #888; }
+.job-card-fault { font-size: 13px; color: #444; margin-bottom: 4px; }
+.job-card-meta { font-size: 11px; color: #aaa; }
+.status-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.pill-open { background: #FCE4D6; color: #843C0C; }
+.pill-investigating { background: #DEEAF1; color: #1F497D; }
+.pill-completed { background: #E2EFDA; color: #3B6D11; }
 
-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-thead tr { border-bottom: 2px solid #f0f2f5; }
-thead th {
-  text-align: left;
-  font-size: 11px;
-  font-weight: 700;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 8px 12px;
-}
-tbody tr {
-  border-bottom: 1px solid #f5f5f5;
-  transition: background 0.1s;
-}
-tbody tr:hover { background: #fafafa; }
-tbody tr:last-child { border-bottom: none; }
-tbody td {
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #333;
-}
-.status-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-}
-.status-badge.active { background: #E2EFDA; color: #3B6D11; }
-.status-badge.maintenance { background: #FCE4D6; color: #843C0C; }
-.status-badge.stored { background: #DEEAF1; color: #1F497D; }
+/* SUMMARY CARDS */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.summary-card { background: white; border-radius: 10px; padding: 14px 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.summary-val { font-size: 26px; font-weight: 700; color: #1F3864; }
+.summary-lbl { font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
 
-.view-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.view-tab { padding: 7px 18px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; color: #666; background: white; transition: all 0.15s; }
-.view-tab.active { background: #1F3864; color: white; border-color: #1F3864; }
-.view-tab:hover:not(.active) { background: #f5f5f5; }
-.tab-view { display: none; }
-.tab-view.active { display: block; }
+/* DOWNTIME TABLE */
+.dt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dt-table th { text-align: left; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 8px; border-bottom: 2px solid #f0f2f5; }
+.dt-table td { padding: 8px 8px; border-bottom: 1px solid #f5f5f5; color: #333; }
+.dt-table tr:last-child td { border-bottom: none; }
 
-.hm-wrap { overflow-x: auto; }
-.hm-table { border-collapse: separate; border-spacing: 3px; min-width: 700px; }
-.hm-table th { font-size: 11px; font-weight: 600; color: #888; padding: 4px 6px; text-align: center; white-space: nowrap; }
-.hm-table th.row-hdr { text-align: left; min-width: 140px; padding-right: 10px; }
-.hm-cell { width: 40px; height: 34px; border-radius: 4px; text-align: center; vertical-align: middle; font-size: 11px; font-weight: 600; cursor: default; }
-.hm-cell.c-empty { background: #f5f5f5; color: #ccc; }
-.hm-cell.c-all-active { background: #E2EFDA; color: #27500A; }
-.hm-cell.c-mostly { background: #C0DD97; color: #27500A; }
-.hm-cell.c-mixed { background: #FAEEDA; color: #633806; }
-.hm-cell.c-some-maint { background: #F5C4B3; color: #712B13; }
-.hm-cell.c-high-maint { background: #F0997B; color: #4A1B0C; }
-.hm-row-label { font-size: 12px; font-weight: 500; color: #333; padding: 4px 10px 4px 0; white-space: nowrap; }
-.hm-legend { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
-.hm-leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
-.hm-leg-dot { width: 12px; height: 12px; border-radius: 3px; }
+/* SECTION TABS */
+.mech-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.mech-tab { flex: 1; padding: 9px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; color: #666; background: white; transition: all 0.15s; }
+.mech-tab.active { background: #1F3864; color: white; border-color: #1F3864; }
 
-.sl-table { width: 100%; border-collapse: collapse; }
-.sl-table th { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 12px; text-align: left; border-bottom: 2px solid #f0f2f5; }
-.sl-table th.num { text-align: center; }
-.sl-table td { padding: 10px 12px; font-size: 13px; color: #333; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
-.sl-table tr:last-child td { border-bottom: none; }
-.sl-table tr:hover td { background: #fafafa; }
-.count-pill { display: inline-block; min-width: 28px; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-align: center; }
-.pill-a { background: #E2EFDA; color: #27500A; }
-.pill-m { background: #F5C4B3; color: #712B13; }
-.pill-s { background: #DEEAF1; color: #0C447C; }
-.mini-bar-wrap { display: flex; align-items: center; gap: 3px; }
-.mini-bar { height: 8px; border-radius: 2px; min-width: 3px; }
-.mb-a { background: #639922; }
-.mb-m { background: #D85A30; }
-.mb-s { background: #185FA5; }
+.section { display: none; }
+.section.active { display: block; }
 
-.search-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.search-row label { font-size: 13px; font-weight: 600; color: #555; white-space: nowrap; }
-.search-row select { padding: 10px 36px 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; color: #1a1a1a; background: white; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; min-width: 240px; }
-.search-row select:focus { outline: none; border-color: #2E5597; }
-.search-placeholder { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
-.search-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; }
-.search-sub { font-size: 12px; color: #aaa; margin-bottom: 16px; }
+/* DETAIL SCREEN */
+.detail-header { background: #1F3864; color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.detail-asset { font-size: 22px; font-weight: 700; }
+.detail-type { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+.detail-line { font-size: 13px; opacity: 0.85; margin-top: 6px; }
+.detail-fault { font-size: 13px; margin-top: 4px; opacity: 0.9; }
+.detail-time { font-size: 11px; opacity: 0.65; margin-top: 8px; }
+.time-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.time-pill { background: white; border-radius: 8px; padding: 8px 12px; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); flex: 1; min-width: 120px; }
+.time-pill-label { color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
+.time-pill-value { color: #1F3864; font-weight: 600; font-size: 12px; margin-top: 2px; }
 
-/* LOADING / EMPTY */
-.loading-state, .empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #aaa;
-}
-.loading-state .spinner {
-  width: 36px; height: 36px;
-  border: 3px solid #f0f2f5;
-  border-top-color: #2E5597;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 14px;
-}
-.empty-state p { font-size: 14px; }
-
-/* LAST UPDATED */
-.footer {
-  text-align: center;
-  font-size: 12px;
-  color: #bbb;
-  padding: 12px 0 24px;
-}
+/* EMPTY STATE */
+.empty { text-align: center; padding: 50px 20px; color: #bbb; font-size: 14px; }
 
 /* TOAST */
-.toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  padding: 12px 20px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: white;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.3s;
-  z-index: 999;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-}
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; opacity: 0; transition: all 0.3s; z-index: 999; max-width: 340px; text-align: center; }
 .toast.success { background: #3B6D11; }
 .toast.error { background: #A32D2D; }
-.toast.show { opacity: 1; transform: translateY(0); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
+.spinner { width: 28px; height: 28px; border: 3px solid #f0f2f5; border-top-color: #2E5597; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
-  <div class="header-left">
-    <div>
-      <div class="header h1" style="font-size:18px;font-weight:600;">PMT Asset Tracking</div>
-      <div class="header-sub">Production Floor Dashboard</div>
+  <h1>PMT Downtime Tracker</h1>
+  <p>Production floor incident management</p>
+</div>
+
+<!-- ── HOME: ROLE SELECTOR ────────────────────────────────────────── -->
+<div class="app" id="screenHome">
+  <div class="card" style="margin-top:8px;">
+    <div class="card-title">Select your role</div>
+    <div class="role-grid">
+      <div class="role-btn supervisor" onclick="goScreen('screenSupervisor')">
+        <div class="role-icon">👔</div>
+        <div class="role-title">Supervisor</div>
+        <div class="role-sub">Log a machine down</div>
+      </div>
+      <div class="role-btn mechanic" onclick="loadMechanicScreen()">
+        <div class="role-icon">🔧</div>
+        <div class="role-title">Mechanic</div>
+        <div class="role-sub">View open job cards</div>
+      </div>
     </div>
-  </div>
-  <div class="header-right">
-    <div class="live-badge">
-      <div class="live-dot" id="liveDot"></div>
-      <span id="liveLabel">Live</span>
-    </div>
-    <button class="auto-toggle active" id="autoToggle" onclick="toggleAuto()">Auto 30s</button>
-    <button class="refresh-btn" id="exportBtn" onclick="exportCSV()" style="background:rgba(112,173,71,0.25);border-color:rgba(112,173,71,0.5);">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-        <polyline points="7,10 12,15 17,10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Export CSV
-    </button>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M23 4v6h-6M1 20v-6h6"/>
-        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-      </svg>
-      Refresh
-    </button>
   </div>
 </div>
 
-<!-- MAIN -->
-<div class="main">
+<!-- ── SUPERVISOR: LOG DOWNTIME ───────────────────────────────────── -->
+<div class="app screen" id="screenSupervisor">
+  <button class="back-btn" onclick="goScreen('screenHome')">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+    Back
+  </button>
 
-  <!-- FILTER BAR -->
-  <div class="filter-bar">
-    <label>Filter by date:</label>
-    <input type="date" id="dateFrom" onchange="applyFilter()">
-    <span class="filter-sep">to</span>
-    <input type="date" id="dateTo" onchange="applyFilter()">
-    <button class="filter-clear" onclick="clearFilter()">Clear</button>
-    <span class="filter-info" id="filterInfo"></span>
+  <div id="supFormView">
+    <div class="card">
+      <div class="card-title">Step 1 — Asset</div>
+      <button class="scan-btn" id="scanBtnSup" onclick="toggleScannerSup()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg>
+        Scan Machine Barcode
+      </button>
+      <div id="readerSup"></div>
+      <div class="or-divider">— or enter manually —</div>
+      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(this.value.trim())">
+      <div class="asset-confirmed" id="supAssetConfirmed">
+        <div style="flex:1">
+          <div class="num" id="supAssetVal"></div>
+          <div class="type" id="supMachineType"></div>
+        </div>
+        <div class="asset-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 2 — Incident details</div>
+      <div class="field">
+        <label>Line</label>
+        <select id="supLine" onchange="checkSupReady()">
+          <option value="">Select line...</option>
+          <option>Line 1</option><option>Line 2</option><option>Line 3</option>
+          <option>Line 4</option><option>Line 5</option><option>Line 6</option>
+          <option>Line 7</option><option>Line 8</option><option>Line 9</option>
+          <option>Line 10</option><option>Line 11</option><option>Line 12</option>
+          <option>Line 13</option><option>Line 14</option><option>Line 15</option>
+          <option>Line 16</option><option>Line 17</option><option>Line 18</option>
+          <option>Line 19</option><option>Line 20</option><option>Line 21</option>
+          <option>Line 22</option><option>Line 23</option><option>Line 24</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fault reported by operator</label>
+        <select id="supFault" onchange="checkSupReady()">
+          <option value="">Select fault...</option>
+          <option>Thread breaking</option>
+          <option>Needle breaking</option>
+          <option>Skipped stitches</option>
+          <option>Machine not feeding</option>
+          <option>Machine not sewing</option>
+          <option>Unusual noise / vibration</option>
+          <option>Machine stopped — error light</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="submit-btn navy" id="supSubmitBtn" onclick="submitDowntime()" disabled>
+      Log Machine Down
+    </button>
   </div>
 
-  <!-- KPI CARDS -->
-  <div class="kpi-grid">
-    <div class="kpi-card blue">
-      <div class="kpi-label">Total Scanned</div>
-      <div class="kpi-value" id="kpiTotal">—</div>
-      <div class="kpi-sub">all records</div>
-    </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">Active / In Use</div>
-      <div class="kpi-value" id="kpiActive">—</div>
-      <div class="kpi-sub">currently active</div>
-    </div>
-    <div class="kpi-card orange">
-      <div class="kpi-label">Under Maintenance</div>
-      <div class="kpi-value" id="kpiMaint">—</div>
-      <div class="kpi-sub">being serviced</div>
-    </div>
-    <div class="kpi-card grey">
-      <div class="kpi-label">Stored</div>
-      <div class="kpi-value" id="kpiStored">—</div>
-      <div class="kpi-sub">in storage</div>
-    </div>
-  </div>
-
-  <!-- CHARTS ROW 1: Location bar + Status pie -->
-  <div class="chart-grid" style="margin-bottom:16px;">
-    <div class="chart-card">
-      <div class="chart-title">Assets per Location</div>
-      <div class="chart-sub">Total scans by production line and pool</div>
-      <div class="chart-wrap tall">
-        <canvas id="locationChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Assets by Status</div>
-      <div class="chart-sub">Breakdown of current asset conditions</div>
-      <div class="chart-wrap medium" style="display:flex;align-items:center;justify-content:center;">
-        <canvas id="statusChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- STATUS PER LINE: toggling heatmap / table -->
-  <div class="chart-card" style="margin-bottom:16px;">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-      <div>
-        <div class="chart-title">Asset status per line</div>
-        <div class="chart-sub">Toggle between heatmap and table view</div>
-      </div>
-      <div class="view-tabs">
-        <div class="view-tab active" onclick="switchStatusView('heatmap')">Heatmap</div>
-        <div class="view-tab" onclick="switchStatusView('table')">Table</div>
-      </div>
-    </div>
-
-    <!-- Heatmap view -->
-    <div class="tab-view active" id="statusView-heatmap">
-      <div class="hm-legend">
-        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#E2EFDA;"></div> All active</div>
-        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#C0DD97;"></div> Mostly active</div>
-        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#FAEEDA;"></div> Mixed</div>
-        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F5C4B3;"></div> Some maintenance</div>
-        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F0997B;"></div> High maintenance</div>
-        <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#f5f5f5;border:1px solid #ddd;"></div> No assets</div>
-      </div>
-      <div class="hm-wrap" id="heatmapContainer">
-        <div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Loading...</div>
-      </div>
-      <div style="font-size:11px;color:#bbb;margin-top:8px;">Hover over any cell for exact counts</div>
-    </div>
-
-    <!-- Table view -->
-    <div class="tab-view" id="statusView-table">
-      <div style="overflow-x:auto;" id="statusTableContainer">
-        <div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Loading...</div>
+  <!-- Success -->
+  <div id="supSuccessView" style="display:none">
+    <div class="card">
+      <div class="success-screen">
+        <div class="big-check"><svg viewBox="0 0 36 36"><polyline points="6,18 14,26 30,10"/></svg></div>
+        <h2>Job Card Created</h2>
+        <p id="supSuccessDetail">Machine logged as down</p>
+        <p style="font-size:12px;color:#aaa;margin-top:8px;">Mechanic has been notified via the app</p>
+        <button class="next-btn" onclick="resetSupervisor()">Log Another</button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- MACHINE TYPE SEARCH -->
-  <div class="search-section">
-    <div class="search-title">Machine type distribution</div>
-    <div class="search-sub">Select a machine type to see how it is distributed across all lines</div>
-    <div class="search-row">
-      <label>Machine type:</label>
-      <select id="machineTypeSearch" onchange="renderMachineSearch()">
-        <option value="">— Select a machine type —</option>
-      </select>
-    </div>
-    <div id="machineSearchResult">
-      <div class="search-placeholder">Select a machine type above to see its distribution</div>
-    </div>
-  </div>
+<!-- ── MECHANIC: JOB CARDS ────────────────────────────────────────── -->
+<div class="app screen" id="screenMechanic">
+  <button class="back-btn" onclick="goScreen('screenHome')">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+    Back
+  </button>
 
-  <!-- RECENT SCANS TABLE -->
-  <div class="storage-bar-card">
-    <div class="storage-label">Database storage</div>
-    <div class="storage-track">
-      <div class="storage-fill" id="storageFill" style="width:0%"></div>
-    </div>
-    <div class="storage-text" id="storageText">Checking...</div>
-    <div class="storage-pct" id="storagePct"></div>
-  </div>
-
-  <div class="table-card">
-    <div class="table-header">
-      <div>
-        <div class="table-title">Recent Scans</div>
-        <div class="table-count" id="tableCount"></div>
+  <div id="mechListView">
+    <!-- Summary -->
+    <div class="summary-grid" id="mechSummary">
+      <div class="summary-card">
+        <div class="summary-val" id="sumOpen">—</div>
+        <div class="summary-lbl">Open</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumInvestigating">—</div>
+        <div class="summary-lbl">Active</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumDone">—</div>
+        <div class="summary-lbl">Done today</div>
       </div>
     </div>
-    <div id="tableContainer">
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Loading scan data...</p>
+
+    <!-- Tabs -->
+    <div class="mech-tabs">
+      <div class="mech-tab active" id="tabOpen" onclick="switchMechTab('open')">Open Jobs</div>
+      <div class="mech-tab" id="tabDone" onclick="switchMechTab('done')">Completed</div>
+      <div class="mech-tab" id="tabDowntime" onclick="switchMechTab('downtime')">Downtime</div>
+    </div>
+
+    <!-- Open jobs -->
+    <div class="section active" id="sectionOpen">
+      <div id="openJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </div>
+
+    <!-- Completed -->
+    <div class="section" id="sectionDone">
+      <div id="doneJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </div>
+
+    <!-- Downtime summary -->
+    <div class="section" id="sectionDowntime">
+      <div class="card">
+        <div class="card-title">Total downtime per line — today</div>
+        <div id="downtimeTable"><div class="loading"><div class="spinner"></div>Loading...</div></div>
       </div>
     </div>
   </div>
 
-  <div class="footer" id="lastUpdated">Last updated: —</div>
+  <!-- Job detail view -->
+  <div id="mechDetailView" style="display:none">
+    <button class="back-btn" onclick="backToList()">
+      <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+      Back to job cards
+    </button>
+
+    <div class="detail-header" id="detailHeader"></div>
+
+    <div class="time-row" id="detailTimes"></div>
+
+    <!-- Investigate section -->
+    <div id="investigateSection" style="display:none">
+      <button class="submit-btn navy" id="investigateBtn" onclick="markInvestigate()" style="margin-bottom:14px;">
+        Investigate — Take this job
+      </button>
+    </div>
+
+    <!-- Resolve section -->
+    <div id="resolveSection" style="display:none">
+      <div class="card">
+        <div class="card-title">Resolve job card</div>
+        <div class="field">
+          <label>Your name</label>
+          <select id="mechName">
+            <option value="">Select your name...</option>
+            <option>Ashley</option>
+            <option>Bernard</option>
+            <option>Bradwin</option>
+            <option>Keenan</option>
+            <option>Khanyisa</option>
+            <option>Lele</option>
+            <option>Monray</option>
+            <option>Nur</option>
+            <option>Phillip</option>
+            <option>Phumzi</option>
+            <option>Rameez</option>
+            <option>Ralton</option>
+            <option>Riedaw</option>
+            <option>Wallied</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Error code</label>
+          <select id="mechErrorCode">
+            <option value="">Select error code...</option>
+            <option>Feed system fault</option>
+            <option>Mechanical / timing fault</option>
+            <option>Thread system fault</option>
+            <option>Needle / hook fault</option>
+            <option>Setup / operator error</option>
+            <option>Electrical / sensor fault</option>
+            <option>Other — see comments</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Corrective measures taken</label>
+          <textarea id="mechCorrectiveMeasures" placeholder="Describe what you did to fix the machine..."></textarea>
+        </div>
+        <button class="submit-btn green" id="resolveBtn" onclick="markResolved()">
+          Mark as Resolved
+        </button>
+      </div>
+    </div>
+
+    <!-- Completed view -->
+    <div id="completedSection" style="display:none">
+      <div class="card" id="completedDetails"></div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -521,605 +374,366 @@ tbody td {
 const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
 
-const ALL_LOCS = [
-  'Line 1','Line 2','Line 3','Line 4','Line 5','Line 6','Line 7','Line 8',
-  'Line 9','Line 10','Line 11','Line 12','Line 13','Line 14','Line 15',
-  'Line 16','Line 17','Line 18','Line 19','Line 20','Line 21','Line 22','Line 23','Line 24','Pool A','Pool B'
-];
+let currentAssetNo = '';
+let currentMachineType = '';
+let currentJobId = null;
+let currentJobData = null;
+let supScanner = null;
+let supScannerActive = false;
+let allJobs = [];
 
-let allData = [];
-let filteredData = [];
-let autoInterval = null;
-let autoEnabled = true;
-let locationChart = null;
-let statusChart = null;
+// ── NAVIGATION ────────────────────────────────────────────────────
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screenHome') {
+    document.getElementById('screenHome').style.display = 'block';
+  }
+}
 
-// ── FETCH DATA ───────────────────────────────────────────────────────────────
-async function loadData() {
-  const btn = document.getElementById('refreshBtn');
-  btn.classList.add('spinning');
+function showScreen(id) {
+  document.getElementById('screenHome').style.display = 'none';
+  goScreen(id);
+}
+
+// ── SUPERVISOR SCANNER ────────────────────────────────────────────
+function toggleScannerSup() {
+  if (supScannerActive) stopScannerSup();
+  else startScannerSup();
+}
+
+function startScannerSup() {
+  const btn = document.getElementById('scanBtnSup');
+  btn.classList.add('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
+  document.getElementById('readerSup').style.display = 'block';
+  supScannerActive = true;
+  supScanner = new Html5Qrcode('readerSup');
+  supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
+    (decoded) => {
+      supSetAsset(decoded);
+      document.getElementById('supAssetInput').value = decoded;
+      stopScannerSup();
+      showToast('Barcode scanned!', 'success');
+    }, () => {}
+  ).catch(() => { showToast('Camera blocked. Use manual entry.', 'error'); stopScannerSup(); });
+}
+
+function stopScannerSup() {
+  if (supScanner) { supScanner.stop().catch(() => {}); supScanner = null; }
+  document.getElementById('readerSup').style.display = 'none';
+  const btn = document.getElementById('scanBtnSup');
+  btn.classList.remove('scanning');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg> Scan Machine Barcode`;
+  supScannerActive = false;
+}
+
+async function supSetAsset(val) {
+  currentAssetNo = val;
+  const conf = document.getElementById('supAssetConfirmed');
+  if (!val) { conf.style.display = 'none'; checkSupReady(); return; }
+  document.getElementById('supAssetVal').textContent = val;
+  document.getElementById('supMachineType').textContent = 'Looking up...';
+  conf.style.display = 'flex';
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(val) + '&select=asset_type', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    const data = await res.json();
+    if (data.length > 0 && data[0].asset_type) {
+      currentMachineType = data[0].asset_type;
+      document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+    } else {
+      currentMachineType = '';
+      document.getElementById('supMachineType').textContent = 'Not found in master data — check asset number';
+      document.getElementById('supMachineType').style.color = '#C00000';
+    }
+  } catch(e) {
+    currentMachineType = '';
+    document.getElementById('supMachineType').textContent = 'Lookup failed — check connection';
+    document.getElementById('supMachineType').style.color = '#C00000';
+  }
+  checkSupReady();
+}
+
+function checkSupReady() {
+  const ready = currentAssetNo &&
+    document.getElementById('supLine').value &&
+    document.getElementById('supFault').value;
+  document.getElementById('supSubmitBtn').disabled = !ready;
+}
+
+async function submitDowntime() {
+  const btn = document.getElementById('supSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Logging...';
+  const payload = {
+    asset_no: currentAssetNo,
+    machine_type: currentMachineType,
+    line: document.getElementById('supLine').value,
+    fault: document.getElementById('supFault').value,
+    reported_time: new Date().toISOString(),
+    status: 'Open'
+  };
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok || res.status === 201) {
+      document.getElementById('supFormView').style.display = 'none';
+      document.getElementById('supSuccessView').style.display = 'block';
+      document.getElementById('supSuccessDetail').textContent =
+        currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
+    } else {
+      showToast('Error submitting. Please try again.', 'error');
+      btn.disabled = false; btn.textContent = 'Log Machine Down';
+    }
+  } catch(e) {
+    showToast('Connection error.', 'error');
+    btn.disabled = false; btn.textContent = 'Log Machine Down';
+  }
+}
+
+function resetSupervisor() {
+  currentAssetNo = ''; currentMachineType = '';
+  document.getElementById('supAssetInput').value = '';
+  document.getElementById('supAssetConfirmed').style.display = 'none';
+  document.getElementById('supLine').value = '';
+  document.getElementById('supFault').value = '';
+  document.getElementById('supReportedBy').value = '';
+  document.getElementById('supFormView').style.display = 'block';
+  document.getElementById('supSuccessView').style.display = 'none';
+  document.getElementById('supSubmitBtn').disabled = true;
+  document.getElementById('supSubmitBtn').textContent = 'Log Machine Down';
+}
+
+// ── MECHANIC SCREEN ───────────────────────────────────────────────
+async function loadMechanicScreen() {
+  showScreen('screenMechanic');
+  document.getElementById('mechListView').style.display = 'block';
+  document.getElementById('mechDetailView').style.display = 'none';
+  await fetchJobs();
+}
+
+async function fetchJobs() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    allJobs = await res.json();
+    renderMechanicView();
+  } catch(e) {
+    showToast('Could not load job cards.', 'error');
+  }
+}
+
+function renderMechanicView() {
+  const today = new Date().toISOString().split('T')[0];
+  const open  = allJobs.filter(j => j.status === 'Open');
+  const investigating = allJobs.filter(j => j.status === 'Investigating');
+  const openAndInv = [...open, ...investigating];
+  const done  = allJobs.filter(j => j.status === 'Resolved' && (j.resolved_time || '').startsWith(today));
+
+  document.getElementById('sumOpen').textContent = openAndInv.length;
+  document.getElementById('sumInvestigating').textContent = investigating.length;
+  document.getElementById('sumDone').textContent = done.length;
+
+  // Open jobs list
+  if (openAndInv.length === 0) {
+    document.getElementById('openJobsList').innerHTML = '<div class="empty">No open job cards — all clear!</div>';
+  } else {
+    document.getElementById('openJobsList').innerHTML = openAndInv.map(j => jobCardHTML(j)).join('');
+  }
+
+  // Completed jobs
+  if (done.length === 0) {
+    document.getElementById('doneJobsList').innerHTML = '<div class="empty">No completed jobs today yet.</div>';
+  } else {
+    document.getElementById('doneJobsList').innerHTML = done.map(j => jobCardHTML(j)).join('');
+  }
+
+  // Downtime table
+  renderDowntimeTable(done);
+}
+
+function jobCardHTML(j) {
+  const statusClass = j.status === 'Resolved' ? 'completed' : j.status === 'Investigating' ? 'investigating' : '';
+  const pillClass   = j.status === 'Resolved' ? 'pill-completed' : j.status === 'Investigating' ? 'pill-investigating' : 'pill-open';
+  const time = j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const downtime = j.total_downtime_minutes ? formatMins(j.total_downtime_minutes) : '';
+  return `<div class="job-card ${statusClass}" onclick="openJobDetail(${j.id})">
+    <div class="job-card-top">
+      <div class="job-card-asset">${j.asset_no || '—'}</div>
+      <div><span class="status-pill ${pillClass}">${j.status}</span></div>
+    </div>
+    <div class="job-card-line">${j.line || '—'} &nbsp;|&nbsp; ${j.machine_type || '—'}</div>
+    <div class="job-card-fault">${j.fault || '—'}</div>
+    <div class="job-card-meta">Reported: ${time}${downtime ? ' &nbsp;|&nbsp; Downtime: ' + downtime : ''}</div>
+  </div>`;
+}
+
+function renderDowntimeTable(jobs) {
+  if (jobs.length === 0) {
+    document.getElementById('downtimeTable').innerHTML = '<div class="empty" style="padding:20px;">No completed jobs today.</div>';
+    return;
+  }
+  const byLine = {};
+  jobs.forEach(j => {
+    if (!byLine[j.line]) byLine[j.line] = 0;
+    byLine[j.line] += j.total_downtime_minutes || 0;
+  });
+  const sorted = Object.entries(byLine).sort((a,b) => b[1]-a[1]);
+  let html = '<table class="dt-table"><thead><tr><th>Line</th><th>Incidents</th><th>Total downtime</th></tr></thead><tbody>';
+  sorted.forEach(([line, mins]) => {
+    const count = jobs.filter(j => j.line === line).length;
+    html += `<tr><td><strong>${line}</strong></td><td>${count}</td><td>${formatMins(mins)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('downtimeTable').innerHTML = html;
+}
+
+function formatMins(mins) {
+  if (!mins) return '0min';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}hr ${m}min` : `${m}min`;
+}
+
+function switchMechTab(tab) {
+  document.querySelectorAll('.mech-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('section' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// ── JOB DETAIL ────────────────────────────────────────────────────
+function openJobDetail(id) {
+  currentJobId = id;
+  currentJobData = allJobs.find(j => j.id === id);
+  if (!currentJobData) return;
+  const j = currentJobData;
+
+  document.getElementById('mechListView').style.display = 'none';
+  document.getElementById('mechDetailView').style.display = 'block';
+
+  // Header
+  document.getElementById('detailHeader').innerHTML = `
+    <div class="detail-asset">${j.asset_no}</div>
+    <div class="detail-type">${j.machine_type || ''}</div>
+    <div class="detail-line">${j.line} &nbsp;|&nbsp; <span class="status-pill ${j.status==='Resolved'?'pill-completed':j.status==='Investigating'?'pill-investigating':'pill-open'}">${j.status}</span></div>
+    <div class="detail-fault">Fault: ${j.fault}</div>
+    <div class="detail-time">Reported by ${j.reported_by} at ${j.reported_time ? new Date(j.reported_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '—'}</div>`;
+
+  // Time pills
+  let timesHTML = `<div class="time-pill"><div class="time-pill-label">Reported</div><div class="time-pill-value">${j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—'}</div></div>`;
+  if (j.investigate_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Investigated</div><div class="time-pill-value">${new Date(j.investigate_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  if (j.resolved_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Resolved</div><div class="time-pill-value">${new Date(j.resolved_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  if (j.total_downtime_minutes) timesHTML += `<div class="time-pill" style="background:#FCE4D6;"><div class="time-pill-label">Total downtime</div><div class="time-pill-value" style="color:#843C0C;">${formatMins(j.total_downtime_minutes)}</div></div>`;
+  document.getElementById('detailTimes').innerHTML = timesHTML;
+
+  // Show correct action section
+  document.getElementById('investigateSection').style.display = 'none';
+  document.getElementById('resolveSection').style.display = 'none';
+  document.getElementById('completedSection').style.display = 'none';
+
+  if (j.status === 'Open') {
+    document.getElementById('investigateSection').style.display = 'block';
+  } else if (j.status === 'Investigating') {
+    document.getElementById('resolveSection').style.display = 'block';
+  } else if (j.status === 'Resolved') {
+    document.getElementById('completedSection').style.display = 'block';
+    document.getElementById('completedDetails').innerHTML = `
+      <div class="card-title">Resolution details</div>
+      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Mechanic:</strong> ${j.mechanic || '—'}</p>
+      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Error code:</strong> ${j.error_code || '—'}</p>
+      <p style="font-size:13px;color:#555;margin-bottom:4px;"><strong>Corrective measures:</strong></p>
+      <p style="font-size:13px;color:#333;line-height:1.6;">${j.corrective_measures || '—'}</p>`;
+  }
+}
+
+function backToList() {
+  document.getElementById('mechListView').style.display = 'block';
+  document.getElementById('mechDetailView').style.display = 'none';
+  fetchJobs();
+}
+
+async function markInvestigate() {
+  const btn = document.getElementById('investigateBtn');
+  btn.disabled = true; btn.textContent = 'Updating...';
+  const now = new Date().toISOString();
+  const reported = currentJobData.reported_time ? new Date(currentJobData.reported_time) : new Date();
+  const responseMins = Math.round((new Date(now) - reported) / 60000);
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: 'Investigating', investigate_time: now, response_minutes: responseMins })
+    });
+    if (res.ok) {
+      showToast('Job card taken — go fix it!', 'success');
+      await fetchJobs();
+      currentJobData = allJobs.find(j => j.id === currentJobId);
+      openJobDetail(currentJobId);
+    } else {
+      showToast('Update failed.', 'error');
+      btn.disabled = false; btn.textContent = 'Investigate — Take this job';
+    }
+  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Investigate — Take this job'; }
+}
+
+async function markResolved() {
+  const mechName   = document.getElementById('mechName').value;
+  const errorCode  = document.getElementById('mechErrorCode').value;
+  const corrective = document.getElementById('mechCorrectiveMeasures').value.trim();
+  if (!mechName)   { showToast('Please select your name.', 'error'); return; }
+  if (!errorCode)  { showToast('Please select an error code.', 'error'); return; }
+  if (!corrective) { showToast('Please describe corrective measures.', 'error'); return; }
+
+  const btn = document.getElementById('resolveBtn');
+  btn.disabled = true; btn.textContent = 'Resolving...';
+
+  const now = new Date().toISOString();
+  const reported = currentJobData.reported_time ? new Date(currentJobData.reported_time) : new Date();
+  const investigate = currentJobData.investigate_time ? new Date(currentJobData.investigate_time) : new Date();
+  const totalMins  = Math.round((new Date(now) - reported) / 60000);
+  const repairMins = Math.round((new Date(now) - investigate) / 60000);
 
   try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/scan_log?select=asset_no,machine_type,mechanic,location,status,scan_timestamp,shift_date&order=scan_timestamp.desc&limit=1000',
-      {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY
-        }
-      }
-    );
-
-    if (!res.ok) throw new Error('Status ' + res.status);
-
-    allData = await res.json();
-    applyFilter();
-
-    const now = new Date();
-    document.getElementById('lastUpdated').textContent =
-      'Last updated: ' + now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    showToast('Data refreshed — ' + allData.length + ' records', 'success');
-    fetchStorageUsage();
-
-  } catch (e) {
-    showToast('Connection error. Retrying...', 'error');
-  }
-
-  btn.classList.remove('spinning');
-}
-
-// ── FILTER ───────────────────────────────────────────────────────────────────
-function applyFilter() {
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-
-  if (from || to) {
-    filteredData = allData.filter(r => {
-      const d = (r.shift_date || (r.scan_timestamp || '').split('T')[0]);
-      if (from && d < from) return false;
-      if (to   && d > to)   return false;
-      return true;
+    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        status: 'Resolved',
+        mechanic: mechName,
+        error_code: errorCode,
+        corrective_measures: corrective,
+        resolved_time: now,
+        repair_minutes: repairMins,
+        total_downtime_minutes: totalMins
+      })
     });
-    const info = from && to
-      ? 'Showing ' + filteredData.length + ' records from ' + fmt(from) + ' to ' + fmt(to)
-      : from
-        ? 'Showing ' + filteredData.length + ' records from ' + fmt(from)
-        : 'Showing ' + filteredData.length + ' records up to ' + fmt(to);
-    document.getElementById('filterInfo').textContent = info;
-  } else {
-    filteredData = allData;
-    document.getElementById('filterInfo').textContent = '';
-  }
-
-  renderAll();
-}
-
-function fmt(d) {
-  if (!d) return '';
-  const [y,m,day] = d.split('-');
-  return day + '/' + m + '/' + y;
-}
-
-function clearFilter() {
-  document.getElementById('dateFrom').value = '';
-  document.getElementById('dateTo').value = '';
-  filteredData = allData;
-  document.getElementById('filterInfo').textContent = '';
-  renderAll();
-}
-
-// ── RENDER ALL ───────────────────────────────────────────────────────────────
-function renderAll() {
-  renderKPIs();
-  renderLocationChart();
-  renderStatusChart();
-  renderStatusHeatmap();
-  renderStatusTable();
-  populateMachineTypeDropdown();
-  renderMachineSearch();
-  renderTable();
-}
-
-// ── KPIs ─────────────────────────────────────────────────────────────────────
-function renderKPIs() {
-  const d = filteredData;
-  document.getElementById('kpiTotal').textContent  = d.length;
-  document.getElementById('kpiActive').textContent  = d.filter(r => r.status === 'Active / In Use').length;
-  document.getElementById('kpiMaint').textContent   = d.filter(r => r.status === 'Under Maintenance').length;
-  document.getElementById('kpiStored').textContent  = d.filter(r => r.status === 'Stored').length;
-}
-
-// ── LOCATION BAR CHART ───────────────────────────────────────────────────────
-function renderLocationChart() {
-  const counts = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc).length);
-  const ctx = document.getElementById('locationChart').getContext('2d');
-
-  if (locationChart) locationChart.destroy();
-  locationChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ALL_LOCS,
-      datasets: [{
-        label: 'Assets',
-        data: counts,
-        backgroundColor: '#2E5597',
-        borderRadius: 4,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => items[0].label,
-            label: (item) => ' ' + item.raw + ' assets'
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11 }, color: '#888' }
-        },
-        y: {
-          grid: { color: '#f0f2f5' },
-          ticks: { font: { size: 11 }, color: '#888', stepSize: 1 },
-          beginAtZero: true
-        }
-      }
+    if (res.ok) {
+      showToast('Job card resolved! Downtime: ' + formatMins(totalMins), 'success');
+      await fetchJobs();
+      backToList();
+    } else {
+      showToast('Update failed.', 'error');
+      btn.disabled = false; btn.textContent = 'Mark as Resolved';
     }
-  });
+  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Mark as Resolved'; }
 }
 
-// ── STATUS PIE CHART ─────────────────────────────────────────────────────────
-function renderStatusChart() {
-  const active = filteredData.filter(r => r.status === 'Active / In Use').length;
-  const maint  = filteredData.filter(r => r.status === 'Under Maintenance').length;
-  const stored = filteredData.filter(r => r.status === 'Stored').length;
-  const ctx = document.getElementById('statusChart').getContext('2d');
-
-  if (statusChart) statusChart.destroy();
-  statusChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Active / In Use', 'Under Maintenance', 'Stored'],
-      datasets: [{
-        data: [active, maint, stored],
-        backgroundColor: ['#70AD47', '#ED7D31', '#2E5597'],
-        borderWidth: 0,
-        hoverOffset: 6
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '65%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { font: { size: 12 }, padding: 16, usePointStyle: true }
-        },
-        tooltip: {
-          callbacks: {
-            label: (item) => ' ' + item.label + ': ' + item.raw
-          }
-        }
-      }
-    }
-  });
-}
-
-// ── CONDITION PER LOCATION (STACKED BAR) ─────────────────────────────────────
-function switchStatusView(name) {
-  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
-  document.querySelector(`.view-tab[onclick*="${name}"]`).classList.add('active');
-  document.getElementById('statusView-' + name).classList.add('active');
-}
-
-function cellClass(a, m, s) {
-  const total = a + m + s;
-  if (total === 0) return 'c-empty';
-  const mp = m / total;
-  if (mp === 0) return 'c-all-active';
-  if (mp < 0.2) return 'c-mostly';
-  if (mp < 0.4) return 'c-mixed';
-  if (mp < 0.7) return 'c-some-maint';
-  return 'c-high-maint';
-}
-
-function renderStatusHeatmap() {
-  const types = [...new Set(filteredData.map(r => r.machine_type).filter(Boolean))].sort();
-  if (types.length === 0) {
-    document.getElementById('heatmapContainer').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">No data available</div>';
-    return;
-  }
-
-  let html = '<table class="hm-table"><thead><tr><th class="row-hdr">Machine type</th>';
-  ALL_LOCS.forEach(l => { html += `<th>${l.replace('Line ','L').replace('Pool ','P')}</th>`; });
-  html += '</tr></thead><tbody>';
-
-  types.forEach(type => {
-    html += `<tr><td class="hm-row-label">${type}</td>`;
-    ALL_LOCS.forEach(loc => {
-      const recs = filteredData.filter(r => r.machine_type === type && r.location === loc);
-      const a = recs.filter(r => r.status === 'Active / In Use').length;
-      const m = recs.filter(r => r.status === 'Under Maintenance').length;
-      const s = recs.filter(r => r.status === 'Stored').length;
-      const total = a + m + s;
-      const cls = cellClass(a, m, s);
-      const tip = total === 0 ? 'No assets' : `Active:${a} Maint:${m} Stored:${s}`;
-      html += `<td class="hm-cell ${cls}" title="${loc} — ${type}: ${tip}">${total > 0 ? total : ''}</td>`;
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
-  document.getElementById('heatmapContainer').innerHTML = html;
-}
-
-function renderStatusTable() {
-  let html = '<table class="sl-table"><thead><tr><th>Line</th><th class="num">Active</th><th class="num">Maintenance</th><th class="num">Stored</th><th class="num">Total</th><th>Breakdown</th></tr></thead><tbody>';
-  let hasData = false;
-
-  ALL_LOCS.forEach(loc => {
-    const a = filteredData.filter(r => r.location === loc && r.status === 'Active / In Use').length;
-    const m = filteredData.filter(r => r.location === loc && r.status === 'Under Maintenance').length;
-    const s = filteredData.filter(r => r.location === loc && r.status === 'Stored').length;
-    const total = a + m + s;
-    if (total === 0) return;
-    hasData = true;
-    const aW = Math.round((a / total) * 100);
-    const mW = Math.round((m / total) * 100);
-    const sW = 100 - aW - mW;
-    html += `<tr>
-      <td style="font-weight:600;">${loc}</td>
-      <td style="text-align:center;"><span class="count-pill pill-a">${a}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-m">${m}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-s">${s}</span></td>
-      <td style="text-align:center;font-weight:600;">${total}</td>
-      <td><div class="mini-bar-wrap">
-        ${aW > 0 ? `<div class="mini-bar mb-a" style="width:${aW}px;" title="Active: ${a}"></div>` : ''}
-        ${mW > 0 ? `<div class="mini-bar mb-m" style="width:${mW}px;" title="Maintenance: ${m}"></div>` : ''}
-        ${sW > 0 ? `<div class="mini-bar mb-s" style="width:${sW}px;" title="Stored: ${s}"></div>` : ''}
-      </div></td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-
-  if (!hasData) {
-    document.getElementById('statusTableContainer').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">No data available</div>';
-    return;
-  }
-  document.getElementById('statusTableContainer').innerHTML = html;
-}
-
-function populateMachineTypeDropdown() {
-  const types = [...new Set(filteredData.map(r => r.machine_type).filter(Boolean))].sort();
-  const sel = document.getElementById('machineTypeSearch');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Select a machine type —</option>';
-  types.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t; opt.textContent = t;
-    if (t === current) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-
-function renderMachineSearch() {
-  const type = document.getElementById('machineTypeSearch').value;
-  const container = document.getElementById('machineSearchResult');
-  if (!type) {
-    container.innerHTML = '<div class="search-placeholder">Select a machine type above to see its distribution</div>';
-    return;
-  }
-
-  const recs = filteredData.filter(r => r.machine_type === type);
-  const total = recs.length;
-  if (total === 0) {
-    container.innerHTML = `<div class="search-placeholder">No scans found for "${type}" in the selected period</div>`;
-    return;
-  }
-
-  let rows = '';
-  let hasData = false;
-  ALL_LOCS.forEach(loc => {
-    const a = recs.filter(r => r.location === loc && r.status === 'Active / In Use').length;
-    const m = recs.filter(r => r.location === loc && r.status === 'Under Maintenance').length;
-    const s = recs.filter(r => r.location === loc && r.status === 'Stored').length;
-    const t = a + m + s;
-    if (t === 0) return;
-    hasData = true;
-    const pct = Math.round((t / total) * 100);
-    const aW = Math.round((a / t) * 120);
-    const mW = Math.round((m / t) * 120);
-    const sW = 120 - aW - mW;
-    rows += `<tr>
-      <td style="font-weight:600;">${loc}</td>
-      <td style="text-align:center;"><span class="count-pill pill-a">${a}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-m">${m}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-s">${s}</span></td>
-      <td style="text-align:center;font-weight:600;">${t}</td>
-      <td style="font-size:12px;color:#888;">${pct}%</td>
-      <td><div class="mini-bar-wrap">
-        ${aW > 0 ? `<div class="mini-bar mb-a" style="width:${aW}px;"></div>` : ''}
-        ${mW > 0 ? `<div class="mini-bar mb-m" style="width:${mW}px;"></div>` : ''}
-        ${sW > 0 ? `<div class="mini-bar mb-s" style="width:${sW}px;"></div>` : ''}
-      </div></td>
-    </tr>`;
-  });
-
-  if (!hasData) {
-    container.innerHTML = `<div class="search-placeholder">No location data found for "${type}"</div>`;
-    return;
-  }
-
-  container.innerHTML = `
-    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-      <div style="background:#f5f5f5;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Total</div>
-        <div style="font-size:22px;font-weight:700;color:#1a1a1a;">${total}</div>
-      </div>
-      <div style="background:#E2EFDA;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:11px;color:#3B6D11;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Active</div>
-        <div style="font-size:22px;font-weight:700;color:#27500A;">${recs.filter(r=>r.status==='Active / In Use').length}</div>
-      </div>
-      <div style="background:#F5C4B3;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:11px;color:#712B13;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Maintenance</div>
-        <div style="font-size:22px;font-weight:700;color:#4A1B0C;">${recs.filter(r=>r.status==='Under Maintenance').length}</div>
-      </div>
-      <div style="background:#DEEAF1;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:11px;color:#185FA5;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Stored</div>
-        <div style="font-size:22px;font-weight:700;color:#0C447C;">${recs.filter(r=>r.status==='Stored').length}</div>
-      </div>
-    </div>
-    <div style="overflow-x:auto;">
-      <table class="sl-table">
-        <thead><tr>
-          <th>Line</th>
-          <th class="num">Active</th>
-          <th class="num">Maintenance</th>
-          <th class="num">Stored</th>
-          <th class="num">Total</th>
-          <th class="num">Share</th>
-          <th>Breakdown</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-}
-
-
-// ── RECENT SCANS TABLE ───────────────────────────────────────────────────────
-function renderTable() {
-  const container = document.getElementById('tableContainer');
-  const display = filteredData.slice(0, 100);
-  document.getElementById('tableCount').textContent =
-    'Showing ' + display.length + ' of ' + filteredData.length + ' records';
-
-  if (display.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p>No scan records found for the selected period.</p></div>';
-    return;
-  }
-
-  let rows = display.map(r => {
-    const ts = r.scan_timestamp
-      ? new Date(r.scan_timestamp).toLocaleString('en-ZA', {
-          day: '2-digit', month: '2-digit', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit'
-        })
-      : '—';
-    const sd = r.shift_date || '—';
-    const badgeClass = r.status === 'Active / In Use' ? 'active'
-                     : r.status === 'Under Maintenance' ? 'maintenance'
-                     : 'stored';
-    return `<tr>
-      <td><strong>${r.asset_no || '—'}</strong></td>
-      <td>${r.machine_type || '—'}</td>
-      <td>${r.mechanic || '—'}</td>
-      <td>${r.location || '—'}</td>
-      <td><span class="status-badge ${badgeClass}">${r.status || '—'}</span></td>
-      <td>${ts}</td>
-      <td>${sd}</td>
-    </tr>`;
-  }).join('');
-
-  container.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Asset No</th>
-          <th>Machine Type</th>
-          <th>Mechanic</th>
-          <th>Location</th>
-          <th>Status</th>
-          <th>Scan Timestamp</th>
-          <th>Shift Date</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-}
-
-// ── AUTO REFRESH ──────────────────────────────────────────────────────────────
-function toggleAuto() {
-  autoEnabled = !autoEnabled;
-  const btn   = document.getElementById('autoToggle');
-  const dot   = document.getElementById('liveDot');
-  const label = document.getElementById('liveLabel');
-
-  if (autoEnabled) {
-    btn.classList.add('active');
-    btn.textContent = 'Auto 30s';
-    dot.classList.remove('paused');
-    label.textContent = 'Live';
-    startAutoRefresh();
-  } else {
-    btn.classList.remove('active');
-    btn.textContent = 'Auto off';
-    dot.classList.add('paused');
-    label.textContent = 'Paused';
-    clearInterval(autoInterval);
-  }
-}
-
-function startAutoRefresh() {
-  clearInterval(autoInterval);
-  autoInterval = setInterval(loadData, 30000);
-}
-
-// ── TOAST ─────────────────────────────────────────────────────────────────────
+// ── UTILS ─────────────────────────────────────────────────────────
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast ' + type + ' show';
-  setTimeout(() => t.classList.remove('show'), 3000);
+  setTimeout(() => t.classList.remove('show'), 3500);
 }
-
-// ── EXPORT CSV ───────────────────────────────────────────────────────────────
-function exportCSV() {
-  if (filteredData.length === 0) {
-    showToast('No data to export.', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('exportBtn');
-  btn.textContent = 'Exporting...';
-
-  const headers = ['Asset No', 'Machine Type', 'Mechanic', 'Location', 'Status', 'Scan Timestamp', 'Shift Date'];
-
-  const rows = filteredData.map(r => {
-    const ts = r.scan_timestamp
-      ? new Date(r.scan_timestamp).toLocaleString('en-ZA', {
-          day: '2-digit', month: '2-digit', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit'
-        })
-      : '';
-    const sd = r.shift_date || '';
-    return [
-      '"' + (r.asset_no     || '').replace(/"/g, '""') + '"',
-      '"' + (r.machine_type || '').replace(/"/g, '""') + '"',
-      '"' + (r.mechanic     || '').replace(/"/g, '""') + '"',
-      '"' + (r.location     || '').replace(/"/g, '""') + '"',
-      '"' + (r.status       || '').replace(/"/g, '""') + '"',
-      '"' + ts + '"',
-      '"' + sd + '"'
-    ].join(',');
-  });
-
-  const csv = [headers.join(','), ...rows].join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-
-  const now = new Date();
-  const datePart = now.getFullYear() + '-' +
-    String(now.getMonth() + 1).padStart(2, '0') + '-' +
-    String(now.getDate()).padStart(2, '0');
-  const fileName = 'PMT_Scan_Log_' + datePart + '.csv';
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  showToast('Exported ' + filteredData.length + ' records to ' + fileName, 'success');
-
-  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV`;
-}
-
-// ── STORAGE USAGE ─────────────────────────────────────────────────────────────
-async function fetchStorageUsage() {
-  const fillEl  = document.getElementById('storageFill');
-  const textEl  = document.getElementById('storageText');
-  const pctEl   = document.getElementById('storagePct');
-
-  try {
-    // Query Supabase pg_database_size via the rpc endpoint
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/rpc/get_db_size',
-      {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({})
-      }
-    );
-
-    if (res.ok) {
-      const bytes = await res.json();
-      renderStorage(bytes);
-      return;
-    }
-  } catch(e) {}
-
-  // Fallback: estimate from scan count (each row ~500 bytes avg)
-  try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/scan_log?select=id',
-      {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Prefer': 'count=exact',
-          'Range': '0-0'
-        }
-      }
-    );
-    const countHeader = res.headers.get('content-range');
-    if (countHeader) {
-      const total = parseInt(countHeader.split('/')[1]) || 0;
-      // master_data ~11000 rows * 100 bytes + scan rows * 500 bytes
-      const estimatedBytes = (11000 * 100) + (total * 500);
-      renderStorage(estimatedBytes, true);
-      return;
-    }
-  } catch(e) {}
-
-  textEl.textContent = 'Storage data unavailable';
-  pctEl.textContent = '';
-}
-
-function renderStorage(bytes, estimated = false) {
-  const fillEl = document.getElementById('storageFill');
-  const textEl = document.getElementById('storageText');
-  const pctEl  = document.getElementById('storagePct');
-
-  const LIMIT_BYTES = 500 * 1024 * 1024; // 500 MB
-  const usedMB  = (bytes / (1024 * 1024)).toFixed(1);
-  const limitMB = 500;
-  const pct     = Math.min(100, Math.round((bytes / LIMIT_BYTES) * 100));
-  const freeMB  = (limitMB - parseFloat(usedMB)).toFixed(1);
-
-  fillEl.style.width = pct + '%';
-  fillEl.className   = 'storage-fill' + (pct >= 80 ? ' danger' : pct >= 60 ? ' warn' : '');
-
-  textEl.textContent = usedMB + ' MB used of 500 MB' + (estimated ? ' (estimated)' : '');
-  pctEl.textContent  = freeMB + ' MB free — ' + pct + '%';
-
-  if (pct >= 80) {
-    pctEl.style.color = '#C00000';
-    pctEl.textContent += ' ⚠ Consider upgrading Supabase plan';
-  } else if (pct >= 60) {
-    pctEl.style.color = '#ED7D31';
-  } else {
-    pctEl.style.color = '#aaa';
-  }
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-loadData();
-startAutoRefresh();
-fetchStorageUsage();
 </script>
 </body>
 </html>
