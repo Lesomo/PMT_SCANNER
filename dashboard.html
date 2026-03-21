@@ -320,6 +320,16 @@ tbody td {
 .dt-kpi.orange { border-left-color: #ED7D31; }
 .dt-kpi.red { border-left-color: #C00000; }
 
+.repeat-alert { background: #FFF5F5; border: 1px solid #F7C1C1; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+.repeat-alert:last-child { margin-bottom: 0; }
+.repeat-alert-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.repeat-alert-asset { font-size: 15px; font-weight: 700; color: #C00000; }
+.repeat-alert-count { font-size: 11px; font-weight: 700; background: #C00000; color: white; padding: 2px 8px; border-radius: 10px; }
+.repeat-alert-row { font-size: 12px; color: #555; margin-bottom: 3px; display: flex; gap: 8px; align-items: baseline; }
+.repeat-alert-time { font-size: 11px; color: #aaa; }
+.repeat-alert-gap { font-size: 11px; font-weight: 700; color: #ED7D31; background: #FFF2CC; padding: 2px 8px; border-radius: 4px; }
+.repeat-alert-warn { font-size: 11px; color: #C00000; font-style: italic; margin-top: 6px; }
+
 /* Timeline */
 .timeline { position: relative; padding-left: 28px; }
 .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e0e0e0; }
@@ -597,6 +607,28 @@ tbody td {
         <div class="dt-kpi-label">Avg repair time</div>
         <div class="dt-kpi-value" id="dtKpiRepair">—</div>
         <div class="dt-kpi-sub">minutes to resolve</div>
+      </div>
+      <div class="dt-kpi blue">
+        <div class="dt-kpi-label">Avg MTBF today</div>
+        <div class="dt-kpi-value" id="dtKpiMtbf">—</div>
+        <div class="dt-kpi-sub">mins between failures</div>
+      </div>
+      <div class="dt-kpi green">
+        <div class="dt-kpi-label">Operating efficiency</div>
+        <div class="dt-kpi-value" id="dtKpiEfficiency">—</div>
+        <div class="dt-kpi-sub">uptime % today</div>
+      </div>
+    </div>
+
+    <!-- Repeat incidents alert -->
+    <div id="repeatAlertsSection" style="display:none;margin-bottom:16px;">
+      <div class="chart-card" style="border-left:4px solid #C00000;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:10px;height:10px;background:#C00000;border-radius:50%;"></div>
+          <div class="chart-title" style="color:#C00000;margin:0;">Repeat incident alerts</div>
+        </div>
+        <div class="chart-sub" style="margin-bottom:12px;">Assets with multiple incidents today — possible misdiagnosis or cascade failure</div>
+        <div id="repeatAlertsList"></div>
       </div>
     </div>
 
@@ -1391,18 +1423,120 @@ function fmtMins(mins) {
   return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
 }
 
+// Shift operating minutes for a given date
+function getShiftMinutes(dateStr) {
+  if (!dateStr) return 540;
+  const d = new Date(dateStr);
+  const dow = d.getDay(); // 0=Sun, 1=Mon, 5=Fri, 6=Sat
+  if (dow === 5) return 465;  // Friday: 07:45-15:30 = 465 min
+  if (dow === 0 || dow === 6) return 0; // Weekend
+  return 540; // Mon-Thu: 07:45-16:45 = 540 min
+}
+
+function getTodayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
 function renderDtKPIs() {
-  const open = allDowntime.filter(r => r.status === 'Open' || r.status === 'Investigating');
+  const open     = allDowntime.filter(r => r.status === 'Open' || r.status === 'Investigating');
   const resolved = filteredDowntime.filter(r => r.status === 'Resolved');
   const responseTimes = resolved.filter(r => r.response_minutes != null).map(r => r.response_minutes);
   const repairTimes   = resolved.filter(r => r.repair_minutes != null).map(r => r.repair_minutes);
   const avgResponse = responseTimes.length ? Math.round(responseTimes.reduce((a,b)=>a+b,0)/responseTimes.length) : null;
   const avgRepair   = repairTimes.length   ? Math.round(repairTimes.reduce((a,b)=>a+b,0)/repairTimes.length)   : null;
 
-  document.getElementById('dtKpiOpen').textContent     = open.length;
-  document.getElementById('dtKpiTotal').textContent    = filteredDowntime.length;
-  document.getElementById('dtKpiResponse').textContent = avgResponse != null ? avgResponse + ' min' : '—';
-  document.getElementById('dtKpiRepair').textContent   = avgRepair != null ? avgRepair + ' min' : '—';
+  // MTBF — using today's incidents only
+  const today = getTodayStr();
+  const todayResolved = allDowntime.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
+  const shiftMins = getShiftMinutes(today);
+  const totalDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
+  const operatingMins = Math.max(0, shiftMins - totalDowntimeToday);
+  const failures = todayResolved.length;
+  const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
+  const efficiency = shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : null;
+
+  document.getElementById('dtKpiOpen').textContent       = open.length;
+  document.getElementById('dtKpiTotal').textContent      = filteredDowntime.length;
+  document.getElementById('dtKpiResponse').textContent   = avgResponse != null ? avgResponse + ' min' : '—';
+  document.getElementById('dtKpiRepair').textContent     = avgRepair   != null ? avgRepair   + ' min' : '—';
+  document.getElementById('dtKpiMtbf').textContent       = mtbf        != null ? mtbf + ' min' : '—';
+  document.getElementById('dtKpiEfficiency').textContent = efficiency  != null ? efficiency  + '%'    : '—';
+
+  // Colour efficiency KPI by threshold
+  const effEl = document.getElementById('dtKpiEfficiency').closest('.dt-kpi');
+  if (efficiency !== null) {
+    effEl.style.borderLeftColor = efficiency >= 90 ? '#70AD47' : efficiency >= 75 ? '#ED7D31' : '#C00000';
+  }
+
+  renderRepeatAlerts();
+}
+
+function renderRepeatAlerts() {
+  const today = getTodayStr();
+  const todayAll = allDowntime.filter(r => (r.reported_time||'').startsWith(today));
+
+  // Group by asset
+  const byAsset = {};
+  todayAll.forEach(r => {
+    if (!r.asset_no) return;
+    if (!byAsset[r.asset_no]) byAsset[r.asset_no] = [];
+    byAsset[r.asset_no].push(r);
+  });
+
+  // Find assets with 2+ incidents today
+  const repeats = Object.entries(byAsset)
+    .filter(([_, recs]) => recs.length >= 2)
+    .sort((a, b) => b[1].length - a[1].length);
+
+  const section = document.getElementById('repeatAlertsSection');
+  const list    = document.getElementById('repeatAlertsList');
+
+  if (repeats.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  list.innerHTML = repeats.map(([assetNo, recs]) => {
+    // Sort by reported time
+    const sorted = [...recs].sort((a,b) => new Date(a.reported_time) - new Date(b.reported_time));
+    const totalDt = sorted.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
+
+    const rows = sorted.map((r, i) => {
+      const t = r.reported_time ? new Date(r.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const rt = r.resolved_time ? new Date(r.resolved_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : null;
+      let gapHtml = '';
+      if (i > 0 && sorted[i-1].resolved_time && r.reported_time) {
+        const gapMins = Math.round((new Date(r.reported_time) - new Date(sorted[i-1].resolved_time)) / 60000);
+        if (gapMins >= 0) gapHtml = `<span class="repeat-alert-gap">${gapMins} min after last fix</span>`;
+      }
+      return `<div class="repeat-alert-row">
+        <span class="repeat-alert-time">${t}${rt ? ' → ' + rt : ''}</span>
+        <span>${r.fault || '—'}</span>
+        ${r.error_code ? `<span style="color:#888;">/ ${r.error_code}</span>` : ''}
+        ${gapHtml}
+      </div>`;
+    }).join('');
+
+    const warnMsg = sorted.length >= 2 && sorted[0].resolved_time && sorted[1].reported_time
+      ? Math.round((new Date(sorted[1].reported_time) - new Date(sorted[0].resolved_time)) / 60000) < 120
+        ? 'Broke down within 2 hours of last fix — possible misdiagnosis or cascade failure. Recommend full inspection.'
+        : 'Multiple incidents today — monitor closely.'
+      : 'Multiple incidents today — monitor closely.';
+
+    return `<div class="repeat-alert">
+      <div class="repeat-alert-top">
+        <div>
+          <span class="repeat-alert-asset">${assetNo}</span>
+          <span style="font-size:12px;color:#888;margin-left:8px;">${recs[0].machine_type || ''}</span>
+        </div>
+        <span class="repeat-alert-count">${recs.length} incidents today</span>
+      </div>
+      ${rows}
+      ${totalDt > 0 ? `<div style="font-size:11px;color:#843C0C;margin-top:6px;">Total downtime today: ${fmtMins(totalDt)}</div>` : ''}
+      <div class="repeat-alert-warn">${warnMsg}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderOpenIncidents() {
