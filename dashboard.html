@@ -872,7 +872,13 @@ function renderLocationChart() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { font: { size: 11 }, color: '#888' }
+          ticks: {
+            font: { size: 10 },
+            color: '#888',
+            maxRotation: 45,
+            minRotation: 45,
+            autoSkip: false
+          }
         },
         y: {
           grid: { color: '#f0f2f5' },
