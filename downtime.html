@@ -549,16 +549,33 @@ async function submitDowntime() {
 }
 
 function resetSupervisor() {
-  currentAssetNo = ''; currentMachineType = '';
+  // Stop scanner if running
+  if (supScannerActive) stopScannerSup();
+
+  // Reset state
+  currentAssetNo = '';
+  currentMachineType = '';
+
+  // Reset form fields
   document.getElementById('supAssetInput').value = '';
   document.getElementById('supAssetConfirmed').style.display = 'none';
+  document.getElementById('supMachineType').textContent = '';
+  document.getElementById('supMachineType').style.color = '';
   document.getElementById('supLine').value = '';
   document.getElementById('supFault').value = '';
-  document.getElementById('supReportedBy').value = '';
+
+  // Show form, hide success
   document.getElementById('supFormView').style.display = 'block';
   document.getElementById('supSuccessView').style.display = 'none';
-  document.getElementById('supSubmitBtn').disabled = true;
-  document.getElementById('supSubmitBtn').textContent = 'Log Machine Down';
+
+  // Reset submit button
+  const btn = document.getElementById('supSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Log Machine Down';
+
+  // Scroll to top of form
+  document.getElementById('screenSupervisor').scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 // ── MECHANIC SCREEN ───────────────────────────────────────────────
