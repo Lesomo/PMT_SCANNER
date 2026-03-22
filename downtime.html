@@ -341,6 +341,28 @@ textarea { min-height: 90px; resize: vertical; }
           <div style="font-size:15px;font-weight:700;color:#1F3864;margin-top:2px;" id="partsJobMachineType">—</div>
         </div>
 
+        <!-- Mechanic name — captured here so it's on the request -->
+        <div class="field">
+          <label>Your name</label>
+          <select id="partsRequestMechanic">
+            <option value="">Select your name...</option>
+            <option>Ashley</option>
+            <option>Bernard</option>
+            <option>Bradwin</option>
+            <option>Keenan</option>
+            <option>Khanyisa</option>
+            <option>Lele</option>
+            <option>Monray</option>
+            <option>Nur</option>
+            <option>Phillip</option>
+            <option>Phumzi</option>
+            <option>Rameez</option>
+            <option>Ralton</option>
+            <option>Riedaw</option>
+            <option>Wallied</option>
+          </select>
+        </div>
+
         <!-- Existing requests list -->
         <div id="existingRequestsList" style="margin-bottom:12px;"></div>
 
@@ -775,16 +797,6 @@ async function markResolved() {
   const totalMins   = Math.round((new Date(now) - reported)    / 60000);
   const repairMins  = Math.round((new Date(now) - investigate) / 60000);
 
-  // Update mechanic name on any parts requests for this job
-  // (name wasn't known when request was submitted)
-  try {
-    await fetch(SUPABASE_URL + '/rest/v1/parts_requests?job_card_id=eq.' + currentJobId + '&mechanic=eq.', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ mechanic: mechName })
-    });
-  } catch(e) {}
-
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
       method: 'PATCH',
@@ -820,6 +832,7 @@ function showPartsRequest() {
   document.getElementById('partsRequestSection').style.display = 'block';
   const mt = (currentJobData && currentJobData.machine_type) ? currentJobData.machine_type : '—';
   document.getElementById('partsJobMachineType').textContent = mt;
+  document.getElementById('partsRequestMechanic').value = '';
   pendingRequests = [];
   renderExistingRequests();
   document.getElementById('partDescInput').focus();
@@ -832,21 +845,28 @@ function showResolveSection() {
 }
 
 async function submitAndProceed() {
+  const mechName = document.getElementById('partsRequestMechanic').value;
+  if (!mechName) { showToast('Please select your name before submitting.', 'error'); return; }
+
   const btn = document.getElementById('donePartsBtn');
   btn.disabled = true;
   btn.textContent = 'Submitting request...';
 
-  // Submit parts to Supabase immediately so clerk sees them now
+  // Submit parts to Supabase immediately with mechanic name
   if (pendingRequests.length > 0) {
     await submitPartRequests(
       currentJobId,
       currentJobData.asset_no,
       currentJobData.machine_type,
       currentJobData.line,
-      '' // mechanic name not known yet — will be set on resolve
+      mechName
     );
     pendingRequests = [];
   }
+
+  // Pre-fill mechanic name on the resolve screen
+  const resolveSelect = document.getElementById('mechName');
+  if (resolveSelect) resolveSelect.value = mechName;
 
   showToast('Part request sent to workshop!', 'success');
   showResolveSection();
