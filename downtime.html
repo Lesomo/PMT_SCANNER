@@ -359,8 +359,8 @@ textarea { min-height: 90px; resize: vertical; }
         <button class="submit-btn orange" onclick="addPartRequest()" style="margin-bottom:10px;">
           + Add Part Request
         </button>
-        <button class="submit-btn navy" id="donePartsBtn" onclick="showResolveSection()" disabled>
-          Done — Proceed to Resolve
+        <button class="submit-btn navy" id="donePartsBtn" onclick="submitAndProceed()" disabled>
+          Submit Request &amp; Proceed to Resolve
         </button>
       </div>
     </div>
@@ -775,16 +775,15 @@ async function markResolved() {
   const totalMins   = Math.round((new Date(now) - reported)    / 60000);
   const repairMins  = Math.round((new Date(now) - investigate) / 60000);
 
-  // Submit any pending parts requests first
-  if (pendingRequests.length > 0) {
-    await submitPartRequests(
-      currentJobId,
-      currentJobData.asset_no,
-      currentJobData.machine_type,
-      currentJobData.line,
-      mechName
-    );
-  }
+  // Update mechanic name on any parts requests for this job
+  // (name wasn't known when request was submitted)
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/parts_requests?job_card_id=eq.' + currentJobId + '&mechanic=eq.', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ mechanic: mechName })
+    });
+  } catch(e) {}
 
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
@@ -830,6 +829,27 @@ function showResolveSection() {
   document.getElementById('partsDecisionSection').style.display = 'none';
   document.getElementById('partsRequestSection').style.display = 'none';
   document.getElementById('resolveSection').style.display = 'block';
+}
+
+async function submitAndProceed() {
+  const btn = document.getElementById('donePartsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting request...';
+
+  // Submit parts to Supabase immediately so clerk sees them now
+  if (pendingRequests.length > 0) {
+    await submitPartRequests(
+      currentJobId,
+      currentJobData.asset_no,
+      currentJobData.machine_type,
+      currentJobData.line,
+      '' // mechanic name not known yet — will be set on resolve
+    );
+    pendingRequests = [];
+  }
+
+  showToast('Part request sent to workshop!', 'success');
+  showResolveSection();
 }
 
 function renderExistingRequests() {
