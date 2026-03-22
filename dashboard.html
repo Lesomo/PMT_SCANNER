@@ -651,6 +651,26 @@ tbody td {
       </div>
     </div>
 
+    <!-- Top offenders -->
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div>
+          <div class="chart-title">Top offending assets</div>
+          <div class="chart-sub">Top 10 assets by incidents and downtime — based on date filter</div>
+        </div>
+        <div class="view-tabs" style="margin:0;">
+          <div class="view-tab active" onclick="switchOffenderView('incidents')">By incidents</div>
+          <div class="view-tab" onclick="switchOffenderView('downtime')">By downtime</div>
+        </div>
+      </div>
+      <div class="tab-view active" id="offenderView-incidents">
+        <div id="offenderByIncidents"></div>
+      </div>
+      <div class="tab-view" id="offenderView-downtime">
+        <div id="offenderByDowntime"></div>
+      </div>
+    </div>
+
     <!-- Open incidents board -->
     <div class="chart-card" style="margin-bottom:16px;">
       <div class="chart-title">Open incidents</div>
@@ -1587,6 +1607,7 @@ function clearDtFilter() {
 
 function renderDowntime() {
   renderDtKPIs();
+  renderTopOffenders();
   renderOpenIncidents();
   renderDtLineChart();
   renderDtTrendChart();
@@ -1647,6 +1668,102 @@ function renderDtKPIs() {
   }
 
   renderRepeatAlerts();
+}
+
+function switchOffenderView(name) {
+  document.querySelectorAll('#offenderView-incidents, #offenderView-downtime').forEach(el => el.classList.remove('active'));
+  document.getElementById('offenderView-' + name).classList.add('active');
+  document.querySelectorAll('.chart-card .view-tab').forEach(t => {
+    if (t.getAttribute('onclick') && t.getAttribute('onclick').includes('switchOffenderView')) {
+      t.classList.toggle('active', t.getAttribute('onclick').includes(name));
+    }
+  });
+}
+
+function renderTopOffenders() {
+  const resolved = filteredDowntime.filter(r => r.status === 'Resolved');
+
+  // Group by asset
+  const byAsset = {};
+  filteredDowntime.forEach(r => {
+    if (!r.asset_no) return;
+    if (!byAsset[r.asset_no]) {
+      byAsset[r.asset_no] = {
+        asset_no: r.asset_no,
+        machine_type: r.machine_type || '—',
+        incidents: 0,
+        total_downtime: 0,
+        lines: new Set()
+      };
+    }
+    byAsset[r.asset_no].incidents++;
+    byAsset[r.asset_no].total_downtime += r.total_downtime_minutes || 0;
+    if (r.line) byAsset[r.asset_no].lines.add(r.line);
+  });
+
+  const assets = Object.values(byAsset);
+  if (assets.length === 0) {
+    const empty = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No downtime data for selected period</div>';
+    document.getElementById('offenderByIncidents').innerHTML = empty;
+    document.getElementById('offenderByDowntime').innerHTML = empty;
+    return;
+  }
+
+  // Sort by incidents
+  const byInc = [...assets].sort((a,b) => b.incidents - a.incidents).slice(0, 10);
+  // Sort by downtime
+  const byDt  = [...assets].sort((a,b) => b.total_downtime - a.total_downtime).slice(0, 10);
+
+  document.getElementById('offenderByIncidents').innerHTML = offenderTable(byInc, 'incidents');
+  document.getElementById('offenderByDowntime').innerHTML  = offenderTable(byDt, 'downtime');
+}
+
+function offenderTable(assets, sortBy) {
+  const maxVal = sortBy === 'incidents'
+    ? Math.max(...assets.map(a => a.incidents))
+    : Math.max(...assets.map(a => a.total_downtime));
+
+  let html = '<table style="width:100%;border-collapse:collapse;">';
+  html += '<thead><tr style="border-bottom:2px solid #f0f2f5;">';
+  html += '<th style="text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;">Rank</th>';
+  html += '<th style="text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;">Asset</th>';
+  html += '<th style="text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;">Machine type</th>';
+  html += '<th style="text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;">Lines</th>';
+  html += '<th style="text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;">Incidents</th>';
+  html += '<th style="text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;">Downtime</th>';
+  html += '<th style="text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px;min-width:100px;"></th>';
+  html += '</tr></thead><tbody>';
+
+  assets.forEach((a, i) => {
+    const rankColor = i === 0 ? '#C00000' : i === 1 ? '#ED7D31' : i === 2 ? '#C9A84C' : '#888';
+    const barVal = sortBy === 'incidents' ? a.incidents : a.total_downtime;
+    const barPct = maxVal > 0 ? Math.round((barVal / maxVal) * 100) : 0;
+    const barColor = i < 3 ? '#C00000' : i < 6 ? '#ED7D31' : '#2E5597';
+    const lines = [...a.lines].join(', ') || '—';
+
+    html += `<tr style="border-bottom:1px solid #f5f5f5;">
+      <td style="padding:10px 8px;text-align:center;">
+        <span style="font-size:13px;font-weight:700;color:${rankColor};">#${i+1}</span>
+      </td>
+      <td style="padding:10px 8px;font-size:13px;font-weight:700;color:#1F3864;">${a.asset_no}</td>
+      <td style="padding:10px 8px;font-size:12px;color:#555;">${a.machine_type}</td>
+      <td style="padding:10px 8px;font-size:11px;color:#888;">${lines}</td>
+      <td style="padding:10px 8px;text-align:center;">
+        <span style="font-size:13px;font-weight:700;color:#C00000;">${a.incidents}</span>
+      </td>
+      <td style="padding:10px 8px;text-align:center;">
+        <span style="font-size:12px;font-weight:600;color:#ED7D31;">${fmtMins(a.total_downtime)}</span>
+      </td>
+      <td style="padding:10px 8px;">
+        <div style="background:#f0f2f5;border-radius:4px;height:8px;overflow:hidden;">
+          <div style="background:${barColor};height:100%;width:${barPct}%;border-radius:4px;"></div>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  return html;
 }
 
 function renderRepeatAlerts() {
