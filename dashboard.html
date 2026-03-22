@@ -633,9 +633,14 @@ tbody td {
         <div class="dt-kpi-sub">mins between failures</div>
       </div>
       <div class="dt-kpi green">
-        <div class="dt-kpi-label">Operating efficiency</div>
+        <div class="dt-kpi-label">Efficiency today</div>
         <div class="dt-kpi-value" id="dtKpiEfficiency">—</div>
-        <div class="dt-kpi-sub">uptime % today</div>
+        <div class="dt-kpi-sub">uptime % current shift</div>
+      </div>
+      <div class="dt-kpi green">
+        <div class="dt-kpi-label">Avg efficiency</div>
+        <div class="dt-kpi-value" id="dtKpiAvgEfficiency">—</div>
+        <div class="dt-kpi-sub">selected period</div>
       </div>
     </div>
 
@@ -678,8 +683,8 @@ tbody td {
       <div id="openIncidentsList"><div class="loading-state"><div class="spinner"></div><p>Loading...</p></div></div>
     </div>
 
-    <!-- Charts row: downtime per line + trend -->
-    <div class="chart-grid" style="margin-bottom:16px;">
+    <!-- Charts row: downtime per line + downtime trend + efficiency trend -->
+    <div class="chart-grid" style="margin-bottom:16px;grid-template-columns:1fr 1fr 1fr;">
       <div class="chart-card">
         <div class="chart-title">Downtime per line</div>
         <div class="chart-sub">Total downtime minutes by production line</div>
@@ -689,6 +694,11 @@ tbody td {
         <div class="chart-title">Downtime trend</div>
         <div class="chart-sub">Total downtime minutes per day</div>
         <div class="chart-wrap tall"><canvas id="dtTrendChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Efficiency trend</div>
+        <div class="chart-sub">Daily operating efficiency % — weekends excluded</div>
+        <div class="chart-wrap tall"><canvas id="dtEfficiencyChart"></canvas></div>
       </div>
     </div>
 
@@ -1566,6 +1576,7 @@ let allDowntime = [];
 let filteredDowntime = [];
 let dtLineChart = null;
 let dtTrendChart = null;
+let dtEfficiencyChart = null;
 
 async function loadDowntimeData() {
   try {
@@ -1611,6 +1622,7 @@ function renderDowntime() {
   renderOpenIncidents();
   renderDtLineChart();
   renderDtTrendChart();
+  renderDtEfficiencyChart();
   renderFaultHeatmap();
   renderFaultTable();
 }
@@ -1627,9 +1639,10 @@ function getShiftMinutes(dateStr) {
   if (!dateStr) return 540;
   const d = new Date(dateStr);
   const dow = d.getDay(); // 0=Sun, 1=Mon, 5=Fri, 6=Sat
-  if (dow === 5) return 465;  // Friday: 07:45-15:30 = 465 min
-  if (dow === 0 || dow === 6) return 0; // Weekend
-  return 540; // Mon-Thu: 07:45-16:45 = 540 min
+  if (dow === 0) return null;   // Sunday — no shift ever
+  if (dow === 6) return null;   // Saturday — standard is no shift (overtime possible but not default)
+  if (dow === 5) return 465;    // Friday: 07:45-15:30 = 465 min
+  return 540;                   // Mon-Thu: 07:45-16:45 = 540 min
 }
 
 function getTodayStr() {
@@ -1649,21 +1662,45 @@ function renderDtKPIs() {
   const todayResolved = allDowntime.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
   const shiftMins = getShiftMinutes(today);
   const totalDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
-  const operatingMins = Math.max(0, shiftMins - totalDowntimeToday);
+  const operatingMins = shiftMins != null ? Math.max(0, shiftMins - totalDowntimeToday) : 0;
   const failures = todayResolved.length;
   const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
-  const efficiency = shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
+  const noShift = shiftMins === null;
+  const efficiency = noShift ? null : shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
 
-  document.getElementById('dtKpiOpen').textContent       = open.length;
-  document.getElementById('dtKpiTotal').textContent      = filteredDowntime.length;
-  document.getElementById('dtKpiResponse').textContent   = avgResponse != null ? avgResponse + ' min' : '—';
-  document.getElementById('dtKpiRepair').textContent     = avgRepair   != null ? avgRepair   + ' min' : '—';
-  document.getElementById('dtKpiMtbf').textContent       = mtbf != null ? mtbf + ' min' : failures === 0 ? 'No failures' : '—';
-  document.getElementById('dtKpiEfficiency').textContent = efficiency + '%';
+  // Period avg efficiency — calculate per day across filtered data
+  const dayMap = {};
+  filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
+    const d = r.reported_time.split('T')[0];
+    if (!dayMap[d]) dayMap[d] = 0;
+    dayMap[d] += r.total_downtime_minutes || 0;
+  });
+  const dayEfficiencies = Object.entries(dayMap)
+    .map(([d, dtMins]) => {
+      const sm = getShiftMinutes(d);
+      if (!sm) return null;
+      return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
+    })
+    .filter(v => v !== null);
+  const avgEfficiency = dayEfficiencies.length > 0
+    ? Math.round(dayEfficiencies.reduce((a,b) => a+b, 0) / dayEfficiencies.length)
+    : null;
 
-  // Colour efficiency KPI by threshold
+  document.getElementById('dtKpiOpen').textContent           = open.length;
+  document.getElementById('dtKpiTotal').textContent          = filteredDowntime.length;
+  document.getElementById('dtKpiResponse').textContent       = avgResponse != null ? avgResponse + ' min' : '—';
+  document.getElementById('dtKpiRepair').textContent         = avgRepair   != null ? avgRepair   + ' min' : '—';
+  document.getElementById('dtKpiMtbf').textContent           = noShift ? 'No shift' : mtbf != null ? mtbf + ' min' : 'No failures';
+  document.getElementById('dtKpiEfficiency').textContent     = noShift ? 'No shift' : efficiency + '%';
+  document.getElementById('dtKpiAvgEfficiency').textContent  = avgEfficiency != null ? avgEfficiency + '%' : '—';
+
+  // Colour today's efficiency KPI
   const effEl = document.getElementById('dtKpiEfficiency').closest('.dt-kpi');
-  effEl.style.borderLeftColor = efficiency >= 90 ? '#70AD47' : efficiency >= 75 ? '#ED7D31' : '#C00000';
+  effEl.style.borderLeftColor = noShift ? '#888' : efficiency >= 90 ? '#70AD47' : efficiency >= 75 ? '#ED7D31' : '#C00000';
+
+  // Colour period avg efficiency KPI
+  const avgEl = document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi');
+  avgEl.style.borderLeftColor = avgEfficiency == null ? '#888' : avgEfficiency >= 90 ? '#70AD47' : avgEfficiency >= 75 ? '#ED7D31' : '#C00000';
 
   renderRepeatAlerts();
 }
@@ -1907,6 +1944,84 @@ function faultCellClass(count, max) {
   if (pct < 0.5)  return 'c-mixed';
   if (pct < 0.75) return 'c-some-maint';
   return 'c-high-maint';
+}
+
+function renderDtEfficiencyChart() {
+  // Build daily efficiency from filteredDowntime
+  const dayMap = {};
+  filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
+    const d = r.reported_time.split('T')[0];
+    if (!dayMap[d]) dayMap[d] = 0;
+    dayMap[d] += r.total_downtime_minutes || 0;
+  });
+
+  // Get all weekdays in the filtered range
+  const days = Object.keys(dayMap).sort().filter(d => getShiftMinutes(d) !== null);
+
+  if (days.length === 0) {
+    // No data — destroy chart and show placeholder
+    if (dtEfficiencyChart) { dtEfficiencyChart.destroy(); dtEfficiencyChart = null; }
+    return;
+  }
+
+  const efficiencies = days.map(d => {
+    const sm   = getShiftMinutes(d);
+    const dtMins = dayMap[d] || 0;
+    return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
+  });
+
+  const labels = days.map(d => {
+    const p = d.split('-');
+    return p[2] + '/' + p[1];
+  });
+
+  const ctx = document.getElementById('dtEfficiencyChart').getContext('2d');
+  if (dtEfficiencyChart) dtEfficiencyChart.destroy();
+  dtEfficiencyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Efficiency %',
+        data: efficiencies,
+        borderColor: '#70AD47',
+        backgroundColor: 'rgba(112,173,71,0.1)',
+        borderWidth: 2,
+        pointRadius: 5,
+        pointBackgroundColor: efficiencies.map(e =>
+          e >= 90 ? '#70AD47' : e >= 75 ? '#ED7D31' : '#C00000'
+        ),
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: item => ' ' + item.raw + '% efficiency'
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, color: '#888' }
+        },
+        y: {
+          min: 0, max: 100,
+          grid: { color: '#f0f2f5' },
+          ticks: {
+            font: { size: 10 }, color: '#888',
+            callback: val => val + '%'
+          }
+        }
+      }
+    }
+  });
 }
 
 function renderFaultHeatmap() {
