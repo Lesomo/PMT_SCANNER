@@ -2096,26 +2096,28 @@ function renderPendingRequests(pending) {
 async function issuePart(requestId) {
   const req = allRequests.find(r => r.id === requestId);
   if (!req) return;
-  const filtered = req.machine_type ? allInventory.filter(p => p.machine_type === req.machine_type) : allInventory;
-  const options = filtered.map(p =>
-    `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`
-  ).join('');
   const clerkName = getClerkName();
 
   const overlay = document.createElement('div');
   overlay.id = 'issueOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
   overlay.innerHTML = `
-    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">
       <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Issue Part</div>
-      <div style="font-size:13px;color:#666;margin-bottom:16px;">Requested: <strong>${req.part_description||req.part_no}</strong> x${req.quantity}</div>
+      <div style="font-size:13px;color:#666;margin-bottom:4px;">Requested: <strong>${req.part_description||req.part_no||'—'}</strong> x${req.quantity}</div>
+      <div style="font-size:11px;color:#888;margin-bottom:16px;">Asset: ${req.asset_no||'—'} | ${req.machine_type||'—'} | ${req.line||'—'}</div>
+
       <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Match to part number (optional)</label>
-        <select id="issuePartNo" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
-          <option value="">— Select part number —</option>
-          ${options}
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Search &amp; match part number (optional)</label>
+        <input type="text" id="issuePartSearch" placeholder="Type part name or number to search..."
+          oninput="filterIssuePartList()"
+          style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:6px;">
+        <select id="issuePartNo" size="5" style="width:100%;padding:6px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;height:120px;">
+          <option value="">— No part number match —</option>
+          ${allInventory.map(p => `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`).join('')}
         </select>
       </div>
+
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Issuing clerk</label>
         <select id="issueClerkName" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;">
@@ -2125,11 +2127,28 @@ async function issuePart(requestId) {
         </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button onclick="document.getElementById('issueOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
-        <button onclick="confirmIssue(${requestId}, this)" style="padding:12px;background:#70AD47;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Issue</button>
+        <button onclick="document.getElementById('issueOverlay').remove()"
+          style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <button onclick="confirmIssue(${requestId}, this)"
+          style="padding:12px;background:#70AD47;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Issue</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+}
+
+function filterIssuePartList() {
+  const q   = (document.getElementById('issuePartSearch').value || '').trim().toLowerCase();
+  const sel = document.getElementById('issuePartNo');
+  const filtered = q.length < 2
+    ? allInventory
+    : allInventory.filter(p =>
+        (p.description||'').toLowerCase().includes(q) ||
+        (p.part_no||'').toLowerCase().includes(q)
+      );
+  sel.innerHTML = '<option value="">— No part number match —</option>' +
+    filtered.map(p =>
+      `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`
+    ).join('');
 }
 
 async function confirmIssue(requestId, btn) {
