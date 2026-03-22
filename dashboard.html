@@ -330,6 +330,24 @@ tbody td {
 .repeat-alert-gap { font-size: 11px; font-weight: 700; color: #ED7D31; background: #FFF2CC; padding: 2px 8px; border-radius: 4px; }
 .repeat-alert-warn { font-size: 11px; color: #C00000; font-style: italic; margin-top: 6px; }
 
+.req-card { background: white; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; border-left: 4px solid #ED7D31; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.req-card.issued { border-left-color: #70AD47; }
+.req-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.req-part { font-size: 14px; font-weight: 700; color: #1F3864; }
+.req-qty { font-size: 13px; font-weight: 700; color: #2E5597; }
+.req-detail { font-size: 12px; color: #666; margin-bottom: 3px; }
+.req-meta { font-size: 11px; color: #aaa; }
+.issue-btn { padding: 7px 16px; background: #70AD47; border: none; border-radius: 8px; color: white; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.issue-btn:hover { background: #5A9438; }
+
+.low-stock-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+.low-stock-row:last-child { border-bottom: none; }
+.low-stock-name { font-weight: 600; color: #1a1a1a; }
+.low-stock-part { font-size: 11px; color: #888; }
+.stock-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.stock-zero { background: #FCEBEB; color: #A32D2D; }
+.stock-low  { background: #FCE4D6; color: #843C0C; }
+
 /* Timeline */
 .timeline { position: relative; padding-left: 28px; }
 .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e0e0e0; }
@@ -446,6 +464,7 @@ tbody td {
     <div class="dash-tab active" onclick="switchDashTab('assets')">Asset Tracking</div>
     <div class="dash-tab" onclick="switchDashTab('downtime')">Downtime</div>
     <div class="dash-tab" onclick="switchDashTab('lifecycle')">Asset Lifecycle</div>
+    <div class="dash-tab" onclick="switchDashTab('inventory')">Inventory</div>
   </div>
 
   <!-- ═══ ASSET TRACKING PANEL ═══ -->
@@ -741,6 +760,66 @@ tbody td {
     </div>
 
   </div><!-- end panel-lifecycle -->
+
+  <!-- ═══ INVENTORY PANEL ═══ -->
+  <div class="dash-panel" id="panel-inventory">
+
+    <!-- Inventory KPIs -->
+    <div class="dt-kpi-grid">
+      <div class="dt-kpi orange">
+        <div class="dt-kpi-label">Pending requests</div>
+        <div class="dt-kpi-value" id="invKpiPending">—</div>
+        <div class="dt-kpi-sub">awaiting issue</div>
+      </div>
+      <div class="dt-kpi red">
+        <div class="dt-kpi-label">Low stock parts</div>
+        <div class="dt-kpi-value" id="invKpiLowStock">—</div>
+        <div class="dt-kpi-sub">below minimum qty</div>
+      </div>
+      <div class="dt-kpi blue">
+        <div class="dt-kpi-label">Total parts</div>
+        <div class="dt-kpi-value" id="invKpiTotal">—</div>
+        <div class="dt-kpi-sub">in catalogue</div>
+      </div>
+      <div class="dt-kpi green">
+        <div class="dt-kpi-label">Issued today</div>
+        <div class="dt-kpi-value" id="invKpiIssuedToday">—</div>
+        <div class="dt-kpi-sub">parts issued</div>
+      </div>
+    </div>
+
+    <!-- Pending requests — clerk queue -->
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div class="chart-title">Pending part requests</div>
+        <button onclick="loadInventoryData()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:#555;">Refresh</button>
+      </div>
+      <div class="chart-sub">Workshop clerk — tap Issue to confirm part has been handed out</div>
+      <div id="pendingRequestsList" style="margin-top:12px;"><div class="loading-state"><div class="spinner"></div><p>Loading...</p></div></div>
+    </div>
+
+    <!-- Low stock warnings -->
+    <div class="chart-card" style="margin-bottom:16px;" id="lowStockCard">
+      <div class="chart-title" style="color:#C00000;">Low stock warnings</div>
+      <div class="chart-sub">Parts where current stock is at or below minimum quantity</div>
+      <div id="lowStockList" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Most used parts -->
+    <div class="chart-grid" style="margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-title">Most requested parts</div>
+        <div class="chart-sub">Top parts by request count — all time</div>
+        <div class="chart-wrap tall"><canvas id="topPartsChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Parts usage by line</div>
+        <div class="chart-sub">Which lines consume the most parts</div>
+        <div class="chart-wrap tall"><canvas id="partsLineChart"></canvas></div>
+      </div>
+    </div>
+
+  </div><!-- end panel-inventory -->
 
   <!-- STORAGE INDICATOR -->
   <div class="storage-bar-card">
@@ -1822,13 +1901,165 @@ function renderTimelineItem(e) {
   }
 }
 
+// ── INVENTORY ─────────────────────────────────────────────────────────────────
+let allRequests = [];
+let allInventory = [];
+let topPartsChart = null;
+let partsLineChart = null;
+
+async function loadInventoryData() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const [reqRes, invRes] = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/parts_requests?select=*&order=requested_time.desc',
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+      fetch(SUPABASE_URL + '/rest/v1/parts_inventory?select=*&order=description.asc&limit=500',
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } })
+    ]);
+    allRequests  = await reqRes.json();
+    allInventory = await invRes.json();
+    renderInventory();
+  } catch(e) { showToast('Could not load inventory data.', 'error'); }
+}
+
+function renderInventory() {
+  const today = new Date().toISOString().split('T')[0];
+  const pending    = allRequests.filter(r => r.status === 'Pending');
+  const issuedToday = allRequests.filter(r => r.status === 'Issued' && (r.issued_time||'').startsWith(today));
+  const lowStock   = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
+
+  document.getElementById('invKpiPending').textContent    = pending.length;
+  document.getElementById('invKpiLowStock').textContent   = lowStock.length;
+  document.getElementById('invKpiTotal').textContent      = allInventory.length;
+  document.getElementById('invKpiIssuedToday').textContent = issuedToday.length;
+
+  renderPendingRequests(pending);
+  renderLowStock(lowStock);
+  renderTopPartsChart();
+  renderPartsLineChart();
+}
+
+function renderPendingRequests(pending) {
+  const el = document.getElementById('pendingRequestsList');
+  if (pending.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No pending requests — all clear!</div>';
+    return;
+  }
+  el.innerHTML = pending.map(r => {
+    const t = r.requested_time ? new Date(r.requested_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `<div class="req-card">
+      <div class="req-top">
+        <div>
+          <div class="req-part">${r.part_description || r.part_no}</div>
+          <div style="font-size:11px;color:#888;">${r.part_no}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="req-qty">x${r.quantity}</span>
+          <button class="issue-btn" onclick="issuePart(${r.id})">Issue</button>
+        </div>
+      </div>
+      <div class="req-detail">Asset: ${r.asset_no || '—'} &nbsp;|&nbsp; ${r.line || '—'} &nbsp;|&nbsp; ${r.machine_type || '—'}</div>
+      <div class="req-meta">Requested by ${r.mechanic || '—'} at ${t}</div>
+    </div>`;
+  }).join('');
+}
+
+async function issuePart(requestId) {
+  const req = allRequests.find(r => r.id === requestId);
+  if (!req) return;
+
+  const clerkName = prompt('Enter your name (workshop clerk):');
+  if (!clerkName || !clerkName.trim()) return;
+
+  try {
+    // Mark request as issued
+    await fetch(SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + requestId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: 'Issued', issued_time: new Date().toISOString(), issued_by: clerkName.trim() })
+    });
+
+    // Decrement stock quantity
+    const part = allInventory.find(p => p.part_no === req.part_no);
+    if (part && part.stock_qty > 0) {
+      const newQty = Math.max(0, part.stock_qty - req.quantity);
+      await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(req.part_no), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ stock_qty: newQty, updated_at: new Date().toISOString() })
+      });
+    }
+
+    showToast('Part issued successfully!', 'success');
+    await loadInventoryData();
+  } catch(e) { showToast('Issue failed. Try again.', 'error'); }
+}
+
+function renderLowStock(lowStock) {
+  const card = document.getElementById('lowStockCard');
+  const el   = document.getElementById('lowStockList');
+  if (lowStock.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  el.innerHTML = lowStock.map(p => {
+    const badgeClass = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
+    const badgeText  = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
+    return `<div class="low-stock-row">
+      <div>
+        <div class="low-stock-name">${p.description}</div>
+        <div class="low-stock-part">${p.part_no} &nbsp;|&nbsp; ${p.machine_type || '—'} &nbsp;|&nbsp; ${p.supplier || '—'}</div>
+      </div>
+      <span class="stock-badge ${badgeClass}">${badgeText}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTopPartsChart() {
+  const counts = {};
+  allRequests.forEach(r => {
+    const key = r.part_description || r.part_no;
+    counts[key] = (counts[key]||0) + r.quantity;
+  });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const ctx = document.getElementById('topPartsChart').getContext('2d');
+  if (topPartsChart) topPartsChart.destroy();
+  topPartsChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: sorted.map(e=>e[0].length>25?e[0].substring(0,23)+'…':e[0]),
+      datasets: [{ label: 'Qty requested', data: sorted.map(e=>e[1]),
+        backgroundColor: '#2E5597', borderRadius:4, borderSkipped:false }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ grid:{color:'#f0f2f5'}, ticks:{font:{size:10},color:'#888'}, beginAtZero:true },
+               y:{ grid:{display:false}, ticks:{font:{size:10},color:'#444'} } } }
+  });
+}
+
+function renderPartsLineChart() {
+  const counts = {};
+  allRequests.forEach(r => { if (r.line) counts[r.line] = (counts[r.line]||0) + r.quantity; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const ctx = document.getElementById('partsLineChart').getContext('2d');
+  if (partsLineChart) partsLineChart.destroy();
+  partsLineChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: sorted.map(e=>e[0]),
+      datasets: [{ label: 'Parts used', data: sorted.map(e=>e[1]),
+        backgroundColor: '#ED7D31', borderRadius:4, borderSkipped:false }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ grid:{display:false}, ticks:{font:{size:10},color:'#888', maxRotation:45, minRotation:45} },
+               y:{ grid:{color:'#f0f2f5'}, ticks:{font:{size:10},color:'#888'}, beginAtZero:true } } }
+  });
+}
+
 function switchDashTab(tab) {
-  const tabs = ['assets', 'downtime', 'lifecycle'];
-  document.querySelectorAll('.dash-tab').forEach((t, i) => t.classList.toggle('active', tabs[i] === tab));
+  const tabs = ['assets','downtime','lifecycle','inventory'];
+  document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
-  if (tab === 'downtime') loadDowntimeData();
-  if (tab === 'lifecycle') populateLifecycleDropdown();
+  if (tab === 'downtime')   loadDowntimeData();
+  if (tab === 'lifecycle')  populateLifecycleDropdown();
+  if (tab === 'inventory')  loadInventoryData();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
