@@ -335,21 +335,21 @@ textarea { min-height: 90px; resize: vertical; }
       <div class="card" style="margin-bottom:14px;">
         <div class="card-title">Request spare part</div>
 
+        <!-- Machine type display (auto from job card) -->
+        <div style="background:#EBF3FB;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+          <span style="color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Machine type</span>
+          <div style="font-size:15px;font-weight:700;color:#1F3864;margin-top:2px;" id="partsJobMachineType">—</div>
+        </div>
+
         <!-- Existing requests list -->
         <div id="existingRequestsList" style="margin-bottom:12px;"></div>
 
-        <!-- Add new request -->
+        <!-- Add new request — free text -->
         <div class="field">
-          <label>Machine type filter</label>
-          <select id="partsMachineFilter" onchange="filterPartsList()">
-            <option value="">All machine types</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Part</label>
-          <select id="partSelect">
-            <option value="">Select part...</option>
-          </select>
+          <label>Part description</label>
+          <input type="text" id="partDescInput" placeholder="e.g. Feed dog, Needle bar, Bobbin case..."
+            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;"
+            onkeydown="if(event.key==='Enter'){addPartRequest();}">
         </div>
         <div class="field">
           <label>Quantity</label>
@@ -797,53 +797,16 @@ async function markResolved() {
 }
 
 // ── PARTS ─────────────────────────────────────────────────────────
-let allParts = [];
-let pendingRequests = []; // requests added this session before submit
-
-async function loadParts() {
-  if (allParts.length > 0) return;
-  try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/parts_inventory?select=part_no,description,machine_type,stock_qty&order=machine_type.asc,description.asc&limit=500',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-    );
-    allParts = await res.json();
-    populateMachineFilter();
-    filterPartsList();
-  } catch(e) { showToast('Could not load parts list.', 'error'); }
-}
-
-function populateMachineFilter() {
-  const types = [...new Set(allParts.map(p => p.machine_type).filter(Boolean))].sort();
-  const sel = document.getElementById('partsMachineFilter');
-  sel.innerHTML = '<option value="">All machine types</option>';
-  types.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t; opt.textContent = t;
-    sel.appendChild(opt);
-  });
-}
-
-function filterPartsList() {
-  const filter = document.getElementById('partsMachineFilter').value;
-  const filtered = filter ? allParts.filter(p => p.machine_type === filter) : allParts;
-  const sel = document.getElementById('partSelect');
-  sel.innerHTML = '<option value="">Select part...</option>';
-  filtered.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.part_no;
-    opt.textContent = p.description + ' (' + p.part_no + ')' + (p.stock_qty === 0 ? ' — OUT OF STOCK' : '');
-    opt.dataset.description = p.description;
-    opt.dataset.stock = p.stock_qty;
-    sel.appendChild(opt);
-  });
-}
+let pendingRequests = [];
 
 function showPartsRequest() {
   document.getElementById('partsDecisionSection').style.display = 'none';
   document.getElementById('partsRequestSection').style.display = 'block';
-  loadParts();
+  const mt = (currentJobData && currentJobData.machine_type) ? currentJobData.machine_type : '—';
+  document.getElementById('partsJobMachineType').textContent = mt;
+  pendingRequests = [];
   renderExistingRequests();
+  document.getElementById('partDescInput').focus();
 }
 
 function showResolveSection() {
@@ -864,29 +827,21 @@ function renderExistingRequests() {
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f5f5;border-radius:8px;margin-bottom:6px;font-size:13px;">
         <div>
           <strong>${r.description}</strong>
-          <span style="color:#888;font-size:11px;"> (${r.part_no})</span>
           <span style="color:#2E5597;font-weight:600;margin-left:8px;">x${r.quantity}</span>
         </div>
-        <button onclick="removePartRequest(${i})" style="background:none;border:none;color:#C00000;font-size:16px;cursor:pointer;padding:0 4px;">×</button>
+        <button onclick="removePartRequest(${i})" style="background:none;border:none;color:#C00000;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;">x</button>
       </div>`).join('') + '</div>';
   document.getElementById('donePartsBtn').disabled = false;
 }
 
 function addPartRequest() {
-  const sel = document.getElementById('partSelect');
-  const qty = parseInt(document.getElementById('partQty').value) || 1;
-  if (!sel.value) { showToast('Please select a part.', 'error'); return; }
-  const opt = sel.options[sel.selectedIndex];
-  if (opt.dataset.stock === '0') {
-    if (!confirm('This part is OUT OF STOCK. Submit request anyway?')) return;
-  }
-  // Prevent duplicate part in same session
-  if (pendingRequests.find(r => r.part_no === sel.value)) {
-    showToast('This part is already in your request list.', 'error'); return;
-  }
-  pendingRequests.push({ part_no: sel.value, description: opt.dataset.description, quantity: qty });
-  sel.value = '';
+  const desc = document.getElementById('partDescInput').value.trim();
+  const qty  = parseInt(document.getElementById('partQty').value) || 1;
+  if (!desc) { showToast('Please describe the part needed.', 'error'); return; }
+  pendingRequests.push({ description: desc, part_no: '', quantity: qty });
+  document.getElementById('partDescInput').value = '';
   document.getElementById('partQty').value = 1;
+  document.getElementById('partDescInput').focus();
   renderExistingRequests();
   showToast('Part added to request.', 'success');
 }
@@ -904,7 +859,7 @@ async function submitPartRequests(jobId, assetNo, machineType, line, mechName) {
     machine_type: machineType,
     line: line,
     mechanic: mechName,
-    part_no: r.part_no,
+    part_no: '',
     part_description: r.description,
     quantity: r.quantity,
     status: 'Pending',
@@ -916,7 +871,7 @@ async function submitPartRequests(jobId, assetNo, machineType, line, mechName) {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
       body: JSON.stringify(payloads)
     });
-  } catch(e) { console.error('Parts request submit error', e); }
+  } catch(e) { console.error('Parts submit error', e); }
 }
 
 async function loadCompletedParts(jobId) {
@@ -929,19 +884,142 @@ async function loadCompletedParts(jobId) {
     const el = document.getElementById('completedParts');
     if (parts.length === 0) { el.style.display = 'none'; return; }
     el.style.display = 'block';
-    el.innerHTML = '<div class="card-title">Parts used</div>' +
-      parts.map(p => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;">
-          <div>
-            <strong>${p.part_description}</strong>
-            <span style="color:#888;font-size:11px;"> (${p.part_no})</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span style="color:#2E5597;font-weight:600;">x${p.quantity}</span>
+    el.innerHTML = '<div class="card-title">Parts issued</div>' +
+      parts.map(p => {
+        const consumed = p.quantity_consumed || 0;
+        const returned = p.quantity_returned || 0;
+        const canReturn = p.status === 'Issued' && (p.quantity - returned) > 0;
+        const remaining = p.quantity - returned;
+        return `
+        <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div>
+              <strong style="font-size:13px;">${p.part_description || '—'}</strong>
+              ${p.part_no ? '<span style="color:#888;font-size:11px;"> (' + p.part_no + ')</span>' : ''}
+            </div>
             <span class="status-pill ${p.status === 'Issued' ? 'pill-completed' : 'pill-open'}">${p.status}</span>
           </div>
-        </div>`).join('');
+          <div style="font-size:11px;color:#666;display:flex;gap:12px;flex-wrap:wrap;">
+            <span>Issued: <strong>x${p.quantity}</strong></span>
+            ${consumed > 0 ? '<span style="color:#3B6D11;">Used: <strong>x' + consumed + '</strong></span>' : ''}
+            ${returned > 0 ? '<span style="color:#ED7D31;">Returned: <strong>x' + returned + '</strong></span>' : ''}
+          </div>
+          ${canReturn ? `<button onclick="showReturnForm(${p.id}, '${(p.part_description||'').replace(/'/g,"\\'")}', ${remaining}, '${p.part_no||''}')"
+            style="margin-top:8px;padding:6px 14px;background:#ED7D31;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;">
+            Return Part
+          </button>` : ''}
+        </div>`;
+      }).join('');
   } catch(e) {}
+}
+
+function showReturnForm(requestId, partDesc, maxQty, partNo) {
+  const overlay = document.createElement('div');
+  overlay.id = 'returnOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:420px;">
+      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Return Part</div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px;"><strong>${partDesc}</strong> — up to x${maxQty} available to return</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Quantity to return</label>
+        <input type="number" id="returnQty" value="${maxQty}" min="1" max="${maxQty}"
+          style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Reason for return</label>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Wrong part issued"> Wrong part issued</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Not needed"> Not needed</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Partial return"> Partial return</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Faulty / defective"> Faulty / defective <span style="font-size:10px;color:#888;"> — awaiting supplier</span></label>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="document.getElementById('returnOverlay').remove()"
+          style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <button onclick="submitReturn(${requestId}, '${partDesc.replace(/'/g,"\\'")}', ${maxQty}, '${partNo}')"
+          style="padding:12px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Submit Return</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitReturn(requestId, partDesc, maxQty, partNo) {
+  const qty = parseInt(document.getElementById('returnQty').value) || 1;
+  const reasonEl = document.querySelector('input[name="returnReason"]:checked');
+  if (!reasonEl) { showToast('Please select a return reason.', 'error'); return; }
+  const reason = reasonEl.value;
+  if (qty < 1 || qty > maxQty) { showToast('Invalid quantity.', 'error'); return; }
+
+  const isFaulty   = reason === 'Faulty / defective';
+  const restoreStock = !isFaulty;
+  const consumed   = maxQty - qty;
+
+  try {
+    // Get request details
+    const reqRes = await fetch(
+      SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + requestId + '&select=*',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    const reqData = await reqRes.json();
+    const req = reqData[0];
+
+    // Create return record
+    const returnPayload = {
+      request_id: requestId,
+      job_card_id: req.job_card_id,
+      asset_no: req.asset_no,
+      machine_type: req.machine_type,
+      line: req.line,
+      part_no: partNo || req.part_no || '',
+      part_description: partDesc,
+      quantity_issued: maxQty,
+      quantity_returned: qty,
+      quantity_consumed: consumed,
+      return_reason: reason,
+      stock_restored: restoreStock,
+      returned_by: req.mechanic || '',
+      return_time: new Date().toISOString(),
+      supplier_return_status: isFaulty ? 'Awaiting supplier return' : null
+    };
+    await fetch(SUPABASE_URL + '/rest/v1/parts_returns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(returnPayload)
+    });
+
+    // Update parts_requests with consumed and returned quantities
+    await fetch(SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + requestId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ quantity_returned: qty, quantity_consumed: consumed })
+    });
+
+    // Restore stock if not faulty
+    if (restoreStock && (partNo || req.part_no)) {
+      const pno = partNo || req.part_no;
+      const invRes = await fetch(
+        SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(pno) + '&select=stock_qty',
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const invData = await invRes.json();
+      if (invData.length > 0) {
+        await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(pno), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ stock_qty: invData[0].stock_qty + qty, updated_at: new Date().toISOString() })
+        });
+      }
+    }
+
+    document.getElementById('returnOverlay').remove();
+    const msg = isFaulty
+      ? 'Return logged — marked as awaiting supplier return. Stock not restored.'
+      : 'Return received — stock restored by ' + qty + '.';
+    showToast(msg, 'success');
+    loadCompletedParts(currentJobId);
+  } catch(e) { showToast('Return failed. Try again.', 'error'); }
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────
