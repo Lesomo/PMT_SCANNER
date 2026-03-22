@@ -314,6 +314,57 @@ textarea { min-height: 90px; resize: vertical; }
       </button>
     </div>
 
+    <!-- Parts decision section (shown after investigating) -->
+    <div id="partsDecisionSection" style="display:none">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Spare parts required?</div>
+        <p style="font-size:13px;color:#555;margin-bottom:14px;">Does this repair require a spare part from the workshop?</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button class="submit-btn green" onclick="showPartsRequest()" style="padding:14px;font-size:15px;">
+            Yes — Request Part
+          </button>
+          <button class="submit-btn navy" onclick="showResolveSection()" style="padding:14px;font-size:15px;">
+            No — Proceed
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parts request section -->
+    <div id="partsRequestSection" style="display:none">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Request spare part</div>
+
+        <!-- Existing requests list -->
+        <div id="existingRequestsList" style="margin-bottom:12px;"></div>
+
+        <!-- Add new request -->
+        <div class="field">
+          <label>Machine type filter</label>
+          <select id="partsMachineFilter" onchange="filterPartsList()">
+            <option value="">All machine types</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Part</label>
+          <select id="partSelect">
+            <option value="">Select part...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number" id="partQty" value="1" min="1" max="99"
+            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;">
+        </div>
+        <button class="submit-btn orange" onclick="addPartRequest()" style="margin-bottom:10px;">
+          + Add Part Request
+        </button>
+        <button class="submit-btn navy" id="donePartsBtn" onclick="showResolveSection()" disabled>
+          Done — Proceed to Resolve
+        </button>
+      </div>
+    </div>
+
     <!-- Resolve section -->
     <div id="resolveSection" style="display:none">
       <div class="card">
@@ -364,6 +415,7 @@ textarea { min-height: 90px; resize: vertical; }
     <!-- Completed view -->
     <div id="completedSection" style="display:none">
       <div class="card" id="completedDetails"></div>
+      <div class="card" id="completedParts" style="display:none;margin-top:0;"></div>
     </div>
   </div>
 </div>
@@ -440,9 +492,19 @@ async function supSetAsset(val) {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
     });
     const data = await res.json();
-    currentMachineType = (data.length > 0 && data[0].asset_type) ? data[0].asset_type : 'Unknown';
-  } catch(e) { currentMachineType = 'Unknown'; }
-  document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+    if (data.length > 0 && data[0].asset_type) {
+      currentMachineType = data[0].asset_type;
+      document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+    } else {
+      currentMachineType = '';
+      document.getElementById('supMachineType').textContent = 'Not found in master data — check asset number';
+      document.getElementById('supMachineType').style.color = '#C00000';
+    }
+  } catch(e) {
+    currentMachineType = '';
+    document.getElementById('supMachineType').textContent = 'Lookup failed — check connection';
+    document.getElementById('supMachineType').style.color = '#C00000';
+  }
   checkSupReady();
 }
 
@@ -633,7 +695,7 @@ function openJobDetail(id) {
   if (j.status === 'Open') {
     document.getElementById('investigateSection').style.display = 'block';
   } else if (j.status === 'Investigating') {
-    document.getElementById('resolveSection').style.display = 'block';
+    document.getElementById('partsDecisionSection').style.display = 'block';
   } else if (j.status === 'Resolved') {
     document.getElementById('completedSection').style.display = 'block';
     document.getElementById('completedDetails').innerHTML = `
@@ -642,7 +704,11 @@ function openJobDetail(id) {
       <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Error code:</strong> ${j.error_code || '—'}</p>
       <p style="font-size:13px;color:#555;margin-bottom:4px;"><strong>Corrective measures:</strong></p>
       <p style="font-size:13px;color:#333;line-height:1.6;">${j.corrective_measures || '—'}</p>`;
+    loadCompletedParts(j.id);
   }
+
+  // Reset pending parts for new session
+  pendingRequests = [];
 }
 
 function backToList() {
@@ -687,10 +753,21 @@ async function markResolved() {
   btn.disabled = true; btn.textContent = 'Resolving...';
 
   const now = new Date().toISOString();
-  const reported = currentJobData.reported_time ? new Date(currentJobData.reported_time) : new Date();
+  const reported    = currentJobData.reported_time    ? new Date(currentJobData.reported_time)    : new Date();
   const investigate = currentJobData.investigate_time ? new Date(currentJobData.investigate_time) : new Date();
-  const totalMins  = Math.round((new Date(now) - reported) / 60000);
-  const repairMins = Math.round((new Date(now) - investigate) / 60000);
+  const totalMins   = Math.round((new Date(now) - reported)    / 60000);
+  const repairMins  = Math.round((new Date(now) - investigate) / 60000);
+
+  // Submit any pending parts requests first
+  if (pendingRequests.length > 0) {
+    await submitPartRequests(
+      currentJobId,
+      currentJobData.asset_no,
+      currentJobData.machine_type,
+      currentJobData.line,
+      mechName
+    );
+  }
 
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
@@ -707,7 +784,9 @@ async function markResolved() {
       })
     });
     if (res.ok) {
-      showToast('Job card resolved! Downtime: ' + formatMins(totalMins), 'success');
+      const partsMsg = pendingRequests.length > 0 ? ' Parts requested: ' + pendingRequests.length + '.' : '';
+      showToast('Resolved! Downtime: ' + formatMins(totalMins) + '.' + partsMsg, 'success');
+      pendingRequests = [];
       await fetchJobs();
       backToList();
     } else {
@@ -715,6 +794,154 @@ async function markResolved() {
       btn.disabled = false; btn.textContent = 'Mark as Resolved';
     }
   } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Mark as Resolved'; }
+}
+
+// ── PARTS ─────────────────────────────────────────────────────────
+let allParts = [];
+let pendingRequests = []; // requests added this session before submit
+
+async function loadParts() {
+  if (allParts.length > 0) return;
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/parts_inventory?select=part_no,description,machine_type,stock_qty&order=machine_type.asc,description.asc&limit=500',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    allParts = await res.json();
+    populateMachineFilter();
+    filterPartsList();
+  } catch(e) { showToast('Could not load parts list.', 'error'); }
+}
+
+function populateMachineFilter() {
+  const types = [...new Set(allParts.map(p => p.machine_type).filter(Boolean))].sort();
+  const sel = document.getElementById('partsMachineFilter');
+  sel.innerHTML = '<option value="">All machine types</option>';
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    sel.appendChild(opt);
+  });
+}
+
+function filterPartsList() {
+  const filter = document.getElementById('partsMachineFilter').value;
+  const filtered = filter ? allParts.filter(p => p.machine_type === filter) : allParts;
+  const sel = document.getElementById('partSelect');
+  sel.innerHTML = '<option value="">Select part...</option>';
+  filtered.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.part_no;
+    opt.textContent = p.description + ' (' + p.part_no + ')' + (p.stock_qty === 0 ? ' — OUT OF STOCK' : '');
+    opt.dataset.description = p.description;
+    opt.dataset.stock = p.stock_qty;
+    sel.appendChild(opt);
+  });
+}
+
+function showPartsRequest() {
+  document.getElementById('partsDecisionSection').style.display = 'none';
+  document.getElementById('partsRequestSection').style.display = 'block';
+  loadParts();
+  renderExistingRequests();
+}
+
+function showResolveSection() {
+  document.getElementById('partsDecisionSection').style.display = 'none';
+  document.getElementById('partsRequestSection').style.display = 'none';
+  document.getElementById('resolveSection').style.display = 'block';
+}
+
+function renderExistingRequests() {
+  const el = document.getElementById('existingRequestsList');
+  if (pendingRequests.length === 0) {
+    el.innerHTML = '<p style="font-size:12px;color:#aaa;margin-bottom:8px;">No parts requested yet.</p>';
+    document.getElementById('donePartsBtn').disabled = true;
+    return;
+  }
+  el.innerHTML = '<div style="margin-bottom:10px;">' +
+    pendingRequests.map((r, i) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f5f5;border-radius:8px;margin-bottom:6px;font-size:13px;">
+        <div>
+          <strong>${r.description}</strong>
+          <span style="color:#888;font-size:11px;"> (${r.part_no})</span>
+          <span style="color:#2E5597;font-weight:600;margin-left:8px;">x${r.quantity}</span>
+        </div>
+        <button onclick="removePartRequest(${i})" style="background:none;border:none;color:#C00000;font-size:16px;cursor:pointer;padding:0 4px;">×</button>
+      </div>`).join('') + '</div>';
+  document.getElementById('donePartsBtn').disabled = false;
+}
+
+function addPartRequest() {
+  const sel = document.getElementById('partSelect');
+  const qty = parseInt(document.getElementById('partQty').value) || 1;
+  if (!sel.value) { showToast('Please select a part.', 'error'); return; }
+  const opt = sel.options[sel.selectedIndex];
+  if (opt.dataset.stock === '0') {
+    if (!confirm('This part is OUT OF STOCK. Submit request anyway?')) return;
+  }
+  // Prevent duplicate part in same session
+  if (pendingRequests.find(r => r.part_no === sel.value)) {
+    showToast('This part is already in your request list.', 'error'); return;
+  }
+  pendingRequests.push({ part_no: sel.value, description: opt.dataset.description, quantity: qty });
+  sel.value = '';
+  document.getElementById('partQty').value = 1;
+  renderExistingRequests();
+  showToast('Part added to request.', 'success');
+}
+
+function removePartRequest(idx) {
+  pendingRequests.splice(idx, 1);
+  renderExistingRequests();
+}
+
+async function submitPartRequests(jobId, assetNo, machineType, line, mechName) {
+  if (pendingRequests.length === 0) return;
+  const payloads = pendingRequests.map(r => ({
+    job_card_id: jobId,
+    asset_no: assetNo,
+    machine_type: machineType,
+    line: line,
+    mechanic: mechName,
+    part_no: r.part_no,
+    part_description: r.description,
+    quantity: r.quantity,
+    status: 'Pending',
+    requested_time: new Date().toISOString()
+  }));
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payloads)
+    });
+  } catch(e) { console.error('Parts request submit error', e); }
+}
+
+async function loadCompletedParts(jobId) {
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/parts_requests?job_card_id=eq.' + jobId + '&select=*',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    const parts = await res.json();
+    const el = document.getElementById('completedParts');
+    if (parts.length === 0) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div class="card-title">Parts used</div>' +
+      parts.map(p => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;">
+          <div>
+            <strong>${p.part_description}</strong>
+            <span style="color:#888;font-size:11px;"> (${p.part_no})</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="color:#2E5597;font-weight:600;">x${p.quantity}</span>
+            <span class="status-pill ${p.status === 'Issued' ? 'pill-completed' : 'pill-open'}">${p.status}</span>
+          </div>
+        </div>`).join('');
+  } catch(e) {}
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────
