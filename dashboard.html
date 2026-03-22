@@ -1652,20 +1652,18 @@ function renderDtKPIs() {
   const operatingMins = Math.max(0, shiftMins - totalDowntimeToday);
   const failures = todayResolved.length;
   const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
-  const efficiency = shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : null;
+  const efficiency = shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
 
   document.getElementById('dtKpiOpen').textContent       = open.length;
   document.getElementById('dtKpiTotal').textContent      = filteredDowntime.length;
   document.getElementById('dtKpiResponse').textContent   = avgResponse != null ? avgResponse + ' min' : '—';
   document.getElementById('dtKpiRepair').textContent     = avgRepair   != null ? avgRepair   + ' min' : '—';
-  document.getElementById('dtKpiMtbf').textContent       = mtbf        != null ? mtbf + ' min' : '—';
-  document.getElementById('dtKpiEfficiency').textContent = efficiency  != null ? efficiency  + '%'    : '—';
+  document.getElementById('dtKpiMtbf').textContent       = mtbf != null ? mtbf + ' min' : failures === 0 ? 'No failures' : '—';
+  document.getElementById('dtKpiEfficiency').textContent = efficiency + '%';
 
   // Colour efficiency KPI by threshold
   const effEl = document.getElementById('dtKpiEfficiency').closest('.dt-kpi');
-  if (efficiency !== null) {
-    effEl.style.borderLeftColor = efficiency >= 90 ? '#70AD47' : efficiency >= 75 ? '#ED7D31' : '#C00000';
-  }
+  effEl.style.borderLeftColor = efficiency >= 90 ? '#70AD47' : efficiency >= 75 ? '#ED7D31' : '#C00000';
 
   renderRepeatAlerts();
 }
