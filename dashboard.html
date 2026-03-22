@@ -741,13 +741,20 @@ tbody td {
 
     <div class="chart-card" style="margin-bottom:16px;">
       <div class="chart-title">Asset lifecycle search</div>
-      <div class="chart-sub">Select an asset to see its complete history — scans and downtime incidents combined</div>
+      <div class="chart-sub">Type an asset number to see its complete history — scans and downtime incidents combined</div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap;">
-        <select id="lcAssetSelect" onchange="loadLifecycle()" style="flex:1;min-width:200px;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;color:#1a1a1a;background:white;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 14 14%27%3E%3Cpath fill=%27%23999%27 d=%27M7 9L2 4h10z%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 12px center;cursor:pointer;">
-          <option value="">— Select an asset number —</option>
-        </select>
-        <div id="lcAssetType" style="font-size:13px;color:#888;font-style:italic;"></div>
+        <input type="text" id="lcAssetInput" placeholder="Type asset number e.g. 71270..."
+          oninput="lcSearchDebounce()"
+          style="flex:1;min-width:200px;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;"
+          onkeydown="if(event.key==='Enter') loadLifecycle()">
+        <button onclick="loadLifecycle()"
+          style="padding:11px 20px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          Search
+        </button>
+        <div id="lcAssetType" style="font-size:13px;color:#888;font-style:italic;width:100%;"></div>
       </div>
+      <!-- Suggestions dropdown -->
+      <div id="lcSuggestions" style="display:none;border:1px solid #ddd;border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
     </div>
 
     <!-- Lifecycle summary KPIs -->
@@ -2099,25 +2106,57 @@ function switchFaultView(name) {
 }
 
 // ── ASSET LIFECYCLE ───────────────────────────────────────────────────────────
-function populateLifecycleDropdown() {
-  const assets = [...new Set(allData.map(r => r.asset_no).filter(Boolean))].sort((a,b) => {
-    const na = parseFloat(a), nb = parseFloat(b);
-    if (!isNaN(na) && !isNaN(nb)) return na - nb;
-    return String(a).localeCompare(String(b));
-  });
-  const sel = document.getElementById('lcAssetSelect');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">— Select an asset number —</option>';
-  assets.forEach(a => {
-    const opt = document.createElement('option');
-    opt.value = a; opt.textContent = a;
-    if (a === cur) opt.selected = true;
-    sel.appendChild(opt);
-  });
+let lcDebounceTimer = null;
+let lcAssets = []; // cached unique asset numbers from scan data
+
+function lcSearchDebounce() {
+  clearTimeout(lcDebounceTimer);
+  lcDebounceTimer = setTimeout(showLcSuggestions, 250);
 }
 
+function showLcSuggestions() {
+  const q = document.getElementById('lcAssetInput').value.trim().toLowerCase();
+  const box = document.getElementById('lcSuggestions');
+  if (q.length < 2) { box.style.display = 'none'; return; }
+
+  // Build asset list from scan data if not cached
+  if (lcAssets.length === 0) {
+    lcAssets = [...new Set(allData.map(r => r.asset_no).filter(Boolean))].sort((a,b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      return (!isNaN(na) && !isNaN(nb)) ? na - nb : String(a).localeCompare(String(b));
+    });
+  }
+
+  const matches = lcAssets.filter(a => String(a).toLowerCase().includes(q)).slice(0, 10);
+  if (matches.length === 0) { box.style.display = 'none'; return; }
+
+  box.innerHTML = matches.map(a =>
+    `<div onclick="selectLcAsset('${a}')"
+      style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f5f5f5;"
+      onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='white'">
+      ${a}
+    </div>`
+  ).join('');
+  box.style.display = 'block';
+}
+
+function selectLcAsset(assetNo) {
+  document.getElementById('lcAssetInput').value = assetNo;
+  document.getElementById('lcSuggestions').style.display = 'none';
+  loadLifecycle();
+}
+
+// Hide suggestions when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#lcAssetInput') && !e.target.closest('#lcSuggestions')) {
+    const box = document.getElementById('lcSuggestions');
+    if (box) box.style.display = 'none';
+  }
+});
+
 async function loadLifecycle() {
-  const assetNo = document.getElementById('lcAssetSelect').value;
+  const assetNo = document.getElementById('lcAssetInput').value.trim();
+  document.getElementById('lcSuggestions').style.display = 'none';
   document.getElementById('lcKpiRow').style.display = 'none';
   document.getElementById('lcTimeline').style.display = 'none';
   document.getElementById('lcEmpty').style.display = 'block';
@@ -2155,12 +2194,49 @@ async function loadLifecycle() {
 
   // Render KPIs
   const totalDowntime = incidents.filter(i => i.status === 'Resolved').reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
-  const lastScan = scans.length > 0 ? scans[scans.length - 1] : null;
+
+  // Last seen — whichever is more recent: last scan or last incident
+  const lastScan     = scans.length > 0     ? scans[scans.length - 1]         : null;
+  const lastIncident = incidents.length > 0  ? incidents[incidents.length - 1] : null;
+
+  let lastActivity = null;
+  let lastActivityType = '';
+  let lastActivityDate = null;
+  let lastActivityLocation = '—';
+
+  if (lastScan && lastIncident) {
+    const scanTime     = new Date(lastScan.scan_timestamp);
+    const incidentTime = new Date(lastIncident.reported_time);
+    if (scanTime >= incidentTime) {
+      lastActivity = lastScan;
+      lastActivityType = 'Scan';
+      lastActivityDate = lastScan.scan_timestamp;
+      lastActivityLocation = lastScan.location || '—';
+    } else {
+      lastActivity = lastIncident;
+      lastActivityType = 'Downtime';
+      lastActivityDate = lastIncident.reported_time;
+      lastActivityLocation = lastIncident.line || '—';
+    }
+  } else if (lastScan) {
+    lastActivity = lastScan;
+    lastActivityType = 'Scan';
+    lastActivityDate = lastScan.scan_timestamp;
+    lastActivityLocation = lastScan.location || '—';
+  } else if (lastIncident) {
+    lastActivity = lastIncident;
+    lastActivityType = 'Downtime';
+    lastActivityDate = lastIncident.reported_time;
+    lastActivityLocation = lastIncident.line || '—';
+  }
+
   document.getElementById('lcKpiScans').textContent     = scans.length;
   document.getElementById('lcKpiIncidents').textContent = incidents.length;
   document.getElementById('lcKpiDowntime').textContent  = totalDowntime + ' min';
-  document.getElementById('lcKpiLastSeen').textContent  = lastScan ? formatShortDate(lastScan.scan_timestamp) : '—';
-  document.getElementById('lcKpiLastLine').textContent  = lastScan ? lastScan.location || '—' : '—';
+  document.getElementById('lcKpiLastSeen').textContent  = lastActivityDate ? formatShortDate(lastActivityDate) : '—';
+  document.getElementById('lcKpiLastLine').textContent  = lastActivity
+    ? lastActivityLocation + ' (' + lastActivityType + ')'
+    : '—';
   document.getElementById('lcKpiRow').style.display = 'block';
 
   // Build merged timeline
@@ -2748,7 +2824,7 @@ function switchDashTab(tab) {
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
   if (tab === 'downtime')   loadDowntimeData();
-  if (tab === 'lifecycle')  populateLifecycleDropdown();
+  if (tab === 'lifecycle')  { lcAssets = []; } // reset cache so it rebuilds from latest data
   if (tab === 'inventory')  loadInventoryData();
 }
 
