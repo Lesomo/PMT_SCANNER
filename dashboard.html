@@ -764,6 +764,17 @@ tbody td {
   <!-- ═══ INVENTORY PANEL ═══ -->
   <div class="dash-panel" id="panel-inventory">
 
+    <!-- Clerk name selector (remembered per device) -->
+    <div class="filter-bar" style="margin-bottom:16px;">
+      <label>Clerk on duty:</label>
+      <select id="clerkNameSelect" onchange="saveClerkName()" style="padding:8px 36px 8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;min-width:160px;">
+        <option value="">— Select your name —</option>
+        <option>Mary-Ann</option>
+        <option>Jolene</option>
+      </select>
+      <span style="font-size:12px;color:#aaa;font-style:italic;">Name is remembered on this device</span>
+    </div>
+
     <!-- Inventory KPIs -->
     <div class="dt-kpi-grid">
       <div class="dt-kpi orange">
@@ -777,14 +788,19 @@ tbody td {
         <div class="dt-kpi-sub">below minimum qty</div>
       </div>
       <div class="dt-kpi blue">
+        <div class="dt-kpi-label">Issued today</div>
+        <div class="dt-kpi-value" id="invKpiIssuedToday">—</div>
+        <div class="dt-kpi-sub">parts handed out</div>
+      </div>
+      <div class="dt-kpi orange" style="border-left-color:#C00000;">
+        <div class="dt-kpi-label">Awaiting supplier</div>
+        <div class="dt-kpi-value" id="invKpiSupplier">—</div>
+        <div class="dt-kpi-sub">faulty returns</div>
+      </div>
+      <div class="dt-kpi green">
         <div class="dt-kpi-label">Total parts</div>
         <div class="dt-kpi-value" id="invKpiTotal">—</div>
         <div class="dt-kpi-sub">in catalogue</div>
-      </div>
-      <div class="dt-kpi green">
-        <div class="dt-kpi-label">Issued today</div>
-        <div class="dt-kpi-value" id="invKpiIssuedToday">—</div>
-        <div class="dt-kpi-sub">parts issued</div>
       </div>
     </div>
 
@@ -794,22 +810,97 @@ tbody td {
         <div class="chart-title">Pending part requests</div>
         <button onclick="loadInventoryData()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:#555;">Refresh</button>
       </div>
-      <div class="chart-sub">Workshop clerk — tap Issue to confirm part has been handed out</div>
+      <div class="chart-sub">Tap Issue to confirm part has been handed to mechanic</div>
       <div id="pendingRequestsList" style="margin-top:12px;"><div class="loading-state"><div class="spinner"></div><p>Loading...</p></div></div>
     </div>
 
     <!-- Low stock warnings -->
     <div class="chart-card" style="margin-bottom:16px;" id="lowStockCard">
       <div class="chart-title" style="color:#C00000;">Low stock warnings</div>
-      <div class="chart-sub">Parts where current stock is at or below minimum quantity</div>
+      <div class="chart-sub">Parts at or below minimum quantity</div>
       <div id="lowStockList" style="margin-top:12px;"></div>
     </div>
 
-    <!-- Most used parts -->
-    <div class="chart-grid" style="margin-bottom:16px;">
+    <!-- Inner tabs -->
+    <div class="view-tabs" style="margin-bottom:14px;" id="invInnerTabs">
+      <div class="view-tab active" onclick="switchInvTab('today')">Today's Issues</div>
+      <div class="view-tab" onclick="switchInvTab('byline')">Search by Line</div>
+      <div class="view-tab" onclick="switchInvTab('stock')">Stock Search</div>
+      <div class="view-tab" onclick="switchInvTab('reorder')">Reorder List</div>
+      <div class="view-tab" onclick="switchInvTab('returns')">Returns</div>
+    </div>
+
+    <!-- Today's Issues -->
+    <div class="tab-view active" id="invTab-today">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Parts issued today</div>
+        <div class="chart-sub">All parts handed out during today's shift</div>
+        <div style="overflow-x:auto;margin-top:12px;" id="todayIssuesTable"></div>
+      </div>
+    </div>
+
+    <!-- Search by Line -->
+    <div class="tab-view" id="invTab-byline">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Parts issued by line</div>
+        <div class="chart-sub">Select a line to see all parts issued to it</div>
+        <div style="margin:12px 0;">
+          <select id="lineSearchSelect" onchange="searchByLine()" style="padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;min-width:200px;">
+            <option value="">— Select a line —</option>
+            ${Array.from({length:24},(_,i)=>`<option>Line ${i+1}</option>`).join('')}
+          </select>
+        </div>
+        <div style="overflow-x:auto;" id="byLineTable"><div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">Select a line above</div></div>
+      </div>
+    </div>
+
+    <!-- Stock Search -->
+    <div class="tab-view" id="invTab-stock">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Stock search</div>
+        <div class="chart-sub">Search by part name or number</div>
+        <input type="text" id="stockSearchInput" placeholder="Type part name or number..."
+          oninput="searchStock()"
+          style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin:12px 0;">
+        <div id="stockSearchResults"></div>
+      </div>
+    </div>
+
+    <!-- Reorder List -->
+    <div class="tab-view" id="invTab-reorder">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div class="chart-title">Reorder list</div>
+          <button onclick="exportReorderList()" style="background:#70AD47;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:white;cursor:pointer;">Export CSV</button>
+        </div>
+        <div class="chart-sub">Parts below minimum quantity — sorted by urgency</div>
+        <div id="reorderList" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- Returns -->
+    <div class="tab-view" id="invTab-returns">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Parts returns</div>
+        <div class="chart-sub">All returned parts — clerk can initiate a return from here</div>
+        <div style="margin:12px 0;display:flex;gap:10px;flex-wrap:wrap;">
+          <button onclick="showClerkReturnForm()" style="padding:8px 16px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;">+ Initiate Return</button>
+        </div>
+        <div style="overflow-x:auto;" id="returnsTable"><div class="loading-state"><div class="spinner"></div><p>Loading...</p></div></div>
+      </div>
+      <!-- Awaiting supplier -->
+      <div class="chart-card" id="supplierReturnCard" style="display:none;margin-bottom:16px;border-left:4px solid #C00000;">
+        <div class="chart-title" style="color:#C00000;">Awaiting supplier return</div>
+        <div class="chart-sub">Faulty parts to be returned to supplier</div>
+        <div id="supplierReturnList" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-grid" style="margin-bottom:16px;margin-top:16px;">
       <div class="chart-card">
         <div class="chart-title">Most requested parts</div>
-        <div class="chart-sub">Top parts by request count — all time</div>
+        <div class="chart-sub">Top 10 parts by total quantity requested</div>
         <div class="chart-wrap tall"><canvas id="topPartsChart"></canvas></div>
       </div>
       <div class="chart-card">
@@ -1902,41 +1993,71 @@ function renderTimelineItem(e) {
 }
 
 // ── INVENTORY ─────────────────────────────────────────────────────────────────
-let allRequests = [];
+let allRequests  = [];
 let allInventory = [];
+let allReturns   = [];
 let topPartsChart = null;
 let partsLineChart = null;
+
+function saveClerkName() {
+  const name = document.getElementById('clerkNameSelect').value;
+  try { localStorage.setItem('pmt_clerk_name', name); } catch(e) {}
+}
+
+function loadClerkName() {
+  try {
+    const saved = localStorage.getItem('pmt_clerk_name');
+    if (saved) {
+      const sel = document.getElementById('clerkNameSelect');
+      sel.value = saved;
+    }
+  } catch(e) {}
+}
 
 async function loadInventoryData() {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const [reqRes, invRes] = await Promise.all([
+    const [reqRes, invRes, retRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/parts_requests?select=*&order=requested_time.desc',
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
       fetch(SUPABASE_URL + '/rest/v1/parts_inventory?select=*&order=description.asc&limit=500',
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+      fetch(SUPABASE_URL + '/rest/v1/parts_returns?select=*&order=return_time.desc',
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } })
     ]);
     allRequests  = await reqRes.json();
     allInventory = await invRes.json();
+    allReturns   = await retRes.json();
+    loadClerkName();
     renderInventory();
   } catch(e) { showToast('Could not load inventory data.', 'error'); }
 }
 
 function renderInventory() {
   const today = new Date().toISOString().split('T')[0];
-  const pending    = allRequests.filter(r => r.status === 'Pending');
-  const issuedToday = allRequests.filter(r => r.status === 'Issued' && (r.issued_time||'').startsWith(today));
-  const lowStock   = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
+  const pending      = allRequests.filter(r => r.status === 'Pending');
+  const issuedToday  = allRequests.filter(r => r.status === 'Issued' && (r.issued_time||'').startsWith(today));
+  const lowStock     = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
+  const awaitSupplier = allReturns.filter(r => r.supplier_return_status === 'Awaiting supplier return');
 
-  document.getElementById('invKpiPending').textContent    = pending.length;
-  document.getElementById('invKpiLowStock').textContent   = lowStock.length;
-  document.getElementById('invKpiTotal').textContent      = allInventory.length;
+  document.getElementById('invKpiPending').textContent     = pending.length;
+  document.getElementById('invKpiLowStock').textContent    = lowStock.length;
+  document.getElementById('invKpiTotal').textContent       = allInventory.length;
   document.getElementById('invKpiIssuedToday').textContent = issuedToday.length;
+  document.getElementById('invKpiSupplier').textContent    = awaitSupplier.length;
 
   renderPendingRequests(pending);
   renderLowStock(lowStock);
+  renderTodayIssues(issuedToday);
+  renderReorderList(lowStock);
+  renderReturnsTable();
+  renderSupplierReturns(awaitSupplier);
   renderTopPartsChart();
   renderPartsLineChart();
+}
+
+function getClerkName() {
+  return document.getElementById('clerkNameSelect').value;
 }
 
 function renderPendingRequests(pending) {
@@ -1950,16 +2071,16 @@ function renderPendingRequests(pending) {
     return `<div class="req-card">
       <div class="req-top">
         <div>
-          <div class="req-part">${r.part_description || r.part_no}</div>
-          <div style="font-size:11px;color:#888;">${r.part_no}</div>
+          <div class="req-part">${r.part_description || r.part_no || '—'}</div>
+          ${r.part_no ? '<div style="font-size:11px;color:#888;">' + r.part_no + '</div>' : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
           <span class="req-qty">x${r.quantity}</span>
           <button class="issue-btn" onclick="issuePart(${r.id})">Issue</button>
         </div>
       </div>
-      <div class="req-detail">Asset: ${r.asset_no || '—'} &nbsp;|&nbsp; ${r.line || '—'} &nbsp;|&nbsp; ${r.machine_type || '—'}</div>
-      <div class="req-meta">Requested by ${r.mechanic || '—'} at ${t}</div>
+      <div class="req-detail">Asset: ${r.asset_no||'—'} | ${r.line||'—'} | ${r.machine_type||'—'}</div>
+      <div class="req-meta">By ${r.mechanic||'—'} at ${t}</div>
     </div>`;
   }).join('');
 }
@@ -1967,32 +2088,73 @@ function renderPendingRequests(pending) {
 async function issuePart(requestId) {
   const req = allRequests.find(r => r.id === requestId);
   if (!req) return;
+  const filtered = req.machine_type ? allInventory.filter(p => p.machine_type === req.machine_type) : allInventory;
+  const options = filtered.map(p =>
+    `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`
+  ).join('');
+  const clerkName = getClerkName();
 
-  const clerkName = prompt('Enter your name (workshop clerk):');
-  if (!clerkName || !clerkName.trim()) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'issueOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Issue Part</div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px;">Requested: <strong>${req.part_description||req.part_no}</strong> x${req.quantity}</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Match to part number (optional)</label>
+        <select id="issuePartNo" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
+          <option value="">— Select part number —</option>
+          ${options}
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Issuing clerk</label>
+        <select id="issueClerkName" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;">
+          <option value="">— Select name —</option>
+          <option ${clerkName==='Mary-Ann'?'selected':''}>Mary-Ann</option>
+          <option ${clerkName==='Jolene'?'selected':''}>Jolene</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="document.getElementById('issueOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <button onclick="confirmIssue(${requestId}, this)" style="padding:12px;background:#70AD47;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Issue</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
 
+async function confirmIssue(requestId, btn) {
+  const clerkName = document.getElementById('issueClerkName').value;
+  const partNo    = document.getElementById('issuePartNo').value;
+  if (!clerkName) { showToast('Please select your name.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Issuing...';
+  const req = allRequests.find(r => r.id === requestId);
   try {
-    // Mark request as issued
+    const payload = { status: 'Issued', issued_time: new Date().toISOString(), issued_by: clerkName };
+    if (partNo) payload.part_no = partNo;
     await fetch(SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + requestId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status: 'Issued', issued_time: new Date().toISOString(), issued_by: clerkName.trim() })
+      body: JSON.stringify(payload)
     });
-
-    // Decrement stock quantity
-    const part = allInventory.find(p => p.part_no === req.part_no);
-    if (part && part.stock_qty > 0) {
-      const newQty = Math.max(0, part.stock_qty - req.quantity);
-      await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(req.part_no), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ stock_qty: newQty, updated_at: new Date().toISOString() })
-      });
+    if (partNo && req) {
+      const part = allInventory.find(p => p.part_no === partNo);
+      if (part && part.stock_qty > 0) {
+        await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ stock_qty: Math.max(0, part.stock_qty - req.quantity), updated_at: new Date().toISOString() })
+        });
+      }
     }
-
-    showToast('Part issued successfully!', 'success');
+    // Remember clerk name
+    try { localStorage.setItem('pmt_clerk_name', clerkName); } catch(e) {}
+    document.getElementById('clerkNameSelect').value = clerkName;
+    document.getElementById('issueOverlay').remove();
+    showToast('Part issued!', 'success');
     await loadInventoryData();
-  } catch(e) { showToast('Issue failed. Try again.', 'error'); }
+  } catch(e) { showToast('Issue failed.', 'error'); btn.disabled = false; btn.textContent = 'Confirm Issue'; }
 }
 
 function renderLowStock(lowStock) {
@@ -2001,54 +2163,325 @@ function renderLowStock(lowStock) {
   if (lowStock.length === 0) { card.style.display = 'none'; return; }
   card.style.display = 'block';
   el.innerHTML = lowStock.map(p => {
-    const badgeClass = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
-    const badgeText  = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
+    const cls  = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
+    const text = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
     return `<div class="low-stock-row">
       <div>
         <div class="low-stock-name">${p.description}</div>
-        <div class="low-stock-part">${p.part_no} &nbsp;|&nbsp; ${p.machine_type || '—'} &nbsp;|&nbsp; ${p.supplier || '—'}</div>
+        <div class="low-stock-part">${p.part_no} | ${p.machine_type||'—'} | ${p.supplier||'—'}</div>
       </div>
-      <span class="stock-badge ${badgeClass}">${badgeText}</span>
+      <span class="stock-badge ${cls}">${text}</span>
     </div>`;
   }).join('');
 }
 
+function renderTodayIssues(issued) {
+  const el = document.getElementById('todayIssuesTable');
+  if (issued.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No parts issued today yet.</div>';
+    return;
+  }
+  let html = '<table class="sl-table"><thead><tr><th>Time</th><th>Part</th><th>Qty</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
+  issued.forEach(r => {
+    const t = r.issued_time ? new Date(r.issued_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—';
+    const consumed = r.quantity_consumed != null ? r.quantity_consumed : '—';
+    const returned = r.quantity_returned || 0;
+    html += `<tr>
+      <td>${t}</td>
+      <td><strong>${r.part_description||r.part_no||'—'}</strong></td>
+      <td style="text-align:center;">
+        <span style="color:#2E5597;font-weight:600;">x${r.quantity}</span>
+        ${returned > 0 ? '<br><span style="color:#ED7D31;font-size:10px;">returned x' + returned + '</span>' : ''}
+      </td>
+      <td>${r.mechanic||'—'}</td>
+      <td>${r.asset_no||'—'}</td>
+      <td>${r.line||'—'}</td>
+      <td>${r.issued_by||'—'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function switchInvTab(tab) {
+  const tabs = ['today','byline','stock','reorder','returns'];
+  document.querySelectorAll('#invInnerTabs .view-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
+  tabs.forEach(t => {
+    const el = document.getElementById('invTab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+  if (tab === 'returns') renderReturnsTable();
+}
+
+function searchByLine() {
+  const line = document.getElementById('lineSearchSelect').value;
+  const el   = document.getElementById('byLineTable');
+  if (!line) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">Select a line above</div>'; return; }
+  const lineReqs = allRequests.filter(r => r.line === line && r.status === 'Issued');
+  if (lineReqs.length === 0) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:14px;">No parts issued to ' + line + ' yet.</div>'; return; }
+  let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Part</th><th>Part No</th><th>Qty</th><th>Used</th><th>Returned</th><th>Mechanic</th><th>Asset</th></tr></thead><tbody>';
+  lineReqs.forEach(r => {
+    const d = r.issued_time ? new Date(r.issued_time).toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+    html += `<tr>
+      <td>${d}</td>
+      <td>${r.part_description||'—'}</td>
+      <td style="font-size:11px;color:#888;">${r.part_no||'—'}</td>
+      <td style="text-align:center;font-weight:600;">${r.quantity}</td>
+      <td style="text-align:center;color:#3B6D11;">${r.quantity_consumed!=null?r.quantity_consumed:'—'}</td>
+      <td style="text-align:center;color:#ED7D31;">${r.quantity_returned||0}</td>
+      <td>${r.mechanic||'—'}</td>
+      <td>${r.asset_no||'—'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function searchStock() {
+  const q   = document.getElementById('stockSearchInput').value.trim().toLowerCase();
+  const el  = document.getElementById('stockSearchResults');
+  if (q.length < 2) { el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0;">Type at least 2 characters...</div>'; return; }
+  const results = allInventory.filter(p =>
+    (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q)
+  ).slice(0, 20);
+  if (results.length === 0) { el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0;">No parts found.</div>'; return; }
+  let html = '<table class="sl-table"><thead><tr><th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th><th>Stock</th><th>Min qty</th></tr></thead><tbody>';
+  results.forEach(p => {
+    const low = p.min_qty > 0 && p.stock_qty <= p.min_qty;
+    html += `<tr>
+      <td><strong>${p.description}</strong></td>
+      <td style="font-size:11px;color:#888;">${p.part_no}</td>
+      <td>${p.machine_type||'—'}</td>
+      <td>${p.supplier||'—'}</td>
+      <td style="text-align:center;"><span class="stock-badge ${p.stock_qty===0?'stock-zero':low?'stock-low':''}" style="${!low&&p.stock_qty>0?'background:#E2EFDA;color:#3B6D11;':''}">${p.stock_qty}</span></td>
+      <td style="text-align:center;color:#888;">${p.min_qty||'—'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderReorderList(lowStock) {
+  const el = document.getElementById('reorderList');
+  if (lowStock.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">All parts above minimum stock — nothing to reorder.</div>';
+    return;
+  }
+  // Sort by urgency: out of stock first, then by how far below minimum
+  const sorted = [...lowStock].sort((a,b) => {
+    if (a.stock_qty === 0 && b.stock_qty > 0) return -1;
+    if (b.stock_qty === 0 && a.stock_qty > 0) return 1;
+    return (a.stock_qty/Math.max(a.min_qty,1)) - (b.stock_qty/Math.max(b.min_qty,1));
+  });
+  let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Supplier</th><th>Stock</th><th>Min qty</th><th>Status</th></tr></thead><tbody>';
+  sorted.forEach(p => {
+    const urgency = p.stock_qty === 0 ? '<span class="stock-badge stock-zero">Order now</span>' : '<span class="stock-badge stock-low">Running low</span>';
+    html += `<tr>
+      <td><strong>${p.description}</strong><br><span style="font-size:11px;color:#888;">${p.machine_type||'—'}</span></td>
+      <td style="font-size:12px;">${p.part_no}</td>
+      <td>${p.supplier||'—'}</td>
+      <td style="text-align:center;font-weight:700;color:#C00000;">${p.stock_qty}</td>
+      <td style="text-align:center;color:#888;">${p.min_qty}</td>
+      <td>${urgency}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function exportReorderList() {
+  const lowStock = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
+  if (lowStock.length === 0) { showToast('Nothing to reorder.', 'error'); return; }
+  const headers = ['Description','Part No','Machine Type','Supplier','Current Stock','Min Qty','Status'];
+  const rows = lowStock.map(p => [
+    '"' + (p.description||'').replace(/"/g,'""') + '"',
+    '"' + (p.part_no||'') + '"',
+    '"' + (p.machine_type||'') + '"',
+    '"' + (p.supplier||'') + '"',
+    p.stock_qty, p.min_qty,
+    '"' + (p.stock_qty===0?'Out of stock':'Running low') + '"'
+  ].join(','));
+  const csv = [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const now  = new Date();
+  const fname = 'PMT_Reorder_List_' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + '.csv';
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Reorder list exported!', 'success');
+}
+
+function renderReturnsTable() {
+  const el = document.getElementById('returnsTable');
+  if (allReturns.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No returns recorded yet.</div>';
+    return;
+  }
+  let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Part</th><th>Qty returned</th><th>Consumed</th><th>Reason</th><th>Returned by</th><th>Stock restored</th></tr></thead><tbody>';
+  allReturns.filter(r => r.supplier_return_status !== 'Awaiting supplier return').forEach(r => {
+    const d = r.return_time ? new Date(r.return_time).toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+    html += `<tr>
+      <td>${d}</td>
+      <td><strong>${r.part_description||r.part_no||'—'}</strong></td>
+      <td style="text-align:center;color:#ED7D31;font-weight:600;">${r.quantity_returned}</td>
+      <td style="text-align:center;color:#3B6D11;">${r.quantity_consumed||0}</td>
+      <td>${r.return_reason||'—'}</td>
+      <td>${r.returned_by||'—'}</td>
+      <td style="text-align:center;">${r.stock_restored?'<span style="color:#3B6D11;">Yes</span>':'<span style="color:#C00000;">No</span>'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderSupplierReturns(awaitSupplier) {
+  const card = document.getElementById('supplierReturnCard');
+  const el   = document.getElementById('supplierReturnList');
+  if (awaitSupplier.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Qty</th><th>Asset</th><th>Line</th><th>Date</th><th>Action</th></tr></thead><tbody>';
+  awaitSupplier.forEach(r => {
+    const d = r.return_time ? new Date(r.return_time).toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+    html += `<tr>
+      <td><strong>${r.part_description||'—'}</strong></td>
+      <td style="font-size:11px;color:#888;">${r.part_no||'—'}</td>
+      <td style="text-align:center;">${r.quantity_returned}</td>
+      <td>${r.asset_no||'—'}</td>
+      <td>${r.line||'—'}</td>
+      <td>${d}</td>
+      <td><button onclick="markSupplierReturned(${r.id})" style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Mark returned</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+async function markSupplierReturned(returnId) {
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/parts_returns?id=eq.' + returnId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ supplier_return_status: 'Returned to supplier' })
+    });
+    showToast('Marked as returned to supplier.', 'success');
+    await loadInventoryData();
+  } catch(e) { showToast('Update failed.', 'error'); }
+}
+
+function showClerkReturnForm() {
+  const issued = allRequests.filter(r => r.status === 'Issued');
+  const options = issued.map(r =>
+    `<option value="${r.id}">${r.part_description||r.part_no} x${r.quantity} — ${r.asset_no||'?'} ${r.line||''} (${r.mechanic||'?'})</option>`
+  ).join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'clerkReturnOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">
+      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">Receive Return</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Select issued part</label>
+        <select id="clerkReturnSelect" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
+          <option value="">— Select part —</option>
+          ${options}
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Quantity returned</label>
+        <input type="number" id="clerkReturnQty" value="1" min="1" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Reason</label>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Wrong part issued"> Wrong part issued</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Not needed"> Not needed</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Partial return"> Partial return</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Faulty / defective"> Faulty / defective <span style="font-size:10px;color:#888;"> — awaiting supplier</span></label>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="document.getElementById('clerkReturnOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <button onclick="submitClerkReturn()" style="padding:12px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Return</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitClerkReturn() {
+  const reqId  = document.getElementById('clerkReturnSelect').value;
+  const qty    = parseInt(document.getElementById('clerkReturnQty').value) || 1;
+  const reason = document.querySelector('input[name="clerkReturnReason"]:checked');
+  if (!reqId)  { showToast('Please select a part.', 'error'); return; }
+  if (!reason) { showToast('Please select a reason.', 'error'); return; }
+
+  const req      = allRequests.find(r => r.id == reqId);
+  const isFaulty = reason.value === 'Faulty / defective';
+  const consumed = Math.max(0, (req.quantity||1) - qty);
+
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/parts_returns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        request_id: req.id, job_card_id: req.job_card_id,
+        asset_no: req.asset_no, machine_type: req.machine_type, line: req.line,
+        part_no: req.part_no||'', part_description: req.part_description||'',
+        quantity_issued: req.quantity, quantity_returned: qty, quantity_consumed: consumed,
+        return_reason: reason.value, stock_restored: !isFaulty,
+        received_by: getClerkName(), return_time: new Date().toISOString(),
+        supplier_return_status: isFaulty ? 'Awaiting supplier return' : null
+      })
+    });
+    await fetch(SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + req.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ quantity_returned: qty, quantity_consumed: consumed })
+    });
+    if (!isFaulty && req.part_no) {
+      const inv = allInventory.find(p => p.part_no === req.part_no);
+      if (inv) {
+        await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(req.part_no), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ stock_qty: inv.stock_qty + qty, updated_at: new Date().toISOString() })
+        });
+      }
+    }
+    document.getElementById('clerkReturnOverlay').remove();
+    showToast(isFaulty ? 'Logged as faulty — awaiting supplier.' : 'Return received — stock restored.', 'success');
+    await loadInventoryData();
+  } catch(e) { showToast('Return failed.', 'error'); }
+}
+
 function renderTopPartsChart() {
   const counts = {};
-  allRequests.forEach(r => {
-    const key = r.part_description || r.part_no;
-    counts[key] = (counts[key]||0) + r.quantity;
-  });
+  allRequests.forEach(r => { const k=r.part_description||r.part_no; counts[k]=(counts[k]||0)+r.quantity; });
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const ctx = document.getElementById('topPartsChart').getContext('2d');
   if (topPartsChart) topPartsChart.destroy();
   topPartsChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: sorted.map(e=>e[0].length>25?e[0].substring(0,23)+'…':e[0]),
-      datasets: [{ label: 'Qty requested', data: sorted.map(e=>e[1]),
-        backgroundColor: '#2E5597', borderRadius:4, borderSkipped:false }] },
-    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
-      scales:{ x:{ grid:{color:'#f0f2f5'}, ticks:{font:{size:10},color:'#888'}, beginAtZero:true },
-               y:{ grid:{display:false}, ticks:{font:{size:10},color:'#444'} } } }
+    type:'bar', data:{ labels:sorted.map(e=>e[0].length>25?e[0].substring(0,23)+'…':e[0]),
+      datasets:[{label:'Qty',data:sorted.map(e=>e[1]),backgroundColor:'#2E5597',borderRadius:4,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'#f0f2f5'},ticks:{font:{size:10},color:'#888'},beginAtZero:true},
+              y:{grid:{display:false},ticks:{font:{size:10},color:'#444'}}}}
   });
 }
 
 function renderPartsLineChart() {
   const counts = {};
-  allRequests.forEach(r => { if (r.line) counts[r.line] = (counts[r.line]||0) + r.quantity; });
+  allRequests.filter(r=>r.status==='Issued').forEach(r => { if(r.line) counts[r.line]=(counts[r.line]||0)+r.quantity; });
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const ctx = document.getElementById('partsLineChart').getContext('2d');
   if (partsLineChart) partsLineChart.destroy();
   partsLineChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: sorted.map(e=>e[0]),
-      datasets: [{ label: 'Parts used', data: sorted.map(e=>e[1]),
-        backgroundColor: '#ED7D31', borderRadius:4, borderSkipped:false }] },
-    options: { responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
-      scales:{ x:{ grid:{display:false}, ticks:{font:{size:10},color:'#888', maxRotation:45, minRotation:45} },
-               y:{ grid:{color:'#f0f2f5'}, ticks:{font:{size:10},color:'#888'}, beginAtZero:true } } }
+    type:'bar', data:{ labels:sorted.map(e=>e[0]),
+      datasets:[{label:'Parts used',data:sorted.map(e=>e[1]),backgroundColor:'#ED7D31',borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#888',maxRotation:45,minRotation:45}},
+              y:{grid:{color:'#f0f2f5'},ticks:{font:{size:10},color:'#888'},beginAtZero:true}}}
   });
 }
 
