@@ -1740,16 +1740,22 @@ function getTodayStr() {
 }
 
 function renderDtKPIs() {
-  const open     = allDowntime.filter(r => r.status === 'Open' || r.status === 'Investigating');
+  // Apply section filter to allDowntime for section-aware KPIs
+  const sectionLines = SECTIONS[activeDtSection];
+  const sectionAll = sectionLines
+    ? allDowntime.filter(r => sectionLines.includes(r.line))
+    : allDowntime;
+
+  const open     = sectionAll.filter(r => r.status === 'Open' || r.status === 'Investigating');
   const resolved = filteredDowntime.filter(r => r.status === 'Resolved');
   const responseTimes = resolved.filter(r => r.response_minutes != null).map(r => r.response_minutes);
   const repairTimes   = resolved.filter(r => r.repair_minutes != null).map(r => r.repair_minutes);
   const avgResponse = responseTimes.length ? Math.round(responseTimes.reduce((a,b)=>a+b,0)/responseTimes.length) : null;
   const avgRepair   = repairTimes.length   ? Math.round(repairTimes.reduce((a,b)=>a+b,0)/repairTimes.length)   : null;
 
-  // MTBF — using today's incidents only
+  // MTBF & efficiency — today's incidents scoped to active section
   const today = getTodayStr();
-  const todayResolved = allDowntime.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
+  const todayResolved = sectionAll.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
   const shiftMins = getShiftMinutes(today);
   const totalDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
   const operatingMins = shiftMins != null ? Math.max(0, shiftMins - totalDowntimeToday) : 0;
@@ -1758,7 +1764,7 @@ function renderDtKPIs() {
   const noShift = shiftMins === null;
   const efficiency = noShift ? null : shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
 
-  // Period avg efficiency — calculate per day across filtered data
+  // Period avg efficiency — scoped to filtered + section data
   const dayMap = {};
   filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
     const d = r.reported_time.split('T')[0];
@@ -1775,6 +1781,14 @@ function renderDtKPIs() {
   const avgEfficiency = dayEfficiencies.length > 0
     ? Math.round(dayEfficiencies.reduce((a,b) => a+b, 0) / dayEfficiencies.length)
     : null;
+
+  // Update KPI sub-labels to show section context
+  const sectionLabel = activeDtSection === 'all' ? 'factory-wide' : SECTION_LABELS[activeDtSection];
+  document.getElementById('dtKpiOpen').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = sectionLabel;
+  document.getElementById('dtKpiTotal').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent    = sectionLabel;
+  document.getElementById('dtKpiMtbf').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = 'today — ' + sectionLabel;
+  document.getElementById('dtKpiEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent = 'today — ' + sectionLabel;
+  document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent = sectionLabel;
 
   document.getElementById('dtKpiOpen').textContent           = open.length;
   document.getElementById('dtKpiTotal').textContent          = filteredDowntime.length;
@@ -1893,7 +1907,11 @@ function offenderTable(assets, sortBy) {
 
 function renderRepeatAlerts() {
   const today = getTodayStr();
-  const todayAll = allDowntime.filter(r => (r.reported_time||'').startsWith(today));
+  const sectionLines = SECTIONS[activeDtSection];
+  const todayAll = allDowntime.filter(r =>
+    (r.reported_time||'').startsWith(today) &&
+    (!sectionLines || sectionLines.includes(r.line))
+  );
 
   // Group by asset
   const byAsset = {};
