@@ -1757,14 +1757,15 @@ function renderDtKPIs() {
   const today = getTodayStr();
   const todayResolved = sectionAll.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
   const shiftMins = getShiftMinutes(today);
+  const noShift = shiftMins === null;
+
   const totalDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
   const operatingMins = shiftMins != null ? Math.max(0, shiftMins - totalDowntimeToday) : 0;
   const failures = todayResolved.length;
   const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
-  const noShift = shiftMins === null;
   const efficiency = noShift ? null : shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
 
-  // Period avg efficiency — scoped to filtered + section data
+  // Period avg efficiency — scoped to filtered + section data, full shift mins
   const dayMap = {};
   filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
     const d = r.reported_time.split('T')[0];
@@ -2094,7 +2095,7 @@ function renderDtEfficiencyChart() {
   }
 
   const efficiencies = days.map(d => {
-    const sm   = getShiftMinutes(d);
+    const sm = getShiftMinutes(d);
     const dtMins = dayMap[d] || 0;
     return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
   });
