@@ -274,7 +274,7 @@
       type="text"
       inputmode="numeric"
       placeholder="Enter asset number..."
-      oninput="setAsset(this.value.trim())"
+      oninput="setAsset(this.value.replace(/\s+/g, ''))"
     >
 
     <div class="asset-confirmed" id="assetConfirmed">
@@ -301,20 +301,16 @@
       <label>Your Name</label>
       <select id="mechanic" onchange="checkReady()">
         <option value="">Select your name...</option>
-        <option>Ashley</option>
-	  <option>Bernard</option>
-	  <option>Bradwin</option>
-	  <option>Keenan</option>
-	  <option>Khanyisa</option>
-	  <option>Lele</option>
-	  <option>Monray</option>
-	  <option>Nur</option>
-	  <option>Phillip</option>
-	  <option>Phumzi</option>
-	  <option>Rameez</option>
- 	  <option>Ralton</option>
-	  <option>Riedaw</option>
-	  <option>Wallied</option>
+        <option>Wallied</option>
+        <option>Bernard</option>
+        <option>Khanyisa</option>
+        <option>Keenan</option>
+        <option>Mechanic 5</option>
+        <option>Mechanic 6</option>
+        <option>Mechanic 7</option>
+        <option>Mechanic 8</option>
+        <option>Mechanic 9</option>
+        <option>Mechanic 10</option>
       </select>
     </div>
 
@@ -328,20 +324,33 @@
         <option>Line 10</option><option>Line 11</option><option>Line 12</option>
         <option>Line 13</option><option>Line 14</option><option>Line 15</option>
         <option>Line 16</option><option>Line 17</option><option>Line 18</option>
-        <option>Line 19</option><option>Line 20</option><option>Line 21</option>
-		<option>Line 22</option><option>Line 23</option><option>Line 24</option>
+        <option>Line 19</option><option>Line 20</option>
         <option>Pool A</option><option>Pool B</option>
       </select>
     </div>
 
     <div class="field">
       <label>Status</label>
-      <select id="status" onchange="checkReady()">
+      <select id="status" onchange="handleStatusChange()">
         <option value="">Select status...</option>
         <option>Active / In Use</option>
         <option>Under Maintenance</option>
-        <option>Stored</option>
       </select>
+    </div>
+
+    <!-- Maintenance type — shown only when Under Maintenance selected -->
+    <div class="field" id="maintenanceTypeField" style="display:none;">
+      <label>Maintenance type</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+        <button type="button" id="btnMinor" onclick="selectMaintenanceType('Minor')"
+          style="padding:14px;border:2px solid #ddd;border-radius:10px;background:white;font-size:15px;font-weight:600;color:#555;cursor:pointer;transition:all 0.15s;">
+          Minor
+        </button>
+        <button type="button" id="btnMajor" onclick="selectMaintenanceType('Major')"
+          style="padding:14px;border:2px solid #ddd;border-radius:10px;background:white;font-size:15px;font-weight:600;color:#555;cursor:pointer;transition:all 0.15s;">
+          Major
+        </button>
+      </div>
     </div>
   </div>
 
@@ -363,7 +372,7 @@ let currentMachineType = '';
 let scanner = null;
 let scannerActive = false;
 let scanTimestamp = null;
-
+let maintenanceType = '';
 function pad(n) { return String(n).padStart(2, '0'); }
 
 function formatTime(d) {
@@ -424,11 +433,46 @@ async function setAsset(val) {
   checkReady();
 }
 
+function handleStatusChange() {
+  const status = document.getElementById('status').value;
+  const field = document.getElementById('maintenanceTypeField');
+  if (status === 'Under Maintenance') {
+    field.style.display = 'block';
+    maintenanceType = '';
+    document.getElementById('btnMinor').style.border = '2px solid #ddd';
+    document.getElementById('btnMinor').style.background = 'white';
+    document.getElementById('btnMinor').style.color = '#555';
+    document.getElementById('btnMajor').style.border = '2px solid #ddd';
+    document.getElementById('btnMajor').style.background = 'white';
+    document.getElementById('btnMajor').style.color = '#555';
+  } else {
+    field.style.display = 'none';
+    maintenanceType = '';
+  }
+  checkReady();
+}
+
+function selectMaintenanceType(type) {
+  maintenanceType = type;
+  const isMinor = type === 'Minor';
+  const activeColor = '#ED7D31';
+  document.getElementById('btnMinor').style.border = isMinor  ? '2px solid ' + activeColor : '2px solid #ddd';
+  document.getElementById('btnMinor').style.background = isMinor  ? '#FFF2CC' : 'white';
+  document.getElementById('btnMinor').style.color = isMinor  ? '#8B5E0A' : '#555';
+  document.getElementById('btnMajor').style.border = !isMinor ? '2px solid #C00000' : '2px solid #ddd';
+  document.getElementById('btnMajor').style.background = !isMinor ? '#FCE4D6' : 'white';
+  document.getElementById('btnMajor').style.color = !isMinor ? '#C00000' : '#555';
+  checkReady();
+}
+
 function checkReady() {
+  const status = document.getElementById('status').value;
+  const maintenanceOk = status !== 'Under Maintenance' || maintenanceType !== '';
   const ready = currentAsset &&
     document.getElementById('mechanic').value &&
     document.getElementById('location').value &&
-    document.getElementById('status').value;
+    status &&
+    maintenanceOk;
   document.getElementById('submitBtn').disabled = !ready;
 }
 
@@ -452,8 +496,9 @@ function startScanner() {
     { facingMode: 'environment' },
     { fps: 10, qrbox: { width: 260, height: 100 } },
     (decoded) => {
-      setAsset(decoded);
-      document.getElementById('manualAsset').value = decoded;
+      const clean = decoded.replace(/\s+/g, '');
+      setAsset(clean);
+      document.getElementById('manualAsset').value = clean;
       stopScanner();
       showToast('Barcode scanned!', 'success');
     },
@@ -485,7 +530,10 @@ async function submitScan() {
   const ts = scanTimestamp || new Date();
   const mechanic = document.getElementById('mechanic').value;
   const location = document.getElementById('location').value;
-  const status = document.getElementById('status').value;
+  const baseStatus = document.getElementById('status').value;
+  const status = baseStatus === 'Under Maintenance' && maintenanceType
+    ? 'Under Maintenance — ' + maintenanceType
+    : baseStatus;
 
   const payload = {
     asset_no: currentAsset,
@@ -538,12 +586,14 @@ async function submitScan() {
 function resetForm() {
   currentAsset = '';
   currentMachineType = '';
+  maintenanceType = '';
   scanTimestamp = null;
   document.getElementById('manualAsset').value = '';
   document.getElementById('assetConfirmed').style.display = 'none';
   document.getElementById('machineTypeDisplay').textContent = '';
   document.getElementById('tsRow').style.display = 'none';
   document.getElementById('status').value = '';
+  document.getElementById('maintenanceTypeField').style.display = 'none';
   document.getElementById('mainForm').style.display = 'block';
   document.getElementById('successState').style.display = 'none';
   checkReady();
