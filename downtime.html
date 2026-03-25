@@ -186,7 +186,7 @@ textarea { min-height: 90px; resize: vertical; }
       </button>
       <div id="readerSup"></div>
       <div class="or-divider">— or enter manually —</div>
-      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(this.value.trim())">
+      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(this.value.replace(/\s+/g, ''))">
       <div class="asset-confirmed" id="supAssetConfirmed">
         <div style="flex:1">
           <div class="num" id="supAssetVal"></div>
@@ -485,8 +485,9 @@ function startScannerSup() {
   supScanner = new Html5Qrcode('readerSup');
   supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
     (decoded) => {
-      supSetAsset(decoded);
-      document.getElementById('supAssetInput').value = decoded;
+      const clean = decoded.replace(/\s+/g, '');
+      supSetAsset(clean);
+      document.getElementById('supAssetInput').value = clean;
       stopScannerSup();
       showToast('Barcode scanned!', 'success');
     }, () => {}
