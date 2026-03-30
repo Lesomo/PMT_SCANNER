@@ -465,10 +465,17 @@ async function saveToStaging() {
       resetScan();
       updateStagingBadge();
     } else {
-      showToast('Save failed. Try again.', 'error');
+      const errText = await res.text();
+      console.error('Save error:', res.status, errText);
+      if (errText.includes('model_no')) {
+        showToast('Run: ALTER TABLE assets_staging ADD COLUMN model_no text; in Supabase first.', 'error');
+      } else {
+        showToast('Save failed: ' + res.status, 'error');
+      }
       btn.disabled = false; btn.textContent = 'Save to Staging';
     }
   } catch(e) {
+    console.error('Save exception:', e);
     showToast('Connection error.', 'error');
     btn.disabled = false; btn.textContent = 'Save to Staging';
   }
@@ -723,17 +730,36 @@ async function updateStaging(id) {
   btn.disabled = true; btn.textContent = 'Saving...';
 
   try {
-    await fetch(SUPABASE_URL + '/rest/v1/assets_staging?id=eq.' + id, {
+    const updatePayload = {
+      serial_no: serialNo||null,
+      asset_type: type||null,
+      brand: brand||null,
+      current_location: location||null,
+      notes: notes||null,
+      status: isComplete?'Complete':'Incomplete',
+      updated_at: new Date().toISOString()
+    };
+    if (modelNo) updatePayload.model_no = modelNo;
+
+    const res = await fetch(SUPABASE_URL + '/rest/v1/assets_staging?id=eq.' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ serial_no: serialNo||null, asset_type: type||null, model_no: modelNo||null, brand: brand||null, current_location: location||null, notes: notes||null, status: isComplete?'Complete':'Incomplete', updated_at: new Date().toISOString() })
+      body: JSON.stringify(updatePayload)
     });
-    showToast('Record updated!', 'success');
-    closeModal();
-    document.getElementById('modalSaveBtn').onclick = saveToStaging;
-    await loadStaging();
+    if (res.ok || res.status === 204) {
+      showToast('Record updated!', 'success');
+      closeModal();
+      document.getElementById('modalSaveBtn').onclick = saveToStaging;
+      await loadStaging();
+    } else {
+      const errText = await res.text();
+      console.error('Update error:', errText);
+      showToast('Update failed: ' + res.status, 'error');
+      btn.disabled = false; btn.textContent = 'Save to Staging';
+    }
   } catch(e) {
-    showToast('Update failed.', 'error');
+    console.error('Update exception:', e);
+    showToast('Connection error. Try again.', 'error');
     btn.disabled = false; btn.textContent = 'Save to Staging';
   }
 }
@@ -782,6 +808,7 @@ const MACHINE_TYPES = [
   { code: '6THRD/MK/SFT O/L',desc: '6 THREAD MOCK SAFETY OVERLOCK MACHINE' },
   { code: 'S/N CHAINST',     desc: 'SINGLE NEEDLE CHAIN STITCH' },
   { code: 'S/N LOCKST EDGET',desc: 'SINGLE NEEDLE LOCK STITCH + EDGE TRIMMER' },
+  { code: 'PLN S/N',          desc: 'PLAIN SINGLE NEEDLE LOCKSTITCH' },
   { code: 'ROUCH',           desc: 'ROUCHING MACHINE' },
   { code: 'STD',             desc: 'STUD MACHINE' },
   { code: 'ZIGZAG ST',       desc: 'ZIG ZAG STITCH MACHINE' },
