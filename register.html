@@ -839,6 +839,8 @@ function getTypeValue() {
 function setTypeValue(val) {
   document.getElementById('mTypeInput').value = val || '';
 }
+
+function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast ' + type + ' show';
