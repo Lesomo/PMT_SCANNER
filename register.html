@@ -295,7 +295,7 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #1F3864; }
     <button class="btn btn-green" id="modalSaveBtn" onclick="saveToStaging()">
       Save to Staging
     </button>
-    <button class="btn btn-grey" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-grey" onclick="cancelModal()">Cancel</button>
   </div>
 </div>
 
@@ -689,7 +689,7 @@ function renderStaging() {
       <td>${r.current_location || '—'}</td>
       <td style="font-size:11px;color:#aaa;">${r.source || '—'}</td>
       <td><span class="pill ${pillClass}">${r.status}</span></td>
-      <td><button class="btn btn-grey btn-sm" onclick="editStaging(${r.id})">Edit</button></td>
+      <td style="display:flex;gap:6px;"><button class="btn btn-grey btn-sm" onclick="editStaging(${r.id})">Edit</button><button class="btn btn-sm" style="background:#FCE4D6;color:#C00000;border:none;" onclick="deleteStaging(${r.id})">Delete</button></td>
     </tr>`;
   });
   html += '</tbody></table></div>';
@@ -730,6 +730,11 @@ async function updateStaging(id) {
   const btn = document.getElementById('modalSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving...';
 
+  const safetyTimer = setTimeout(() => {
+    btn.disabled = false; btn.textContent = 'Save to Staging';
+    showToast('Request timed out. Check connection.', 'error');
+  }, 10000);
+
   try {
     const updatePayload = {
       serial_no: serialNo||null,
@@ -747,19 +752,21 @@ async function updateStaging(id) {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
       body: JSON.stringify(updatePayload)
     });
+    clearTimeout(safetyTimer);
     if (res.ok || res.status === 204) {
       showToast('Record updated!', 'success');
-      closeModal();
-      document.getElementById('modalSaveBtn').onclick = saveToStaging;
+      cancelModal();
       await loadStaging();
     } else {
       const errText = await res.text();
       console.error('Update error:', errText);
       showToast('Update failed: ' + res.status, 'error');
+      clearTimeout(safetyTimer);
       btn.disabled = false; btn.textContent = 'Save to Staging';
     }
   } catch(e) {
     console.error('Update exception:', e);
+    clearTimeout(safetyTimer);
     showToast('Connection error. Try again.', 'error');
     btn.disabled = false; btn.textContent = 'Save to Staging';
   }
@@ -866,6 +873,32 @@ function getTypeValue() {
 
 function setTypeValue(val) {
   document.getElementById('mTypeInput').value = val || '';
+}
+
+function cancelModal() {
+  const btn = document.getElementById('modalSaveBtn');
+  btn.disabled = false;
+  btn.textContent = 'Save to Staging';
+  btn.onclick = saveToStaging;
+  closeModal();
+}
+
+async function deleteStaging(id) {
+  const rec = allStaging.find(r => r.id === id);
+  const label = rec ? rec.asset_no : 'this record';
+  if (!confirm('Delete staging record for asset ' + label + '? This cannot be undone.')) return;
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/assets_staging?id=eq.' + id, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if (res.ok || res.status === 204) {
+      showToast('Record deleted.', 'success');
+      await loadStaging();
+    } else {
+      showToast('Delete failed.', 'error');
+    }
+  } catch(e) { showToast('Connection error.', 'error'); }
 }
 
 function showToast(msg, type) {
