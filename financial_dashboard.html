@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F3864">
+<title>PMT Financial Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; }
+
+/* HEADER */
+.header { background: #1F3864; color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; gap: 12px; flex-wrap: wrap; }
+.header h1 { font-size: 17px; font-weight: 700; white-space: nowrap; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live-badge { display: flex; align-items: center; gap: 5px; background: rgba(112,173,71,0.25); border: 1px solid rgba(112,173,71,0.4); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #70AD47; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: #70AD47; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.hdr-btn { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.hdr-btn:hover { background: rgba(255,255,255,0.2); }
+.hdr-btn.green { background: rgba(112,173,71,0.3); border-color: rgba(112,173,71,0.5); }
+.hdr-btn svg { width: 13px; height: 13px; }
+.spinning svg { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* CONTROLS BAR */
+.controls { background: white; border-bottom: 1px solid #e0e0e0; padding: 10px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ctrl-group { display: flex; align-items: center; gap: 8px; }
+.ctrl-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+.ctrl-input { padding: 7px 11px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; font-family: inherit; color: #1a1a1a; background: white; }
+.ctrl-input:focus { outline: none; border-color: #1F3864; }
+select.ctrl-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; cursor: pointer; }
+.section-tabs { display: flex; gap: 5px; }
+.stab { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid; white-space: nowrap; transition: all 0.15s; }
+.stab.all    { border-color: #1F3864; color: #1F3864; background: white; }
+.stab.all.active { background: #1F3864; color: white; }
+.stab.green  { border-color: #2D7D46; color: #2D7D46; background: white; }
+.stab.green.active  { background: #2D7D46; color: white; }
+.stab.yellow { border-color: #C9A84C; color: #8B6914; background: white; }
+.stab.yellow.active { background: #C9A84C; color: white; }
+.stab.purple { border-color: #6B3FA0; color: #6B3FA0; background: white; }
+.stab.purple.active { background: #6B3FA0; color: white; }
+.stab.blue   { border-color: #1B4F8A; color: #1B4F8A; background: white; }
+.stab.blue.active   { background: #1B4F8A; color: white; }
+.ctrl-sep { width: 1px; height: 28px; background: #e0e0e0; }
+
+/* SETTINGS PANEL */
+.settings-bar { background: #FFF8E7; border-bottom: 2px solid #C9A84C; padding: 12px 24px; display: none; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.settings-bar.open { display: flex; }
+.setting-group { display: flex; flex-direction: column; gap: 4px; }
+.setting-group label { font-size: 11px; font-weight: 700; color: #8B6914; text-transform: uppercase; letter-spacing: 0.05em; }
+.setting-input { padding: 8px 12px; border: 1.5px solid #C9A84C; border-radius: 8px; font-size: 14px; font-family: inherit; width: 150px; background: white; }
+.setting-input:focus { outline: none; border-color: #8B6914; }
+.setting-note { font-size: 11px; color: #8B6914; }
+.apply-btn { padding: 9px 18px; background: #1F3864; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.apply-btn:hover { background: #162B4D; }
+
+/* MAIN */
+.main { padding: 20px 24px; max-width: 1600px; margin: 0 auto; }
+
+/* KPI GRID */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.kpi-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 4px solid var(--accent, #1F3864); }
+.kpi-lbl { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+.kpi-val { font-size: 26px; font-weight: 700; color: #1a1a1a; line-height: 1; }
+.kpi-sub { font-size: 11px; color: #aaa; margin-top: 5px; }
+.kpi-delta { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; margin-top: 4px; }
+.delta-up   { background: #FCE4D6; color: #C00000; }
+.delta-down { background: #E2EFDA; color: #3B6D11; }
+.delta-flat { background: #f0f2f5; color: #888; }
+
+/* CHART GRID */
+.chart-row { display: grid; gap: 14px; margin-bottom: 14px; }
+.cols-2 { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.cols-21 { grid-template-columns: 2fr 1fr; }
+@media(max-width:900px) { .cols-2,.cols-3,.cols-21 { grid-template-columns: 1fr; } .main { padding: 12px; } .controls { padding: 10px 12px; } }
+
+.panel { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.panel-title { font-size: 13px; font-weight: 700; color: #1a1a1a; margin-bottom: 3px; }
+.panel-sub { font-size: 11px; color: #aaa; margin-bottom: 14px; }
+.chart-wrap { position: relative; }
+.h280 { height: 280px; }
+.h240 { height: 240px; }
+.h220 { height: 220px; }
+
+/* TOGGLE */
+.view-tabs { display: flex; gap: 5px; margin-bottom: 14px; }
+.vtab { padding: 5px 12px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; color: #666; background: white; }
+.vtab.active { background: #1F3864; color: white; border-color: #1F3864; }
+
+/* TABLE */
+.tbl-wrap { overflow-x: auto; }
+table.fin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fin-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 2px solid #f0f2f5; white-space: nowrap; }
+.fin-table td { padding: 9px 10px; border-bottom: 1px solid #f5f5f5; color: #333; }
+.fin-table tr:last-child td { border-bottom: none; }
+.fin-table tr:hover td { background: #fafafa; }
+.num { text-align: right; font-weight: 600; font-family: 'SF Mono', 'Fira Code', monospace; }
+.bar-cell { width: 80px; }
+.mini-bar { height: 6px; background: #f0f2f5; border-radius: 3px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+/* MONTHLY SUMMARY */
+.month-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.month-card { background: #f8f9fa; border-radius: 8px; padding: 12px; border-left: 3px solid #1F3864; }
+.month-name { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+.month-cost { font-size: 18px; font-weight: 700; color: #1F3864; }
+.month-mins { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+/* BUDGET PROGRESS */
+.budget-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.budget-label { font-size: 12px; color: #555; min-width: 100px; }
+.budget-track { flex: 1; height: 10px; background: #f0f2f5; border-radius: 10px; overflow: hidden; }
+.budget-fill { height: 100%; border-radius: 10px; transition: width 0.5s; }
+.budget-text { font-size: 12px; font-weight: 700; min-width: 70px; text-align: right; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 40px; color: #bbb; font-size: 13px; }
+.spinner-inline { width: 20px; height: 20px; border: 2px solid #f0f2f5; border-top-color: #1F3864; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(10px); padding: 11px 22px; border-radius: 10px; font-size: 13px; font-weight: 600; color: white; opacity: 0; transition: all 0.3s; z-index: 9999; }
+.toast.success { background: #3B6D11; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>PMT Financial Dashboard</h1>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>Live</div>
+    <button class="hdr-btn green" onclick="exportCSV()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+    <button class="hdr-btn" onclick="toggleSettings()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+    <button class="hdr-btn" id="refreshBtn" onclick="loadData()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.8-7.1L23 10"/></svg>
+      Refresh
+    </button>
+    <span style="font-size:11px;color:rgba(255,255,255,0.5);" id="lastUpdated">—</span>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div class="settings-bar" id="settingsBar">
+  <div class="setting-group">
+    <label>Rate (R per minute)</label>
+    <input class="setting-input" type="number" id="rateInput" value="2.75" min="0" step="0.25">
+    <span class="setting-note">Applied to all downtime calculations</span>
+  </div>
+  <div class="setting-group">
+    <label>Monthly downtime budget (R)</label>
+    <input class="setting-input" type="number" id="monthlyBudget" value="50000" min="0" step="1000">
+  </div>
+  <div class="setting-group">
+    <label>Daily downtime target (R)</label>
+    <input class="setting-input" type="number" id="dailyTarget" value="2000" min="0" step="100">
+  </div>
+  <div class="setting-group">
+    <label>Trend view</label>
+    <select class="setting-input" id="trendView" style="width:130px;">
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+    </select>
+  </div>
+  <button class="apply-btn" onclick="applySettings()">Apply & Save</button>
+</div>
+
+<!-- CONTROLS BAR -->
+<div class="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Date from</span>
+    <input type="date" id="dateFrom" class="ctrl-input" onchange="applyFilter()">
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">to</span>
+    <input type="date" id="dateTo" class="ctrl-input" onchange="applyFilter()">
+  </div>
+  <button class="hdr-btn" style="background:#f0f2f5;color:#555;border-color:#ddd;" onclick="clearFilter()">Clear</button>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Section</span>
+    <div class="section-tabs">
+      <div class="stab all active"    onclick="setSection('all')"   >All</div>
+      <div class="stab green"         onclick="setSection('green')" >Green (L1–6)</div>
+      <div class="stab yellow"        onclick="setSection('yellow')">Yellow (L7–11)</div>
+      <div class="stab purple"        onclick="setSection('purple')">Purple (L14–18)</div>
+      <div class="stab blue"          onclick="setSection('blue')"  >Blue (L19–24)</div>
+    </div>
+  </div>
+  <div class="ctrl-sep"></div>
+  <span style="font-size:12px;color:#888;" id="filterInfo"></span>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- KPI ROW -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent:#C00000;">
+      <div class="kpi-lbl">Total cost of downtime</div>
+      <div class="kpi-val" id="kpiTotal">—</div>
+      <div class="kpi-sub" id="kpiTotalSub">selected period</div>
+    </div>
+    <div class="kpi-card" style="--accent:#ED7D31;">
+      <div class="kpi-lbl">Cost today</div>
+      <div class="kpi-val" id="kpiToday">—</div>
+      <div class="kpi-delta" id="kpiTodayDelta"></div>
+    </div>
+    <div class="kpi-card" style="--accent:#C9A84C;">
+      <div class="kpi-lbl">Avg cost per incident</div>
+      <div class="kpi-val" id="kpiAvgIncident">—</div>
+      <div class="kpi-sub">based on resolved incidents</div>
+    </div>
+    <div class="kpi-card" style="--accent:#1F3864;">
+      <div class="kpi-lbl">Total downtime (mins)</div>
+      <div class="kpi-val" id="kpiMins">—</div>
+      <div class="kpi-sub" id="kpiMinsSub">resolved incidents</div>
+    </div>
+    <div class="kpi-card" style="--accent:#2D7D46;">
+      <div class="kpi-lbl">Monthly budget used</div>
+      <div class="kpi-val" id="kpiBudget">—</div>
+      <div class="kpi-sub" id="kpiBudgetSub">of monthly budget</div>
+    </div>
+    <div class="kpi-card" style="--accent:#6B3FA0;">
+      <div class="kpi-lbl">Daily target status</div>
+      <div class="kpi-val" id="kpiDailyStatus">—</div>
+      <div class="kpi-sub" id="kpiDailyStatusSub">vs R<span id="kpiDailyTarget">—</span> target</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Cost trend + Cost today vs yesterday -->
+  <div class="chart-row cols-21" style="margin-bottom:14px;">
+    <div class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+        <div>
+          <div class="panel-title">Cost of downtime trend</div>
+          <div class="panel-sub">Total rand cost per day or week</div>
+        </div>
+        <div class="view-tabs" style="margin:0;">
+          <div class="vtab active" onclick="switchTrend('daily')">Daily</div>
+          <div class="vtab" onclick="switchTrend('weekly')">Weekly</div>
+        </div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Today vs yesterday</div>
+      <div class="panel-sub">Cost comparison by hour or total</div>
+      <div class="chart-wrap h280"><canvas id="todayVsYestChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: Cost per line + Cost per section -->
+  <div class="chart-row cols-2" style="margin-bottom:14px;">
+    <div class="panel">
+      <div class="panel-title">Cost per line</div>
+      <div class="panel-sub">Total downtime cost by production line</div>
+      <div class="chart-wrap h240"><canvas id="lineChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Cost per section</div>
+      <div class="panel-sub">Green · Yellow · Purple · Blue</div>
+      <div class="chart-wrap h240"><canvas id="sectionChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 3: Cost per machine type + Cost per fault -->
+  <div class="chart-row cols-2" style="margin-bottom:14px;">
+    <div class="panel">
+      <div class="panel-title">Cost per machine type</div>
+      <div class="panel-sub">Which machine types cost the most in downtime</div>
+      <div class="chart-wrap h240"><canvas id="typeChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Cost per fault type</div>
+      <div class="panel-sub">Which reported faults drive the most cost</div>
+      <div class="chart-wrap h240"><canvas id="faultChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 4: Top 10 expensive assets + Budget progress -->
+  <div class="chart-row cols-21" style="margin-bottom:14px;">
+    <div class="panel">
+      <div class="panel-title">Top 10 most expensive assets</div>
+      <div class="panel-sub">Ranked by total downtime cost — selected period</div>
+      <div class="tbl-wrap">
+        <table class="fin-table">
+          <thead><tr><th>Rank</th><th>Asset</th><th>Machine type</th><th>Line</th><th>Incidents</th><th>Total mins</th><th class="num">Cost (R)</th><th class="bar-cell"></th></tr></thead>
+          <tbody id="top10Body"><tr><td colspan="8"><div class="empty"><span class="spinner-inline"></span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Budget & targets</div>
+      <div class="panel-sub">Progress against financial controls</div>
+      <div id="budgetSection"></div>
+    </div>
+  </div>
+
+  <!-- ROW 5: Monthly summary -->
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="panel-title">Monthly cost summary</div>
+    <div class="panel-sub">Total downtime cost per calendar month — all time</div>
+    <div class="month-grid" id="monthlyGrid"><div class="empty"><span class="spinner-inline"></span></div></div>
+  </div>
+
+</div><!-- end .main -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
+
+const SECTIONS = {
+  all:    null,
+  green:  ['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6'],
+  yellow: ['Line 7','Line 8','Line 9','Line 10','Line 11'],
+  purple: ['Line 14','Line 15','Line 16','Line 17','Line 18'],
+  blue:   ['Line 19','Line 20','Line 21','Line 22','Line 23','Line 24'],
+};
+const SECTION_COLORS = { all:'#1F3864', green:'#2D7D46', yellow:'#C9A84C', purple:'#6B3FA0', blue:'#1B4F8A' };
+const PALETTE = ['#1F3864','#2E5597','#ED7D31','#C9A84C','#70AD47','#2D7D46','#6B3FA0','#C00000','#1B4F8A','#888'];
+
+let allData = [];
+let filtered = [];
+let activeSection = 'all';
+let trendMode = 'daily';
+let RATE = 2.75;
+let MONTHLY_BUDGET = 50000;
+let DAILY_TARGET = 2000;
+
+let trendChart = null, todayVsYestChart = null, lineChart = null;
+let sectionChart = null, typeChart = null, faultChart = null;
+
+function r(mins) { return (mins * RATE).toFixed(0); }
+function fmt(val) { return 'R' + Number(val).toLocaleString('en-ZA'); }
+function fmtMins(m) { const h=Math.floor(m/60),mn=Math.round(m%60); return h>0?h+'h '+mn+'m':mn+'m'; }
+
+// ── SETTINGS ──────────────────────────────────────────────────────────
+function toggleSettings() {
+  document.getElementById('settingsBar').classList.toggle('open');
+}
+function applySettings() {
+  RATE = parseFloat(document.getElementById('rateInput').value) || 2.75;
+  MONTHLY_BUDGET = parseFloat(document.getElementById('monthlyBudget').value) || 50000;
+  DAILY_TARGET = parseFloat(document.getElementById('dailyTarget').value) || 2000;
+  trendMode = document.getElementById('trendView').value;
+  try { localStorage.setItem('pmt_fin_rate', RATE); localStorage.setItem('pmt_fin_budget', MONTHLY_BUDGET); localStorage.setItem('pmt_fin_target', DAILY_TARGET); } catch(e) {}
+  renderAll();
+  showToast('Settings applied!', 'success');
+}
+function loadSettings() {
+  try {
+    RATE = parseFloat(localStorage.getItem('pmt_fin_rate')) || 2.75;
+    MONTHLY_BUDGET = parseFloat(localStorage.getItem('pmt_fin_budget')) || 50000;
+    DAILY_TARGET = parseFloat(localStorage.getItem('pmt_fin_target')) || 2000;
+    document.getElementById('rateInput').value = RATE;
+    document.getElementById('monthlyBudget').value = MONTHLY_BUDGET;
+    document.getElementById('dailyTarget').value = DAILY_TARGET;
+    document.getElementById('kpiDailyTarget').textContent = DAILY_TARGET.toLocaleString('en-ZA');
+  } catch(e) {}
+}
+
+// ── DATA ──────────────────────────────────────────────────────────────
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=2000',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    allData = await res.json();
+    applyFilter();
+    document.getElementById('lastUpdated').textContent =
+      new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' });
+  } catch(e) { showToast('Could not load data.', 'error'); }
+  btn.classList.remove('spinning');
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────
+function applyFilter() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const sLines = SECTIONS[activeSection];
+  filtered = allData.filter(r => {
+    if (r.status !== 'Resolved') return false;
+    const d = (r.reported_time||'').split('T')[0];
+    if (from && d < from) return false;
+    if (to   && d > to)   return false;
+    if (sLines && !sLines.includes(r.line)) return false;
+    return true;
+  });
+  const parts = [];
+  if (from||to) parts.push((from||'…')+' to '+(to||'…'));
+  if (activeSection!=='all') parts.push(activeSection.charAt(0).toUpperCase()+activeSection.slice(1)+' section');
+  document.getElementById('filterInfo').textContent = parts.length ? filtered.length+' incidents — '+parts.join(' | ') : filtered.length+' resolved incidents';
+  renderAll();
+}
+
+function clearFilter() {
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  applyFilter();
+}
+
+function setSection(s) {
+  activeSection = s;
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.stab.'+s).classList.add('active');
+  applyFilter();
+}
+
+function switchTrend(mode) {
+  trendMode = mode;
+  document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTrend();
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────
+function renderAll() {
+  renderKPIs();
+  renderTrend();
+  renderTodayVsYest();
+  renderLineChart();
+  renderSectionChart();
+  renderTypeChart();
+  renderFaultChart();
+  renderTop10();
+  renderBudget();
+  renderMonthly();
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const today = new Date().toISOString().split('T')[0];
+  const yest  = new Date(Date.now()-86400000).toISOString().split('T')[0];
+
+  const totalMins  = filtered.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
+  const totalCost  = totalMins * RATE;
+  const todayRecs  = filtered.filter(r => (r.reported_time||'').startsWith(today));
+  const yestRecs   = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(yest) && (!SECTIONS[activeSection]||SECTIONS[activeSection].includes(r.line)));
+  const todayMins  = todayRecs.reduce((s,r) => s+(r.total_downtime_minutes||0),0);
+  const yestMins   = yestRecs.reduce((s,r) => s+(r.total_downtime_minutes||0),0);
+  const todayCost  = todayMins * RATE;
+  const yestCost   = yestMins * RATE;
+  const avgMins    = filtered.length > 0 ? totalMins / filtered.length : 0;
+  const avgCost    = avgMins * RATE;
+
+  // Monthly budget — current month
+  const thisMonth = today.substring(0,7);
+  const monthMins = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(thisMonth) && (!SECTIONS[activeSection]||SECTIONS[activeSection].includes(r.line))).reduce((s,r) => s+(r.total_downtime_minutes||0),0);
+  const monthCost = monthMins * RATE;
+  const budgetPct = Math.round(monthCost / MONTHLY_BUDGET * 100);
+
+  document.getElementById('kpiTotal').textContent       = fmt(totalCost.toFixed(0));
+  document.getElementById('kpiTotalSub').textContent    = filtered.length + ' incidents · ' + fmtMins(totalMins);
+  document.getElementById('kpiToday').textContent       = fmt(todayCost.toFixed(0));
+  document.getElementById('kpiAvgIncident').textContent = fmt(avgCost.toFixed(0));
+  document.getElementById('kpiMins').textContent        = fmtMins(totalMins);
+  document.getElementById('kpiMinsSub').textContent     = filtered.length + ' resolved incidents';
+  document.getElementById('kpiBudget').textContent      = budgetPct + '%';
+  document.getElementById('kpiBudgetSub').textContent   = fmt(monthCost.toFixed(0)) + ' of ' + fmt(MONTHLY_BUDGET) + ' budget';
+  document.getElementById('kpiDailyTarget').textContent = DAILY_TARGET.toLocaleString('en-ZA');
+
+  // Today vs target
+  const dailyStatusEl = document.getElementById('kpiDailyStatus');
+  const dailySubEl    = document.getElementById('kpiDailyStatusSub');
+  if (todayCost <= DAILY_TARGET) {
+    dailyStatusEl.textContent = '✓ On track';
+    dailyStatusEl.style.color = '#3B6D11';
+    dailySubEl.innerHTML = fmt(todayCost.toFixed(0)) + ' vs R<span id="kpiDailyTarget">'+DAILY_TARGET.toLocaleString('en-ZA')+'</span> target';
+  } else {
+    dailyStatusEl.textContent = '↑ Over target';
+    dailyStatusEl.style.color = '#C00000';
+    dailySubEl.innerHTML = fmt(todayCost.toFixed(0)) + ' vs R<span id="kpiDailyTarget">'+DAILY_TARGET.toLocaleString('en-ZA')+'</span> target';
+  }
+
+  // Today delta vs yesterday
+  const deltaEl = document.getElementById('kpiTodayDelta');
+  if (yestCost === 0) { deltaEl.textContent = ''; return; }
+  const diff = todayCost - yestCost;
+  const pct  = Math.round(Math.abs(diff) / yestCost * 100);
+  if (diff > 0) { deltaEl.textContent = '↑ '+pct+'% vs yesterday'; deltaEl.className = 'kpi-delta delta-up'; }
+  else if (diff < 0) { deltaEl.textContent = '↓ '+pct+'% vs yesterday'; deltaEl.className = 'kpi-delta delta-down'; }
+  else { deltaEl.textContent = '= same as yesterday'; deltaEl.className = 'kpi-delta delta-flat'; }
+}
+
+// ── TREND ─────────────────────────────────────────────────────────────
+function renderTrend() {
+  const byPeriod = {};
+  filtered.forEach(r => {
+    if (!r.reported_time) return;
+    let key = r.reported_time.split('T')[0];
+    if (trendMode === 'weekly') {
+      const d = new Date(key); const day = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() - (day===0?6:day-1));
+      key = mon.toISOString().split('T')[0];
+    }
+    byPeriod[key] = (byPeriod[key]||0) + (r.total_downtime_minutes||0);
+  });
+  const keys   = Object.keys(byPeriod).sort();
+  const costs  = keys.map(k => (byPeriod[k] * RATE).toFixed(0));
+  const labels = keys.map(k => { const p=k.split('-'); return p[2]+'/'+p[1]; });
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Cost (R)', data: costs,
+      borderColor: '#C00000', backgroundColor: 'rgba(192,0,0,0.08)',
+      borderWidth: 2, pointRadius: 4, fill: true, tension: 0.3,
+      pointBackgroundColor: costs.map(c => c > DAILY_TARGET ? '#C00000' : '#70AD47')
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: i => ' R' + Number(i.raw).toLocaleString('en-ZA') } },
+        annotation: { annotations: { target: {
+          type: 'line', yMin: DAILY_TARGET, yMax: DAILY_TARGET,
+          borderColor: '#ED7D31', borderWidth: 1.5, borderDash: [5,4],
+          label: { display: true, content: 'Daily target', position: 'end', font: { size: 10 } }
+        }}}
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#888', maxRotation: 45, minRotation: 45 } },
+        y: { grid: { color: '#f0f2f5' }, ticks: { font: { size: 10 }, color: '#888', callback: v => 'R'+Number(v).toLocaleString('en-ZA') }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── TODAY VS YESTERDAY ────────────────────────────────────────────────
+function renderTodayVsYest() {
+  const today = new Date().toISOString().split('T')[0];
+  const yest  = new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const sLines = SECTIONS[activeSection];
+  const todayRecs = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(today) && (!sLines||sLines.includes(r.line)));
+  const yestRecs  = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(yest)  && (!sLines||sLines.includes(r.line)));
+  const todayCost = todayRecs.reduce((s,r) => s+(r.total_downtime_minutes||0),0) * RATE;
+  const yestCost  = yestRecs.reduce((s,r)  => s+(r.total_downtime_minutes||0),0) * RATE;
+  const ctx = document.getElementById('todayVsYestChart').getContext('2d');
+  if (todayVsYestChart) todayVsYestChart.destroy();
+  todayVsYestChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Yesterday', 'Today'],
+      datasets: [{ label: 'Cost (R)', data: [yestCost.toFixed(0), todayCost.toFixed(0)],
+        backgroundColor: [
+          todayCost <= yestCost ? '#70AD47' : '#ED7D31',
+          todayCost <= yestCost ? '#2D7D46' : '#C00000'
+        ], borderRadius: 6, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => ' R'+Number(i.raw).toLocaleString('en-ZA') } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#555' } },
+        y: { grid: { color: '#f0f2f5' }, ticks: { font: { size: 10 }, color: '#888', callback: v => 'R'+Number(v).toLocaleString('en-ZA') }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── COST PER LINE ─────────────────────────────────────────────────────
+function renderLineChart() {
+  const sLines = SECTIONS[activeSection];
+  const ALL = sLines || Array.from({length:24},(_,i)=>'Line '+(i+1));
+  const costs = ALL.map(l => (filtered.filter(r=>r.line===l).reduce((s,r)=>s+(r.total_downtime_minutes||0),0)*RATE).toFixed(0));
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: ALL, datasets: [{ label: 'Cost (R)', data: costs,
+      backgroundColor: ALL.map(l => {
+        if (SECTIONS.green  && SECTIONS.green.includes(l))  return '#2D7D46';
+        if (SECTIONS.yellow && SECTIONS.yellow.includes(l)) return '#C9A84C';
+        if (SECTIONS.purple && SECTIONS.purple.includes(l)) return '#6B3FA0';
+        if (SECTIONS.blue   && SECTIONS.blue.includes(l))   return '#1B4F8A';
+        return '#888';
+      }), borderRadius: 4, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => ' R'+Number(i.raw).toLocaleString('en-ZA') } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#888', maxRotation: 45, minRotation: 45 } },
+        y: { grid: { color: '#f0f2f5' }, ticks: { font: { size: 10 }, color: '#888', callback: v => 'R'+Number(v).toLocaleString('en-ZA') }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── COST PER SECTION ──────────────────────────────────────────────────
+function renderSectionChart() {
+  const sections = [
+    { label:'Green (L1–6)',   lines:SECTIONS.green,  color:'#2D7D46' },
+    { label:'Yellow (L7–11)', lines:SECTIONS.yellow, color:'#C9A84C' },
+    { label:'Purple (L14–18)',lines:SECTIONS.purple, color:'#6B3FA0' },
+    { label:'Blue (L19–24)', lines:SECTIONS.blue,   color:'#1B4F8A' },
+  ];
+  const costs = sections.map(s => (allData.filter(r=>r.status==='Resolved' && s.lines.includes(r.line)).reduce((sum,r)=>sum+(r.total_downtime_minutes||0),0)*RATE).toFixed(0));
+  const ctx = document.getElementById('sectionChart').getContext('2d');
+  if (sectionChart) sectionChart.destroy();
+  sectionChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: sections.map(s=>s.label), datasets: [{ data: costs, backgroundColor: sections.map(s=>s.color), borderWidth: 0, hoverOffset: 8 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, color: '#555', padding: 12, boxWidth: 12 } },
+        tooltip: { callbacks: { label: i => ' ' + i.label + ': R' + Number(i.raw).toLocaleString('en-ZA') } } }
+    }
+  });
+}
+
+// ── COST PER TYPE ─────────────────────────────────────────────────────
+function renderTypeChart() {
+  const byType = {};
+  filtered.forEach(r => {
+    if (!r.machine_type) return;
+    byType[r.machine_type] = (byType[r.machine_type]||0) + (r.total_downtime_minutes||0);
+  });
+  const sorted = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const ctx = document.getElementById('typeChart').getContext('2d');
+  if (typeChart) typeChart.destroy();
+  typeChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: sorted.map(e=>e[0]), datasets: [{ label: 'Cost (R)',
+      data: sorted.map(e=>(e[1]*RATE).toFixed(0)),
+      backgroundColor: PALETTE, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => ' R'+Number(i.raw).toLocaleString('en-ZA') } } },
+      scales: {
+        x: { grid: { color: '#f0f2f5' }, ticks: { font: { size: 10 }, color: '#888', callback: v => 'R'+Number(v).toLocaleString('en-ZA') }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#444' } }
+      }
+    }
+  });
+}
+
+// ── COST PER FAULT ────────────────────────────────────────────────────
+function renderFaultChart() {
+  const byFault = {};
+  filtered.forEach(r => {
+    if (!r.fault) return;
+    byFault[r.fault] = (byFault[r.fault]||0) + (r.total_downtime_minutes||0);
+  });
+  const sorted = Object.entries(byFault).sort((a,b)=>b[1]-a[1]);
+  const ctx = document.getElementById('faultChart').getContext('2d');
+  if (faultChart) faultChart.destroy();
+  faultChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: sorted.map(e=>e[0].length>28?e[0].substring(0,26)+'…':e[0]),
+      datasets: [{ label: 'Cost (R)', data: sorted.map(e=>(e[1]*RATE).toFixed(0)),
+        backgroundColor: '#ED7D31', borderRadius: 4, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => ' R'+Number(i.raw).toLocaleString('en-ZA') } } },
+      scales: {
+        x: { grid: { color: '#f0f2f5' }, ticks: { font: { size: 10 }, color: '#888', callback: v => 'R'+Number(v).toLocaleString('en-ZA') }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#444' } }
+      }
+    }
+  });
+}
+
+// ── TOP 10 ASSETS ─────────────────────────────────────────────────────
+function renderTop10() {
+  const byAsset = {};
+  filtered.forEach(r => {
+    if (!r.asset_no) return;
+    if (!byAsset[r.asset_no]) byAsset[r.asset_no] = { machine_type: r.machine_type||'—', line: r.line||'—', incidents: 0, mins: 0 };
+    byAsset[r.asset_no].incidents++;
+    byAsset[r.asset_no].mins += r.total_downtime_minutes||0;
+  });
+  const sorted = Object.entries(byAsset).sort((a,b)=>b[1].mins-a[1].mins).slice(0,10);
+  const max = sorted[0] ? sorted[0][1].mins : 1;
+  const tbody = document.getElementById('top10Body');
+  if (sorted.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">No data for selected period</div></td></tr>'; return; }
+  const rankColors = ['#C00000','#ED7D31','#C9A84C'];
+  tbody.innerHTML = sorted.map(([asset, d], i) => {
+    const cost = (d.mins * RATE).toFixed(0);
+    const pct  = Math.round(d.mins / max * 100);
+    return `<tr>
+      <td style="font-weight:700;color:${rankColors[i]||'#888'};">#${i+1}</td>
+      <td><strong style="font-size:13px;">${asset}</strong></td>
+      <td style="color:#555;">${d.machine_type}</td>
+      <td>${d.line}</td>
+      <td style="text-align:center;">${d.incidents}</td>
+      <td style="text-align:center;">${fmtMins(d.mins)}</td>
+      <td class="num" style="color:#C00000;">R${Number(cost).toLocaleString('en-ZA')}</td>
+      <td class="bar-cell"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%;background:#C00000;"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── BUDGET PROGRESS ───────────────────────────────────────────────────
+function renderBudget() {
+  const today = new Date().toISOString().split('T')[0];
+  const thisMonth = today.substring(0,7);
+  const sLines = SECTIONS[activeSection];
+
+  const todayMins  = allData.filter(r=>r.status==='Resolved'&&(r.reported_time||'').startsWith(today)&&(!sLines||sLines.includes(r.line))).reduce((s,r)=>s+(r.total_downtime_minutes||0),0);
+  const monthMins  = allData.filter(r=>r.status==='Resolved'&&(r.reported_time||'').startsWith(thisMonth)&&(!sLines||sLines.includes(r.line))).reduce((s,r)=>s+(r.total_downtime_minutes||0),0);
+  const periodMins = filtered.reduce((s,r)=>s+(r.total_downtime_minutes||0),0);
+
+  const todayCost  = todayMins  * RATE;
+  const monthCost  = monthMins  * RATE;
+  const periodCost = periodMins * RATE;
+
+  const rows = [
+    { label: 'Today vs daily target', val: todayCost,  max: DAILY_TARGET,    color: todayCost > DAILY_TARGET ? '#C00000' : '#70AD47' },
+    { label: 'This month vs budget',  val: monthCost,  max: MONTHLY_BUDGET,  color: monthCost > MONTHLY_BUDGET * 0.8 ? '#C00000' : monthCost > MONTHLY_BUDGET * 0.6 ? '#ED7D31' : '#70AD47' },
+    { label: 'Period total vs budget',val: periodCost, max: MONTHLY_BUDGET,  color: periodCost > MONTHLY_BUDGET ? '#C00000' : '#1F3864' },
+  ];
+
+  document.getElementById('budgetSection').innerHTML = rows.map(row => {
+    const pct = Math.min(100, Math.round(row.val / row.max * 100));
+    return `<div class="budget-row">
+      <div class="budget-label" style="font-size:12px;color:#555;">${row.label}</div>
+      <div class="budget-track">
+        <div class="budget-fill" style="width:${pct}%;background:${row.color};"></div>
+      </div>
+      <div class="budget-text" style="color:${row.color};">R${Math.round(row.val).toLocaleString('en-ZA')}</div>
+    </div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:14px;text-align:right;">${pct}% of R${row.max.toLocaleString('en-ZA')}</div>`;
+  }).join('');
+}
+
+// ── MONTHLY SUMMARY ───────────────────────────────────────────────────
+function renderMonthly() {
+  const byMonth = {};
+  allData.filter(r => r.status==='Resolved').forEach(r => {
+    if (!r.reported_time) return;
+    const m = r.reported_time.substring(0,7);
+    if (!byMonth[m]) byMonth[m] = 0;
+    byMonth[m] += r.total_downtime_minutes||0;
+  });
+  const months = Object.keys(byMonth).sort().reverse();
+  if (months.length === 0) { document.getElementById('monthlyGrid').innerHTML = '<div class="empty">No monthly data yet</div>'; return; }
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('monthlyGrid').innerHTML = months.map(m => {
+    const [yr, mo] = m.split('-');
+    const mins = byMonth[m];
+    const cost = mins * RATE;
+    const overBudget = cost > MONTHLY_BUDGET;
+    return `<div class="month-card" style="border-left-color:${overBudget?'#C00000':'#1F3864'};">
+      <div class="month-name">${monthNames[parseInt(mo)-1]} ${yr}</div>
+      <div class="month-cost" style="color:${overBudget?'#C00000':'#1F3864'};">R${Math.round(cost).toLocaleString('en-ZA')}</div>
+      <div class="month-mins">${fmtMins(mins)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────────────────
+function exportCSV() {
+  if (filtered.length === 0) { showToast('No data to export.', 'error'); return; }
+  const headers = ['Asset','Machine type','Line','Fault','Error code','Downtime (min)','Cost (R)','Date','Reported time','Resolved time'];
+  const rows = filtered.map(r => [
+    r.asset_no||'', r.machine_type||'', r.line||'', r.fault||'', r.error_code||'',
+    r.total_downtime_minutes||0, ((r.total_downtime_minutes||0)*RATE).toFixed(2),
+    (r.reported_time||'').split('T')[0], r.reported_time||'', r.resolved_time||''
+  ].map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','));
+  const csv   = [headers.join(','), ...rows].join('\r\n');
+  const blob  = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url   = URL.createObjectURL(blob);
+  const now   = new Date();
+  const fname = 'PMT_Financial_'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+'.csv';
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Exported '+filtered.length+' records!', 'success');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+loadSettings();
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
