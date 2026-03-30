@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0A0F1E">
+<title>PMT Register Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0A0F1E;
+  --surface:  #111827;
+  --surface2: #1A2337;
+  --border:   rgba(255,255,255,0.07);
+  --text:     #F0F4FF;
+  --muted:    #6B7A99;
+  --accent1:  #3D7EFF;
+  --accent2:  #00D4A0;
+  --accent3:  #FF6B6B;
+  --accent4:  #FFB347;
+  --glow:     rgba(61,126,255,0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+.header {
+  padding: 24px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(61,126,255,0.06) 0%, transparent 100%);
+}
+.header-left h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.header-left p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.live-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,212,160,0.1); border: 1px solid rgba(0,212,160,0.25);
+  border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 600;
+  color: var(--accent2);
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent2);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+.refresh-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 7px 14px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.refresh-btn:hover { border-color: var(--accent1); color: var(--text); }
+.refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.last-updated { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+/* ── MAIN ── */
+.main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+
+/* ── KPI GRID ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent-color, var(--accent1));
+  opacity: 0.8;
+}
+.kpi-card:hover { border-color: rgba(255,255,255,0.15); }
+.kpi-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+.kpi-value { font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.kpi-icon { position: absolute; top: 18px; right: 18px; font-size: 20px; opacity: 0.25; }
+
+/* ── CHART GRID ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.chart-grid-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media(max-width: 900px) {
+  .chart-grid, .chart-grid-3 { grid-template-columns: 1fr; }
+  .main { padding: 16px; }
+  .header { padding: 16px; }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.panel-title {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  margin-bottom: 4px; letter-spacing: -0.1px;
+}
+.panel-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+.chart-wrap { position: relative; }
+.chart-wrap.h300 { height: 300px; }
+.chart-wrap.h260 { height: 260px; }
+.chart-wrap.h220 { height: 220px; }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table.data-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.data-table th {
+  text-align: left; padding: 10px 12px; font-size: 11px;
+  font-weight: 600; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.07em; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text); white-space: nowrap;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+.data-table .mono { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+
+.badge {
+  display: inline-block; padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.badge-active   { background: rgba(0,212,160,0.12); color: var(--accent2); }
+.badge-maint    { background: rgba(255,179,71,0.12); color: var(--accent4); }
+.badge-stored   { background: rgba(61,126,255,0.12); color: var(--accent1); }
+.badge-other    { background: rgba(107,122,153,0.15); color: var(--muted); }
+
+/* ── EMPTY ── */
+.empty-state {
+  text-align: center; padding: 48px 20px; color: var(--muted); font-size: 13px;
+}
+
+/* ── SPINNER ── */
+.spinner-wrap { display: flex; justify-content: center; padding: 40px; }
+.spinner {
+  width: 28px; height: 28px; border: 2px solid var(--border);
+  border-top-color: var(--accent1); border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── TOP LIST ── */
+.top-list { list-style: none; }
+.top-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.top-list li:last-child { border-bottom: none; }
+.top-rank {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: var(--muted); min-width: 20px;
+}
+.top-label { flex: 1; font-size: 13px; color: var(--text); }
+.top-bar-wrap { width: 90px; background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+.top-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.top-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); min-width: 32px; text-align: right; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>PMT Asset Register</h1>
+    <p>Staging data overview — asset types, brands and scan activity</p>
+  </div>
+  <div class="header-right">
+    <div class="live-pill"><div class="live-dot"></div>Live</div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.8-7.1L23 10"/>
+      </svg>
+      Refresh
+    </button>
+    <span class="last-updated" id="lastUpdated">—</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent-color:#3D7EFF;">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label">Total staged</div>
+      <div class="kpi-value" id="kpiTotal">—</div>
+      <div class="kpi-sub">assets in staging</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#00D4A0;">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-label">Complete</div>
+      <div class="kpi-value" id="kpiComplete">—</div>
+      <div class="kpi-sub">all fields filled</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#FF6B6B;">
+      <div class="kpi-icon">⚠</div>
+      <div class="kpi-label">Incomplete</div>
+      <div class="kpi-value" id="kpiIncomplete">—</div>
+      <div class="kpi-sub">missing fields</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#FFB347;">
+      <div class="kpi-icon">🔍</div>
+      <div class="kpi-label">Unique types</div>
+      <div class="kpi-value" id="kpiTypes">—</div>
+      <div class="kpi-sub">machine categories</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#A78BFA;">
+      <div class="kpi-icon">🏷</div>
+      <div class="kpi-label">Unique brands</div>
+      <div class="kpi-value" id="kpiBrands">—</div>
+      <div class="kpi-sub">manufacturers</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#38BDF8;">
+      <div class="kpi-icon">📍</div>
+      <div class="kpi-label">Locations covered</div>
+      <div class="kpi-value" id="kpiLocations">—</div>
+      <div class="kpi-sub">lines + pools</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Asset type per line + Brand distribution -->
+  <div class="chart-grid" style="margin-bottom:16px;">
+
+    <div class="panel">
+      <div class="panel-title">Asset types per line</div>
+      <div class="panel-sub">Distribution of machine types across production lines</div>
+      <div class="chart-wrap h300"><canvas id="typePerLineChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Brand distribution</div>
+      <div class="panel-sub">Manufacturer breakdown across staged assets</div>
+      <div class="chart-wrap h300"><canvas id="brandChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- ROW 2: Top types + Top locations -->
+  <div class="chart-grid" style="margin-bottom:16px;">
+
+    <div class="panel">
+      <div class="panel-title">Top machine types</div>
+      <div class="panel-sub">Most common asset types in staging</div>
+      <ul class="top-list" id="topTypesList"></ul>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Assets by location</div>
+      <div class="panel-sub">How many assets are staged per line or pool</div>
+      <div class="chart-wrap h260"><canvas id="locationChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- ROW 3: Recent scans table -->
+  <div class="panel" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div class="panel-title">Recent staging activity</div>
+        <div class="panel-sub">Latest assets added to staging — most recent first</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="tableSearch" placeholder="Search asset, type, brand..."
+          oninput="filterTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--text);font-family:inherit;width:240px;outline:none;">
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Asset No</th>
+            <th>Serial No</th>
+            <th>Type</th>
+            <th>Brand</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Source</th>
+            <th>Added</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="recentTableBody">
+          <tr><td colspan="9"><div class="spinner-wrap"><div class="spinner"></div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);" id="tableCount"></div>
+  </div>
+
+</div><!-- end .main -->
+
+<script>
+const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
+
+let allData = [];
+let typePerLineChart = null;
+let brandChart = null;
+let locationChart = null;
+
+const PALETTE = [
+  '#3D7EFF','#00D4A0','#FF6B6B','#FFB347','#A78BFA',
+  '#38BDF8','#FB923C','#34D399','#F472B6','#FBBF24',
+  '#60A5FA','#4ADE80','#E879F9','#F87171','#2DD4BF'
+];
+
+async function loadAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/assets_staging?select=*&order=created_at.desc&limit=1000',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    allData = await res.json();
+    renderAll();
+    document.getElementById('lastUpdated').textContent =
+      new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  } catch(e) {
+    console.error('Load error:', e);
+  }
+
+  btn.classList.remove('spinning');
+}
+
+function renderAll() {
+  renderKPIs();
+  renderTypePerLine();
+  renderBrandChart();
+  renderTopTypes();
+  renderLocationChart();
+  renderTable();
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const total      = allData.length;
+  const complete   = allData.filter(r => r.status === 'Complete').length;
+  const incomplete = allData.filter(r => r.status === 'Incomplete' || r.status === 'Pending').length;
+  const types      = new Set(allData.map(r => r.asset_type).filter(Boolean)).size;
+  const brands     = new Set(allData.map(r => r.brand).filter(Boolean)).size;
+  const locations  = new Set(allData.map(r => r.current_location).filter(Boolean)).size;
+
+  document.getElementById('kpiTotal').textContent      = total;
+  document.getElementById('kpiComplete').textContent   = complete;
+  document.getElementById('kpiIncomplete').textContent = incomplete;
+  document.getElementById('kpiTypes').textContent      = types;
+  document.getElementById('kpiBrands').textContent     = brands;
+  document.getElementById('kpiLocations').textContent  = locations;
+}
+
+// ── TYPE PER LINE ─────────────────────────────────────────────────────
+function renderTypePerLine() {
+  // Get lines that have data
+  const lineMap = {};
+  allData.forEach(r => {
+    if (!r.current_location || !r.asset_type) return;
+    if (!lineMap[r.current_location]) lineMap[r.current_location] = {};
+    lineMap[r.current_location][r.asset_type] = (lineMap[r.current_location][r.asset_type] || 0) + 1;
+  });
+
+  const lines = Object.keys(lineMap).sort((a,b) => {
+    const na = parseInt(a.replace('Line ','')), nb = parseInt(b.replace('Line ',''));
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+
+  if (lines.length === 0) return;
+
+  // Get all unique types
+  const allTypes = [...new Set(allData.map(r => r.asset_type).filter(Boolean))].sort();
+
+  const datasets = allTypes.map((type, i) => ({
+    label: type,
+    data: lines.map(l => lineMap[l][type] || 0),
+    backgroundColor: PALETTE[i % PALETTE.length],
+    borderRadius: 3,
+    borderSkipped: false,
+  }));
+
+  const ctx = document.getElementById('typePerLineChart').getContext('2d');
+  if (typePerLineChart) typePerLineChart.destroy();
+  typePerLineChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: lines, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#6B7A99', font: { size: 10 }, boxWidth: 10, padding: 10 }
+        },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { color: '#6B7A99', font: { size: 10 }, maxRotation: 45, minRotation: 45 }
+        },
+        y: {
+          stacked: true,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6B7A99', font: { size: 10 } },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+// ── BRAND CHART ───────────────────────────────────────────────────────
+function renderBrandChart() {
+  const counts = {};
+  allData.forEach(r => {
+    if (!r.brand) return;
+    const b = r.brand.trim();
+    counts[b] = (counts[b] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,12);
+  if (sorted.length === 0) return;
+
+  const ctx = document.getElementById('brandChart').getContext('2d');
+  if (brandChart) brandChart.destroy();
+  brandChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{ data: sorted.map(e => e[1]), backgroundColor: PALETTE, borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#6B7A99', font: { size: 11 }, boxWidth: 12, padding: 12 }
+        },
+        tooltip: {
+          callbacks: {
+            label: item => ' ' + item.label + ': ' + item.raw + ' (' + Math.round(item.raw / allData.filter(r=>r.brand).length * 100) + '%)'
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── TOP TYPES ─────────────────────────────────────────────────────────
+function renderTopTypes() {
+  const counts = {};
+  allData.forEach(r => { if (r.asset_type) counts[r.asset_type] = (counts[r.asset_type]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,10);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  const el  = document.getElementById('topTypesList');
+
+  if (sorted.length === 0) {
+    el.innerHTML = '<div class="empty-state">No type data yet</div>';
+    return;
+  }
+
+  el.innerHTML = sorted.map(([type, count], i) => `
+    <li>
+      <span class="top-rank">#${i+1}</span>
+      <span class="top-label">${type}</span>
+      <div class="top-bar-wrap">
+        <div class="top-bar-fill" style="width:${Math.round(count/max*100)}%;background:${PALETTE[i%PALETTE.length]};"></div>
+      </div>
+      <span class="top-count">${count}</span>
+    </li>
+  `).join('');
+}
+
+// ── LOCATION CHART ────────────────────────────────────────────────────
+function renderLocationChart() {
+  const counts = {};
+  allData.forEach(r => {
+    if (!r.current_location) return;
+    counts[r.current_location] = (counts[r.current_location] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a,b) => {
+    const na = parseInt(a[0].replace('Line ','')), nb = parseInt(b[0].replace('Line ',''));
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a[0].localeCompare(b[0]);
+  });
+
+  const ctx = document.getElementById('locationChart').getContext('2d');
+  if (locationChart) locationChart.destroy();
+  locationChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{
+        label: 'Assets',
+        data: sorted.map(e => e[1]),
+        backgroundColor: sorted.map((_,i) => PALETTE[i % PALETTE.length]),
+        borderRadius: 4, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#6B7A99', font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6B7A99', font: { size: 10 } }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────
+function renderTable(filter='') {
+  const q = filter.toLowerCase();
+  const filtered = q
+    ? allData.filter(r =>
+        (r.asset_no||'').toLowerCase().includes(q) ||
+        (r.asset_type||'').toLowerCase().includes(q) ||
+        (r.brand||'').toLowerCase().includes(q) ||
+        (r.current_location||'').toLowerCase().includes(q) ||
+        (r.serial_no||'').toLowerCase().includes(q)
+      )
+    : allData;
+
+  const tbody = document.getElementById('recentTableBody');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">No records found</div></td></tr>';
+    document.getElementById('tableCount').textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    const dt = r.created_at ? new Date(r.created_at) : null;
+    const date = dt ? dt.toLocaleDateString('en-ZA', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+    const time = dt ? dt.toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
+    const statusClass = r.status === 'Complete' ? 'badge-active' : r.status === 'Incomplete' ? 'badge-maint' : 'badge-other';
+    return `<tr>
+      <td><strong style="font-family:'DM Mono',monospace;font-size:12px;">${r.asset_no || '—'}</strong></td>
+      <td class="mono">${r.serial_no || '—'}</td>
+      <td>${r.asset_type || '—'}</td>
+      <td>${r.brand || '—'}</td>
+      <td>${r.current_location || '—'}</td>
+      <td><span class="badge ${statusClass}">${r.status || 'Pending'}</span></td>
+      <td class="mono" style="font-size:11px;">${r.source || '—'}</td>
+      <td class="mono">${date}</td>
+      <td class="mono">${time}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tableCount').textContent =
+    'Showing ' + filtered.length + ' of ' + allData.length + ' records';
+}
+
+function filterTable() {
+  const q = document.getElementById('tableSearch').value;
+  renderTable(q);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 60000); // Auto-refresh every 60s
+</script>
+</body>
+</html>
