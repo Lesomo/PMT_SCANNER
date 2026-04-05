@@ -391,7 +391,7 @@ function formatDate(d) {
 async function lookupMachineType(assetNo) {
   try {
     const res = await fetch(
-      SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(assetNo) + '&select=asset_type',
+      SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(assetNo) + '&select=*&limit=1',
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -401,11 +401,16 @@ async function lookupMachineType(assetNo) {
     );
     if (res.ok) {
       const data = await res.json();
-      if (data.length > 0 && data[0].asset_type) {
-        return data[0].asset_type;
+      if (data.length > 0) {
+        const row = data[0];
+        console.log('master_data row:', JSON.stringify(row));
+        // Try all known column name variations
+        return row.asset_type || row['asset type'] || row.ASSET_TYPE || row.type || row.Type || row.classification || 'Unknown';
+      } else {
+        console.log('master_data: no row found for', assetNo);
       }
     }
-  } catch (e) {}
+  } catch (e) { console.error('Lookup error:', e); }
   return 'Unknown';
 }
 
@@ -489,11 +494,22 @@ function toggleScanner() {
   }
 }
 
+function isValidBarcode(val) {
+  // Pure numeric — minimum 5 digits
+  if (/^\d+$/.test(val)) return val.length >= 5;
+  // Alphanumeric — minimum 6, maximum 7 characters
+  return val.length >= 6 && val.length <= 7;
+}
+
 function startScanner() {
   const btn = document.getElementById('scanBtn');
   btn.classList.add('scanning');
   btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
   scannerActive = true;
+
+  let lastRead = '';
+  let lastReadTime = 0;
+  const DEBOUNCE_MS = 300; // must read same value twice within 300ms
 
   document.getElementById('reader').style.display = 'block';
   scanner = new Html5Qrcode('reader');
@@ -502,10 +518,26 @@ function startScanner() {
     { fps: 10, qrbox: { width: 260, height: 100 } },
     (decoded) => {
       const clean = decoded.replace(/\s+/g, '');
-      setAsset(clean);
-      document.getElementById('manualAsset').value = clean;
-      stopScanner();
-      showToast('Barcode scanned!', 'success');
+      const now = Date.now();
+
+      // Debounce — must see same value twice within DEBOUNCE_MS
+      if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
+        // Validation
+        if (!isValidBarcode(clean)) {
+          showToast('Invalid barcode: ' + clean + ' — check and try again.', 'error');
+          lastRead = '';
+          lastReadTime = 0;
+          return;
+        }
+        setAsset(clean);
+        document.getElementById('manualAsset').value = clean;
+        stopScanner();
+        showToast('Barcode scanned!', 'success');
+      } else {
+        // First read — store and wait for confirmation
+        lastRead = clean;
+        lastReadTime = now;
+      }
     },
     () => {}
   ).catch((err) => {
