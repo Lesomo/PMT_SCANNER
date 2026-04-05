@@ -476,22 +476,46 @@ function toggleScannerSup() {
   else startScannerSup();
 }
 
+function isValidBarcode(val) {
+  if (/^\d+$/.test(val)) return val.length >= 5;
+  return val.length >= 6 && val.length <= 7;
+}
+
 function startScannerSup() {
   const btn = document.getElementById('scanBtnSup');
   btn.classList.add('scanning');
   btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
   document.getElementById('readerSup').style.display = 'block';
   supScannerActive = true;
+
+  let lastRead = '';
+  let lastReadTime = 0;
+  const DEBOUNCE_MS = 300;
+
   supScanner = new Html5Qrcode('readerSup');
   supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
     (decoded) => {
       const clean = decoded.replace(/\s+/g, '');
-      supSetAsset(clean);
-      document.getElementById('supAssetInput').value = clean;
-      stopScannerSup();
-      showToast('Barcode scanned!', 'success');
+      const now = Date.now();
+
+      if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
+        if (!isValidBarcode(clean)) {
+          showToast('Invalid barcode: ' + clean + ' — check and try again.', 'error');
+          lastRead = '';
+          lastReadTime = 0;
+          return;
+        }
+        supSetAsset(clean);
+        document.getElementById('supAssetInput').value = clean;
+        stopScannerSup();
+        showToast('Barcode scanned!', 'success');
+      } else {
+        lastRead = clean;
+        lastReadTime = now;
+      }
     }, () => {}
   ).catch(() => { showToast('Camera blocked. Use manual entry.', 'error'); stopScannerSup(); });
+}
 }
 
 function stopScannerSup() {
