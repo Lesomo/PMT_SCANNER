@@ -516,7 +516,6 @@ function startScannerSup() {
     }, () => {}
   ).catch(() => { showToast('Camera blocked. Use manual entry.', 'error'); stopScannerSup(); });
 }
-}
 
 function stopScannerSup() {
   if (supScanner) { supScanner.stop().catch(() => {}); supScanner = null; }
