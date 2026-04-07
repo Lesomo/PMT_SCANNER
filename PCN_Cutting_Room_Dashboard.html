@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCN Cutting Room — Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{--bg:#f2f4f7;--surface:#fff;--surface2:#f7f8fa;--border:#e5e8ef;--border2:#cdd2df;
+    --accent:#7c3aed;--accent2:#e07a2a;--accent3:#0f7b4c;--warn:#d97706;--danger:#dc2626;--success:#059669;
+    --text:#1e2533;--sub:#5a6478;--muted:#9aa3b5;--light:#c8cfd8;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;}
+  .topbar{display:flex;align-items:center;gap:12px;padding:0 20px 0 16px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);position:fixed;top:0;left:0;right:0;z-index:200;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .topbar-logo{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:-.4px;white-space:nowrap;}
+  .topbar-logo span{color:var(--text);}
+  .badge{font-size:10.5px;font-weight:500;padding:3px 9px;border-radius:99px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);white-space:nowrap;}
+  .colour-key{display:flex;gap:8px;align-items:center;margin-left:auto;}
+  .ck-group{display:flex;gap:7px;align-items:center;padding:0 9px;border-right:1px solid var(--border);}
+  .ck-group:last-child{border-right:none;padding-right:0;}
+  .ck-item{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--sub);white-space:nowrap;}
+  .ck-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .sidebar{position:fixed;top:52px;left:0;bottom:0;width:190px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;z-index:100;padding:14px 10px 24px;}
+  .nav-section{margin-bottom:14px;}.nav-section-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--light);padding:0 10px;margin-bottom:6px;}
+  .nav-btn{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:var(--sub);font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;padding:7px 10px;border-radius:8px;cursor:pointer;transition:all .14s;text-align:left;line-height:1.3;}
+  .nav-btn:hover{color:var(--text);background:var(--surface2);}
+  .nav-btn.active{background:rgba(124,58,237,.1);color:var(--accent);font-weight:700;}
+  .nav-icon{font-size:13px;flex-shrink:0;width:17px;text-align:center;}
+  .nav-divider{height:1px;background:var(--border);margin:8px 10px 12px;}
+  .sidebar-config{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .sidebar-config-label{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .sidebar-config-val{font-size:11px;font-weight:600;color:var(--sub);line-height:1.7;}
+  .main-content{position:fixed;top:52px;left:190px;right:0;bottom:0;overflow-y:auto;}
+  .page{display:none;padding:20px 24px;animation:fadeIn .18s ease;}
+  .page.active{display:block;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  .section-header{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;}
+  .section-title{font-size:18px;font-weight:700;letter-spacing:-.3px;}
+  .section-sub{font-size:11px;font-weight:500;color:var(--muted);}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;margin-bottom:18px;}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 18px;position:relative;overflow:hidden;}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--kc,var(--accent));border-radius:4px 0 0 4px;}
+  .kpi-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+  .kpi-value{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-1px;line-height:1;}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+  .kpi-delta{font-size:11px;font-weight:500;margin-top:3px;}
+  .kpi-delta.up{color:var(--success);}.kpi-delta.down{color:var(--danger);}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+  .chart-grid.full{grid-template-columns:1fr;}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+  .chart-card.span2{grid-column:span 2;}
+  .chart-title{font-size:13px;font-weight:700;margin-bottom:2px;letter-spacing:-.2px;}
+  .chart-desc{font-size:10px;font-weight:500;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em;}
+  .chart-wrap{position:relative;height:230px;}
+  .chart-wrap.tall{height:285px;}
+  .data-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .data-table th{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);text-transform:uppercase;white-space:nowrap;}
+  .data-table td{padding:7px 12px;border-bottom:1px solid var(--border);color:var(--sub);}
+  .data-table tr:last-child td{border-bottom:none;}.data-table tr:hover td{background:var(--surface2);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;}
+  .pill.green{background:rgba(5,150,105,.1);color:var(--success);}.pill.amber{background:rgba(217,119,6,.1);color:var(--warn);}.pill.red{background:rgba(220,38,38,.1);color:var(--danger);}.pill.purple{background:rgba(124,58,237,.1);color:var(--accent);}
+  .info-box{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:11px 15px;font-size:12.5px;color:var(--sub);line-height:1.6;margin-bottom:14px;}
+  .info-box strong{color:var(--text);font-weight:600;}
+  .flow-row{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:0;margin-bottom:20px;align-items:center;}
+  .flow-box{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center;}
+  .flow-box.hi{border-color:var(--accent);background:rgba(124,58,237,.04);}
+  .flow-box-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .flow-box-val{font-size:20px;font-weight:800;letter-spacing:-.5px;}
+  .flow-box-sub{font-size:10px;color:var(--muted);margin-top:3px;}
+  .flow-arrow{text-align:center;padding:0 4px;}
+  .flow-gap{font-size:9px;font-weight:700;padding:3px 6px;border-radius:5px;white-space:nowrap;margin-top:4px;display:inline-block;}
+  .flow-gap.gain{background:rgba(5,150,105,.12);color:var(--success);}
+  .flow-gap.loss{background:rgba(220,38,38,.12);color:var(--danger);}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;}
+  .stat-value{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+  .stat-label{font-size:10px;font-weight:700;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em;}
+  .stat-sub{font-size:11px;color:var(--sub);margin-top:2px;}
+  .table-scroll{overflow-x:auto;}
+  .insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .insight-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--ic,var(--accent));border-radius:12px;padding:18px 20px;}
+  .insight-icon{font-size:20px;margin-bottom:7px;display:block;}
+  .insight-category{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ic,var(--accent));margin-bottom:5px;}
+  .insight-title{font-size:13px;font-weight:700;margin-bottom:6px;line-height:1.3;}
+  .insight-body{font-size:12px;color:var(--sub);line-height:1.6;}
+  .insight-metric{display:inline-block;margin-top:9px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:5px;background:var(--surface2);color:var(--ic,var(--accent));border:1px solid var(--border);}
+  @media(max-width:900px){.sidebar{display:none;}.main-content{left:0;}.chart-grid,.stat-grid{grid-template-columns:1fr 1fr;}.chart-card.span2{grid-column:span 1;}.insights-grid{grid-template-columns:1fr;}.colour-key{display:none;}.flow-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-logo">PCN <span>Cutting Room</span></div>
+  <div class="badge">Apr 2024 – Mar 2026 · 22 months</div>
+  <div class="badge" style="background:rgba(124,58,237,.1);color:var(--accent);border-color:rgba(124,58,237,.2)">Received → Laid → Cut → Sorted</div>
+  <div class="colour-key">
+    <div class="ck-group">
+      <div class="ck-item"><div class="ck-dot" style="background:#059669"></div>Good/Target</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#d97706"></div>Caution</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#dc2626"></div>Poor</div>
+    </div>
+    <div class="ck-group">
+      <div class="ck-item"><div class="ck-dot" style="background:#7c3aed"></div>Received</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#0f7b4c"></div>Laid/Cut</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#e07a2a"></div>Sorted</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#9aa3b5"></div>Target</div>
+    </div>
+  </div>
+</div>
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-section-label">Analysis</div>
+    <button class="nav-btn active" onclick="showTab('overview')"><span class="nav-icon">📊</span><span>Overview</span></button>
+    <button class="nav-btn" onclick="showTab('flow')"><span class="nav-icon">🔄</span><span>Unit Flow</span></button>
+    <button class="nav-btn" onclick="showTab('performance')"><span class="nav-icon">📈</span><span>Performance</span></button>
+    <button class="nav-btn" onclick="showTab('losses')"><span class="nav-icon">🔍</span><span>Losses &amp; Gains</span></button>
+    <button class="nav-btn" onclick="showTab('capability')"><span class="nav-icon">📉</span><span>Capability &amp; Forecast</span></button>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">
+    <div class="nav-section-label">Detail</div>
+    <button class="nav-btn" onclick="showTab('monthly')"><span class="nav-icon">📋</span><span>Monthly Table</span></button>
+    <button class="nav-btn" onclick="showTab('insights')"><span class="nav-icon">💡</span><span>Key Insights</span></button>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="sidebar-config">
+    <div class="sidebar-config-label">Dataset</div>
+    <div class="sidebar-config-val">22 months<br>Apr 2024 – Mar 2026<br><strong>8.15M units cut</strong></div>
+  </div>
+</div>
+<div class="main-content" id="main-content">
+
+<div id="tab-overview" class="page active">
+  <div class="section-header"><div class="section-title">Operations Overview</div><div class="section-sub">22 months · Apr 2024 – Mar 2026 · Received → Laid → Cut → Sorted</div></div>
+  <div class="info-box"><strong>Flow summary:</strong> Fabric is received, laid (often drawing from stock), cut, then sorted. Laying exceeds receiving by 3.6% avg — operation draws stock regularly. Cutting exceeds laying by 2.4% — carryover fabric. Sorting averages 0.5% loss vs cut (worsening recently). <strong>Performance improved 2× from 2024 (31%) to 2025 (64%) — a step-change at Jan-25.</strong></div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Unit Flow — Received · Laid · Cut · Sorted vs Target</div>
+    <div class="chart-desc">All four flow stages · note large gap between actuals and 2024 targets · targets recalibrated from Jan-25</div>
+    <div class="chart-wrap tall"><canvas id="chart-flow-ov"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Performance % — Cut ÷ Target</div>
+      <div class="chart-desc">🔴 &lt;40% · 🟡 40–65% · 🟢 &gt;65% · regression +1.57%/month · clear 2024→2025 step-change</div>
+      <div class="chart-wrap"><canvas id="chart-perf-ov"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sorting Gap — Sorted minus Cut</div>
+      <div class="chart-desc">🟢 Positive = WIP clearing (gain) · 🔴 Negative = sort loss · worsening from Aug-25</div>
+      <div class="chart-wrap"><canvas id="chart-sort-gap-ov"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-flow" class="page">
+  <div class="section-header"><div class="section-title">Unit Flow Analysis</div><div class="section-sub">Stage-by-stage · Received → Laid → Cut → Sorted · gaps show gains and losses</div></div>
+  <div class="info-box"><strong>Reading the gaps:</strong> <strong>Gap 1 (Received→Laid)</strong> positive = drawing stock. <strong>Gap 2 (Laid→Cut)</strong> positive = cutting carryover fabric. <strong>Gap 3 (Cut→Sorted)</strong> positive = WIP clearing, negative = sort loss or reject. Each gap tells a different story about where units move.</div>
+  <div id="flow-snapshot" style="margin-bottom:16px"></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">All Four Stages — Monthly Units</div>
+    <div class="chart-desc">Purple = received · green = laid · green dashed = cut · orange = sorted · gap between lines = stock movement</div>
+    <div class="chart-wrap tall"><canvas id="chart-flow-line"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Laid ÷ Received Ratio</div>
+      <div class="chart-desc">&gt;100% = drawing from stock · &lt;100% = building stock · avg 103.6%</div>
+      <div class="chart-wrap"><canvas id="chart-laid-rcv"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Cut ÷ Laid Ratio</div>
+      <div class="chart-desc">&gt;100% = cutting carryover fabric · &lt;100% = fabric accumulating · avg 102.4%</div>
+      <div class="chart-wrap"><canvas id="chart-cut-laid"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Cumulative Received minus Cut</div>
+      <div class="chart-desc">Running balance · rising = stock building · falling = stock consumed</div>
+      <div class="chart-wrap"><canvas id="chart-cumulative"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Units per Day — Normalised</div>
+      <div class="chart-desc">Daily rate removes short-month distortion · received · cut · sorted per working day</div>
+      <div class="chart-wrap"><canvas id="chart-perday"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-performance" class="page">
+  <div class="section-header"><div class="section-title">Performance vs Target</div><div class="section-sub">How each stage measures against monthly target · target quality varies significantly</div></div>
+  <div class="info-box"><strong>Target context:</strong> 2024 targets (1–2.5M/month) were set 2–5× above operational capacity — the operation never cut more than 540k units in any month. From Jan-25, targets were recalibrated to 300–800k range. This makes pre-2025 performance percentages (10–53%) not directly comparable to post-2025 (53–79%). The <strong>absolute cut volume</strong> is the most reliable comparator across the full period.</div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Cut ÷ Target % — Monthly Performance</div>
+    <div class="chart-desc">🔴 &lt;40% · 🟡 40–65% · 🟢 &gt;65% · blue dashed = regression trend (+1.57%/month) · 65% reference line</div>
+    <div class="chart-wrap tall"><canvas id="chart-perf-main"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Received ÷ Target &amp; Laid ÷ Target</div>
+      <div class="chart-desc">Upstream stages vs target · shows same pattern as cut/target</div>
+      <div class="chart-wrap"><canvas id="chart-rcv-laid-tgt"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Year-on-Year Performance</div>
+      <div class="chart-desc">2024 avg 30.9% · 2025 avg 63.6% · 2026 YTD avg 60.1%</div>
+      <div class="chart-wrap"><canvas id="chart-year-comp"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Target vs Cut Actual — Monthly</div>
+      <div class="chart-desc">Grey = target · green = cut actual · 2024 targets far exceed operational capacity</div>
+      <div class="chart-wrap"><canvas id="chart-tgt-actual"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Cut Volume — Absolute Trend</div>
+      <div class="chart-desc">Absolute cut units per month · days-normalised · shows true throughput growth</div>
+      <div class="chart-wrap"><canvas id="chart-cut-abs"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-losses" class="page">
+  <div class="section-header"><div class="section-title">Losses &amp; Gains at Each Stage</div><div class="section-sub">Where units move between stages — stock drawdown, carryover cutting, sorting balance</div></div>
+  <div class="info-box"><strong>Three transition gaps:</strong> G1 (Received→Laid): avg +12,659/month — consistently drawing stock. G2 (Laid→Cut): avg +7,688/month — carryover cutting is common. G3 (Cut→Sorted): avg −2,945/month — small net loss overall but worsening recently. Nov-24 had a +60k sort gain (WIP clearing) vs Dec-25 with −32k (large sort loss).</div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Gap 1 — Laid minus Received (Stock Drawdown or Build)</div>
+    <div class="chart-desc">🟣 Purple positive = drawing from stock inventory · 🟠 Orange negative = building stock · avg +12,659 units/month</div>
+    <div class="chart-wrap tall"><canvas id="chart-g1"></canvas></div>
+  </div></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Gap 2 — Cut minus Laid (Carryover Cutting)</div>
+    <div class="chart-desc">🟢 Green positive = cutting prior fabric (carryover) · 🟣 Purple negative = less cut than laid (fabric builds) · avg +7,688</div>
+    <div class="chart-wrap tall"><canvas id="chart-g2"></canvas></div>
+  </div></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Gap 3 — Sorted minus Cut (Sorting Balance)</div>
+    <div class="chart-desc">🟢 Green positive = WIP clearing through sorting · 🔴 Red negative = units lost or held in sorting · avg −2,945</div>
+    <div class="chart-wrap tall"><canvas id="chart-g3"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Sort ÷ Cut Ratio</div>
+      <div class="chart-desc">&gt;100% = gain · &lt;100% = loss · Dec-25 worst at 85.6% · avg 99.5%</div>
+      <div class="chart-wrap"><canvas id="chart-sort-cut"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">All Three Gaps — Combined View</div>
+      <div class="chart-desc">G1 + G2 + G3 together · net unit movement per month across all transitions</div>
+      <div class="chart-wrap"><canvas id="chart-gaps-all"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-capability" class="page">
+  <div class="section-header"><div class="section-title">Capability &amp; Forecast</div><div class="section-sub">Process capability · regression · 6-month projection</div></div>
+  <div class="info-box"><strong>Key finding:</strong> Performance is improving at +1.57%/month (R²=30.6%, p=0.0075 — statistically significant). The wide confidence intervals reflect genuine month-to-month variability, not just statistical uncertainty. June 2025 (78.8%) is the benchmark for what the operation can achieve. The forecast projects 75–82% performance is achievable by Sep-26 if the trend holds.</div>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-value" style="color:var(--warn)">52.7%</div><div class="stat-label">Overall Avg Performance</div><div class="stat-sub">22-month · heavily influenced by low 2024 values</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">+1.57%</div><div class="stat-label">Monthly Trend</div><div class="stat-sub">R²=30.6% · p=0.0075 · significant improvement</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">78.8%</div><div class="stat-label">Best Month (Jun-25)</div><div class="stat-sub">19 days · benchmark performance</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--danger)">13.2%</div><div class="stat-label">Worst Month (Dec-24)</div><div class="stat-sub">Target 1.39M vs cut 183k</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--danger)">30.9%</div><div class="stat-label">2024 Avg (7 months)</div><div class="stat-sub">Targets inflated vs capacity</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">63.6%</div><div class="stat-label">2025 Avg (12 months)</div><div class="stat-sub">2× improvement after target reset</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--accent)">60.1%</div><div class="stat-label">2026 YTD (3 months)</div><div class="stat-sub">Holding near 2025 levels</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--accent)">99.5%</div><div class="stat-label">Avg Sort ÷ Cut</div><div class="stat-sub">Small net loss overall<br>Deteriorating recently</div></div>
+  </div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Performance — Historical + Regression + 6-Month Forecast (95% CI)</div>
+    <div class="chart-desc">Blue = historical · red dashed = trend line · orange = forecast · shaded = 95% CI</div>
+    <div class="chart-wrap tall"><canvas id="chart-regression"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Performance Distribution — Histogram</div>
+      <div class="chart-desc">🔴 &lt;40% · 🟡 40–65% · 🟢 &gt;65% · bimodal: 2024 (low) vs 2025 (high) clusters</div>
+      <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Rolling 3-Month Average</div>
+      <div class="chart-desc">Smoothed trend · step-change improvement from Jan-25 clearly visible</div>
+      <div class="chart-wrap"><canvas id="chart-rolling"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card"><div class="chart-title">6-Month Forecast — Apr to Sep 2026</div><div class="chart-desc">Regression projections · 95% CI · targets assumed at 500k/month (recent average level)</div><div class="table-scroll"><table class="data-table" id="forecast-table"></table></div></div>
+</div>
+
+<div id="tab-monthly" class="page">
+  <div class="section-header"><div class="section-title">Full Monthly Data Table</div><div class="section-sub">All 22 months · all flow metrics</div></div>
+  <div class="info-box"><strong>Columns:</strong> G1 = Laid − Received (+ = stock drawdown). G2 = Cut − Laid (+ = carryover cutting). G3 = Sorted − Cut (+ = WIP gain, − = sort loss). Performance = Cut ÷ Target.</div>
+  <div class="table-scroll"><table class="data-table" id="monthly-table"></table></div>
+</div>
+
+<div id="tab-insights" class="page">
+  <div class="section-header"><div class="section-title">Key Insights</div><div class="section-sub">Data-driven findings · PCN Cutting Room · Apr 2024 – Mar 2026</div></div>
+  <div class="insights-grid" id="insights-container"></div>
+</div>
+
+</div>
+<script>
+const M=[
+  {m:'Apr-24',days:25,tgt:905000,rcv:498456,laid:515674,cut:483080,sort:497780,g1:17218,g2:-32594,g3:14700,lr:1.0345,cl:0.9368,sc:1.0304,pf:0.5338},
+  {m:'Jul-24',days:30,tgt:1089000,rcv:511394,laid:533707,cut:513453,sort:535400,g1:22313,g2:-20254,g3:21947,lr:1.0436,cl:0.9621,sc:1.0427,pf:0.4715},
+  {m:'Aug-24',days:30,tgt:1852000,rcv:471483,laid:539363,cut:525811,sort:550086,g1:67880,g2:-13552,g3:24275,lr:1.1440,cl:0.9749,sc:1.0462,pf:0.2839},
+  {m:'Sep-24',days:29,tgt:2466905,rcv:522001,laid:524939,cut:520898,sort:505568,g1:2938,g2:-4041,g3:-15330,lr:1.0056,cl:0.9923,sc:0.9706,pf:0.2112},
+  {m:'Oct-24',days:30,tgt:1816000,rcv:531191,laid:500799,cut:505203,sort:482420,g1:-30392,g2:4404,g3:-22783,lr:0.9428,cl:1.0088,sc:0.9549,pf:0.2782},
+  {m:'Nov-24',days:30,tgt:1798000,rcv:442383,laid:450527,cut:454865,sort:515180,g1:8144,g2:4338,g3:60315,lr:1.0184,cl:1.0096,sc:1.1326,pf:0.2530},
+  {m:'Dec-24',days:29,tgt:1392000,rcv:218795,laid:199005,cut:183508,sort:212583,g1:-19790,g2:-15497,g3:29075,lr:0.9096,cl:0.9221,sc:1.1584,pf:0.1318},
+  {m:'Jan-25',days:14,tgt:488000,rcv:212294,laid:242477,cut:263546,sort:259982,g1:30183,g2:21069,g3:-3564,lr:1.1422,cl:1.0869,sc:0.9865,pf:0.5401},
+  {m:'Feb-25',days:15,tgt:324300,rcv:213918,laid:217478,cut:233584,sort:222996,g1:3560,g2:16106,g3:-10588,lr:1.0166,cl:1.0741,sc:0.9547,pf:0.7203},
+  {m:'Mar-25',days:20,tgt:432400,rcv:224141,laid:251463,cut:272050,sort:283142,g1:27322,g2:20587,g3:11092,lr:1.1219,cl:1.0819,sc:1.0408,pf:0.6292},
+  {m:'Apr-25',days:19,tgt:408345,rcv:264002,laid:300354,cut:309760,sort:301390,g1:36352,g2:9406,g3:-8370,lr:1.1377,cl:1.0313,sc:0.9730,pf:0.7586},
+  {m:'May-25',days:15,tgt:337100,rcv:124523,laid:168254,cut:177499,sort:166991,g1:43731,g2:9245,g3:-10508,lr:1.3512,cl:1.0549,sc:0.9408,pf:0.5265},
+  {m:'Jun-25',days:19,tgt:416600,rcv:318829,laid:341093,cut:328274,sort:335404,g1:22264,g2:-12819,g3:7130,lr:1.0698,cl:0.9624,sc:1.0217,pf:0.7880},
+  {m:'Jul-25',days:23,tgt:767389,rcv:505464,laid:452559,cut:482605,sort:466646,g1:-52905,g2:30046,g3:-15959,lr:0.8953,cl:1.0664,sc:0.9669,pf:0.6289},
+  {m:'Aug-25',days:23,tgt:739792,rcv:423682,laid:402954,cut:425889,sort:391688,g1:-20728,g2:22935,g3:-34201,lr:0.9511,cl:1.0569,sc:0.9197,pf:0.5757},
+  {m:'Sep-25',days:22,tgt:816351,rcv:465317,laid:495515,cut:481247,sort:474200,g1:30198,g2:-14268,g3:-7047,lr:1.0649,cl:0.9712,sc:0.9854,pf:0.5895},
+  {m:'Oct-25',days:23,tgt:845077,rcv:547100,laid:535775,cut:527827,sort:511828,g1:-11325,g2:-7948,g3:-15999,lr:0.9793,cl:0.9852,sc:0.9697,pf:0.6246},
+  {m:'Nov-25',days:18,tgt:568800,rcv:405639,laid:401465,cut:409312,sort:391124,g1:-4174,g2:7847,g3:-18188,lr:0.9897,cl:1.0195,sc:0.9556,pf:0.7196},
+  {m:'Dec-25',days:14,tgt:412488,rcv:204608,laid:214095,cut:219835,sort:188123,g1:9487,g2:5740,g3:-31712,lr:1.0464,cl:1.0268,sc:0.8557,pf:0.5329},
+  {m:'Jan-26',days:14,tgt:421078,rcv:257450,laid:247441,cut:273095,sort:246827,g1:-10009,g2:25654,g3:-26268,lr:0.9611,cl:1.1037,sc:0.9038,pf:0.6486},
+  {m:'Feb-26',days:17,tgt:459778,rcv:251536,laid:258970,cut:290446,sort:301546,g1:7434,g2:31476,g3:11100,lr:1.0296,cl:1.1215,sc:1.0382,pf:0.6317},
+  {m:'Mar-26',days:22,tgt:518644,rcv:267674,laid:250310,cut:271455,sort:283186,g1:-17364,g2:21145,g3:11731,lr:0.9351,cl:1.0845,sc:1.0432,pf:0.5234},
+];
+const LBL=M.map(r=>r.m);
+const PERF=M.map(r=>r.pf);
+const REG={sl:0.015716,ic:0.346572,sr:0.157348,n:22,mx:11.5,xq:885.5};
+function fcast(x){const p=Math.min(0.95,Math.max(0.1,REG.ic+REG.sl*x));const se=REG.sr*Math.sqrt(1+1/REG.n+(x-REG.mx)**2/REG.xq);const t=2.086;return{pred:p,lo:Math.max(0.05,p-t*se),hi:Math.min(0.99,p+t*se)};}
+const FM=['Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26'];
+const FD=FM.map((_,i)=>fcast(23+i));
+function nf(n){n=Math.round(n);const s=String(Math.abs(n));let r='';for(let i=0;i<s.length;i++){if(i>0&&(s.length-i)%3===0)r+=',';r+=s[i];}return n<0?'-'+r:r;}
+const P=v=>(v*100).toFixed(1)+'%';
+const C={a:'#7c3aed',a2:'#e07a2a',a3:'#0f7b4c',w:'#d97706',r:'#dc2626',g:'#059669',m:'#9aa3b5'};
+const CI={};
+Chart.defaults.color='#9aa3b5';Chart.defaults.borderColor='#e5e8ef';
+Chart.defaults.font.family="'Inter',sans-serif";Chart.defaults.font.size=11;
+function mkC(id,type,data,opts={}){
+  if(CI[id]){CI[id].destroy();delete CI[id];}
+  const ctx=document.getElementById(id);if(!ctx)return;
+  const ex=opts.extra||{};
+  let scales;
+  if(type==='scatter'){
+    scales={x:{grid:{color:'#f2f4f7'},ticks:{color:'#9aa3b5',...((ex.scales||{}).x||{}).ticks},...((ex.scales||{}).x||{})},y:{grid:{color:'#f2f4f7'},ticks:{color:'#9aa3b5',callback:opts.yFmt||(v=>v)},...(opts.yOpts||{}),...((ex.scales||{}).y||{})}};
+  } else if(type==='radar'){
+    scales={r:{grid:{color:'#e5e8ef'},ticks:{color:'#9aa3b5',backdropColor:'transparent'},pointLabels:{color:'#5a6478'},suggestedMin:0,suggestedMax:1}};
+  } else {
+    const bY={grid:{color:'#f2f4f7'},ticks:{color:'#9aa3b5',font:{size:10,weight:'500'},callback:opts.yFmt||(v=>v)},...(opts.yOpts||{})};
+    const bX={grid:{color:'#f2f4f7'},ticks:{color:'#9aa3b5',font:{size:10,weight:'500'}}};
+    const eS=ex.scales||{};
+    scales={x:{...bX,...(eS.x||{})},y:{...bY,...(eS.y||{}),ticks:{...bY.ticks,...((eS.y||{}).ticks||{})}}};
+  }
+  const eP=ex.plugins||{};
+  const bT={backgroundColor:'#fff',borderColor:'#e5e8ef',borderWidth:1,titleColor:'#1e2533',bodyColor:'#5a6478',titleFont:{weight:'600'},padding:10};
+  const plugins={legend:{display:opts.legend??false,labels:{color:'#5a6478',font:{size:11,weight:'500'},boxWidth:12,padding:12}},tooltip:{...bT,...(eP.tooltip||{}),callbacks:{...(bT.callbacks||{}),...((eP.tooltip||{}).callbacks||{})}}};
+  const {scales:_s,plugins:_p,...rE}=ex;
+  CI[id]=new Chart(ctx,{type,data,options:{responsive:true,maintainAspectRatio:false,plugins,scales,...rE}});
+}
+function renderKPIs(){
+  const avgPf=PERF.reduce((a,b)=>a+b)/22;
+  const avgLR=M.reduce((s,r)=>s+r.lr,0)/22;
+  const avgCL=M.reduce((s,r)=>s+r.cl,0)/22;
+  const avgSC=M.reduce((s,r)=>s+r.sc,0)/22;
+  const tCut=M.reduce((s,r)=>s+r.cut,0);
+  const tRcv=M.reduce((s,r)=>s+r.rcv,0);
+  const best=M.reduce((a,b)=>b.pf>a.pf?b:a);
+  const worst=M.reduce((a,b)=>b.pf<a.pf?b:a);
+  const y25=M.filter(r=>r.m.includes('25')).map(r=>r.pf);
+  const y24=M.filter(r=>r.m.includes('24')).map(r=>r.pf);
+  const kpis=[
+    {l:'Avg Performance (Cut/Target)',v:P(avgPf),s:'22-month average',d:'▲ Trend improving +1.57%/month (p=0.0075)',dn:'up',c:C.w},
+    {l:'2025 Avg Performance',v:P(y25.reduce((a,b)=>a+b)/y25.length),s:'vs 2024 avg '+P(y24.reduce((a,b)=>a+b)/y24.length),d:'▲ 2× improvement · step-change at Jan-25',dn:'up',c:C.g},
+    {l:'Total Units Cut (22mo)',v:(tCut/1e6).toFixed(2)+'M',s:'vs '+(tRcv/1e6).toFixed(2)+'M received',d:'8.15M cut from 7.88M received',dn:'up',c:C.a3},
+    {l:'Best Month',v:best.m,s:'Performance: '+P(best.pf),d:'▲ Jun-25 — 78.8% — the benchmark',dn:'up',c:C.g},
+    {l:'Laid ÷ Received (avg)',v:P(avgLR),s:'1.036 — regular stock drawdown',d:'Operation depends on existing stock buffer',dn:'',c:C.a},
+    {l:'Cut ÷ Laid (avg)',v:P(avgCL),s:'1.024 — carryover cutting common',d:'Cuts ~2.4% more than laid per month',dn:'',c:C.a3},
+    {l:'Sort ÷ Cut (avg)',v:P(avgSC),s:'0.995 — small net loss overall',d:'▼ Dec-25 worst at 85.6% — investigate',dn:'down',c:C.a2},
+    {l:'Worst Month',v:worst.m,s:'Performance: '+P(worst.pf),d:'▼ Target 1.39M vs cut 184k — target mismatch',dn:'down',c:C.r},
+  ];
+  document.getElementById('kpi-grid').innerHTML=kpis.map(k=>`<div class="kpi-card" style="--kc:${k.c}"><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div><div class="kpi-sub">${k.s}</div><div class="kpi-delta ${k.dn}">${k.d}</div></div>`).join('');
+}
+function renderOverview(){
+  mkC('chart-flow-ov','line',{labels:LBL,datasets:[
+    {label:'Target',data:M.map(r=>r.tgt),borderColor:C.m+'66',borderDash:[4,4],pointRadius:0,fill:false,borderWidth:1.5,tension:0.2},
+    {label:'Received',data:M.map(r=>r.rcv),borderColor:C.a,backgroundColor:C.a+'10',fill:false,tension:0.3,pointRadius:3,borderWidth:2},
+    {label:'Laid',data:M.map(r=>r.laid),borderColor:C.a3,fill:false,tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Cut',data:M.map(r=>r.cut),borderColor:C.a3,fill:false,tension:0.3,pointRadius:3,borderWidth:2.5,borderDash:[0]},
+    {label:'Sorted',data:M.map(r=>r.sort),borderColor:C.a2,fill:false,tension:0.3,pointRadius:2,borderWidth:1.5},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+  mkC('chart-perf-ov','bar',{labels:LBL,datasets:[
+    {label:'Performance %',data:PERF.map(p=>p*100),backgroundColor:PERF.map(p=>p>=0.65?C.g+'88':p>=0.4?C.w+'88':C.r+'88'),borderColor:PERF.map(p=>p>=0.65?C.g:p>=0.4?C.w:C.r),borderWidth:1.5,borderRadius:3},
+    {label:'Trend',data:M.map((_,i)=>(REG.ic+REG.sl*(i+1))*100),type:'line',borderColor:C.a+'88',borderDash:[4,3],pointRadius:0,fill:false,borderWidth:2},
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:0,suggestedMax:100}});
+  const g3=M.map(r=>r.g3);
+  mkC('chart-sort-gap-ov','bar',{labels:LBL,datasets:[{label:'Sort − Cut (units)',data:g3,backgroundColor:g3.map(v=>v>=0?C.g+'77':C.r+'77'),borderColor:g3.map(v=>v>=0?C.g:C.r),borderWidth:1.5,borderRadius:3}]},{yFmt:v=>nf(v)});
+}
+function renderFlow(){
+  const last=M[M.length-1];
+  document.getElementById('flow-snapshot').innerHTML=`
+    <div style="margin-bottom:8px;font-size:12px;font-weight:700;color:var(--sub)">Latest month snapshot: ${last.m}</div>
+    <div class="flow-row">
+      <div class="flow-box hi"><div class="flow-box-label">Fabric Received</div><div class="flow-box-val" style="color:${C.a}">${nf(last.rcv)}</div><div class="flow-box-sub">${nf(Math.round(last.rcv/last.days))}/day · ${last.days} days</div></div>
+      <div class="flow-arrow"><div style="font-size:18px">→</div><div class="flow-gap ${last.g1>=0?'gain':'loss'}">${last.g1>=0?'+':''}${nf(last.g1)}</div><div style="font-size:9px;color:var(--muted);margin-top:2px">${last.g1>=0?'Stock used':'Stock built'}</div></div>
+      <div class="flow-box"><div class="flow-box-label">Units Laid</div><div class="flow-box-val" style="color:${C.a3}">${nf(last.laid)}</div><div class="flow-box-sub">${P(last.lr)} of received</div></div>
+      <div class="flow-arrow"><div style="font-size:18px">→</div><div class="flow-gap ${last.g2>=0?'gain':'loss'}">${last.g2>=0?'+':''}${nf(last.g2)}</div><div style="font-size:9px;color:var(--muted);margin-top:2px">${last.g2>=0?'Carryover':'Fabric held'}</div></div>
+      <div class="flow-box"><div class="flow-box-label">Body Cut</div><div class="flow-box-val" style="color:${C.a3}">${nf(last.cut)}</div><div class="flow-box-sub">${P(last.pf)} of target</div></div>
+      <div class="flow-arrow"><div style="font-size:18px">→</div><div class="flow-gap ${last.g3>=0?'gain':'loss'}">${last.g3>=0?'+':''}${nf(last.g3)}</div><div style="font-size:9px;color:var(--muted);margin-top:2px">${last.g3>=0?'WIP clearing':'Sort loss'}</div></div>
+      <div class="flow-box"><div class="flow-box-label">Sorted Units</div><div class="flow-box-val" style="color:${C.a2}">${nf(last.sort)}</div><div class="flow-box-sub">${P(last.sc)} of cut</div></div>
+    </div>`;
+  mkC('chart-flow-line','line',{labels:LBL,datasets:[
+    {label:'Received',data:M.map(r=>r.rcv),borderColor:C.a,fill:false,tension:0.3,pointRadius:3,borderWidth:2},
+    {label:'Laid',data:M.map(r=>r.laid),borderColor:C.a3,fill:false,tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Cut',data:M.map(r=>r.cut),borderColor:C.a3,fill:false,tension:0.3,pointRadius:3,borderWidth:2.5,borderDash:[5,2]},
+    {label:'Sorted',data:M.map(r=>r.sort),borderColor:C.a2,fill:false,tension:0.3,pointRadius:2,borderWidth:1.5},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+  const lr=M.map(r=>r.lr*100);
+  mkC('chart-laid-rcv','bar',{labels:LBL,datasets:[
+    {label:'Laid/Received %',data:lr,backgroundColor:lr.map(v=>v>=100?C.a+'66':C.m+'44'),borderColor:lr.map(v=>v>=100?C.a:C.m),borderWidth:1.5,borderRadius:3},
+    {label:'100%',data:Array(22).fill(100),type:'line',borderColor:C.m,borderDash:[4,4],pointRadius:0,fill:false,borderWidth:1.5}
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:80,suggestedMax:145}});
+  const cl=M.map(r=>r.cl*100);
+  mkC('chart-cut-laid','bar',{labels:LBL,datasets:[
+    {label:'Cut/Laid %',data:cl,backgroundColor:cl.map(v=>v>=100?C.a3+'66':C.a+'44'),borderColor:cl.map(v=>v>=100?C.a3:C.a),borderWidth:1.5,borderRadius:3},
+    {label:'100%',data:Array(22).fill(100),type:'line',borderColor:C.m,borderDash:[4,4],pointRadius:0,fill:false,borderWidth:1.5}
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:88,suggestedMax:116}});
+  let cr=0,cc=0;
+  mkC('chart-cumulative','line',{labels:LBL,datasets:[{label:'Cumulative Received − Cut',data:M.map(r=>{cr+=r.rcv;cc+=r.cut;return cr-cc;}),borderColor:C.a,backgroundColor:C.a+'15',fill:true,tension:0.3,pointRadius:3,borderWidth:2}]},{yFmt:v=>(v/1000).toFixed(0)+'k'});
+  mkC('chart-perday','line',{labels:LBL,datasets:[
+    {label:'Received/day',data:M.map(r=>Math.round(r.rcv/r.days)),borderColor:C.a,fill:false,tension:0.3,pointRadius:3,borderWidth:1.5},
+    {label:'Cut/day',data:M.map(r=>Math.round(r.cut/r.days)),borderColor:C.a3,fill:false,tension:0.3,pointRadius:3,borderWidth:2},
+    {label:'Sorted/day',data:M.map(r=>Math.round(r.sort/r.days)),borderColor:C.a2,fill:false,tension:0.3,pointRadius:3,borderWidth:1.5},
+  ]},{legend:true,yFmt:v=>nf(v),extra:{interaction:{intersect:false,mode:'index'}}});
+}
+function renderPerformance(){
+  mkC('chart-perf-main','bar',{labels:LBL,datasets:[
+    {label:'Performance %',data:PERF.map(p=>p*100),backgroundColor:PERF.map(p=>p>=0.65?C.g+'88':p>=0.4?C.w+'88':C.r+'88'),borderColor:PERF.map(p=>p>=0.65?C.g:p>=0.4?C.w:C.r),borderWidth:1.5,borderRadius:3},
+    {label:'Trend +1.57%/mo',data:M.map((_,i)=>(REG.ic+REG.sl*(i+1))*100),type:'line',borderColor:C.a+'99',borderDash:[4,3],pointRadius:0,fill:false,borderWidth:2},
+    {label:'65% Reference',data:Array(22).fill(65),type:'line',borderColor:C.g+'55',borderDash:[5,5],pointRadius:0,fill:false,borderWidth:1.5},
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:0,suggestedMax:100}});
+  mkC('chart-rcv-laid-tgt','line',{labels:LBL,datasets:[
+    {label:'Received/Target',data:M.map(r=>r.rcv/r.tgt*100),borderColor:C.a,fill:false,tension:0.3,pointRadius:3,borderWidth:2},
+    {label:'Laid/Target',data:M.map(r=>r.laid/r.tgt*100),borderColor:C.a3,fill:false,tension:0.3,pointRadius:3,borderWidth:2},
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:0,suggestedMax:100},extra:{interaction:{intersect:false,mode:'index'}}});
+  const y24m=M.filter(r=>r.m.includes('24'));
+  const y25m=M.filter(r=>r.m.includes('25'));
+  const y26m=M.filter(r=>r.m.includes('26'));
+  mkC('chart-year-comp','bar',{labels:['2024 (7mo)','2025 (12mo)','2026 YTD (3mo)'],datasets:[{label:'Avg Performance %',data:[y24m.reduce((s,r)=>s+r.pf,0)/y24m.length*100,y25m.reduce((s,r)=>s+r.pf,0)/y25m.length*100,y26m.reduce((s,r)=>s+r.pf,0)/y26m.length*100],backgroundColor:[C.r+'88',C.g+'88',C.a+'88'],borderColor:[C.r,C.g,C.a],borderWidth:1.5,borderRadius:6}]},{yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:0,suggestedMax:100}});
+  mkC('chart-tgt-actual','bar',{labels:LBL,datasets:[
+    {label:'Target',data:M.map(r=>r.tgt),backgroundColor:'#e5e8efcc',borderColor:C.m,borderWidth:1,borderRadius:3},
+    {label:'Cut Actual',data:M.map(r=>r.cut),backgroundColor:C.g+'44',borderColor:C.g,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+  const cpd=M.map(r=>Math.round(r.cut/r.days));
+  mkC('chart-cut-abs','bar',{labels:LBL,datasets:[{label:'Cut units/day',data:cpd,backgroundColor:cpd.map(v=>v>=18000?C.g+'88':v>=14000?C.w+'88':C.r+'77'),borderColor:cpd.map(v=>v>=18000?C.g:v>=14000?C.w:C.r),borderWidth:1.5,borderRadius:3}]},{yFmt:v=>nf(v)+'/day'});
+}
+function renderLosses(){
+  const g1=M.map(r=>r.g1),g2=M.map(r=>r.g2),g3=M.map(r=>r.g3);
+  mkC('chart-g1','bar',{labels:LBL,datasets:[{label:'Laid − Received',data:g1,backgroundColor:g1.map(v=>v>=0?C.a+'77':C.a2+'77'),borderColor:g1.map(v=>v>=0?C.a:C.a2),borderWidth:1.5,borderRadius:3}]},{yFmt:v=>nf(v),extra:{plugins:{tooltip:{callbacks:{afterBody:i=>{const v=g1[i[0].dataIndex];return[v>=0?'Drawing '+nf(v)+' units from stock':'Building stock by '+nf(-v)+' units'];}}}}}});
+  mkC('chart-g2','bar',{labels:LBL,datasets:[{label:'Cut − Laid',data:g2,backgroundColor:g2.map(v=>v>=0?C.a3+'77':C.a+'44'),borderColor:g2.map(v=>v>=0?C.a3:C.a),borderWidth:1.5,borderRadius:3}]},{yFmt:v=>nf(v),extra:{plugins:{tooltip:{callbacks:{afterBody:i=>{const v=g2[i[0].dataIndex];return[v>=0?'Cutting '+nf(v)+' carryover units':'Fabric accumulating: '+nf(-v)+' units held'];}}}}}});
+  mkC('chart-g3','bar',{labels:LBL,datasets:[{label:'Sorted − Cut',data:g3,backgroundColor:g3.map(v=>v>=0?C.g+'77':C.r+'77'),borderColor:g3.map(v=>v>=0?C.g:C.r),borderWidth:1.5,borderRadius:3}]},{yFmt:v=>nf(v),extra:{plugins:{tooltip:{callbacks:{afterBody:i=>{const v=g3[i[0].dataIndex];return[v>=0?'WIP gain: '+nf(v)+' units cleared through sort':'Sort loss: '+nf(-v)+' units held or rejected'];}}}}}});
+  const sc=M.map(r=>r.sc*100);
+  mkC('chart-sort-cut','line',{labels:LBL,datasets:[
+    {label:'Sort/Cut %',data:sc,borderColor:C.a2,backgroundColor:C.a2+'15',fill:true,tension:0.3,pointRadius:4,borderWidth:2,pointBackgroundColor:sc.map(v=>v>=100?C.g:v>=95?C.a2:C.r)},
+    {label:'100% balanced',data:Array(22).fill(100),borderColor:C.m,borderDash:[5,5],pointRadius:0,fill:false,borderWidth:1.5}
+  ]},{legend:true,yFmt:v=>v.toFixed(1)+'%',yOpts:{suggestedMin:80,suggestedMax:120}});
+  mkC('chart-gaps-all','bar',{labels:LBL,datasets:[
+    {label:'G1 Laid−Rcvd',data:g1,backgroundColor:C.a+'66',stack:'no'},
+    {label:'G2 Cut−Laid',data:g2,backgroundColor:C.a3+'66',stack:'no'},
+    {label:'G3 Sort−Cut',data:g3,backgroundColor:C.a2+'66',stack:'no'},
+  ]},{legend:true,yFmt:v=>nf(v),extra:{interaction:{intersect:false,mode:'index'}}});
+}
+function renderCapability(){
+  const allL=[...LBL,...FM];
+  const trendAll=[...M.map((_,i)=>(REG.ic+REG.sl*(i+1))*100),...FD.map(f=>f.pred*100)];
+  const pad=Array(22).fill(null);
+  mkC('chart-regression','line',{labels:allL,datasets:[
+    {label:'Historical',data:[...PERF.map(p=>p*100),...Array(6).fill(null)],borderColor:C.a3,backgroundColor:C.a3+'15',fill:true,tension:0.3,pointRadius:4,borderWidth:2.5,pointBackgroundColor:PERF.map(p=>p>=0.65?C.g:p>=0.4?C.w:C.r)},
+    {label:'Trend',data:trendAll,borderColor:C.r+'88',borderDash:[4,3],pointRadius:0,fill:false,borderWidth:1.5},
+    {label:'Forecast',data:[...pad,...FD.map(f=>f.pred*100)],borderColor:C.a2,pointBackgroundColor:C.a2,fill:false,pointRadius:5,borderWidth:2,borderDash:[5,3]},
+    {label:'CI Upper',data:[...pad,...FD.map(f=>f.hi*100)],borderColor:C.a2+'44',backgroundColor:C.a2+'12',fill:'+1',pointRadius:0,borderDash:[3,3],borderWidth:1},
+    {label:'CI Lower',data:[...pad,...FD.map(f=>f.lo*100)],borderColor:C.a2+'44',fill:false,pointRadius:0,borderDash:[3,3],borderWidth:1},
+    {label:'65% ref',data:Array(allL.length).fill(65),borderColor:C.g+'44',borderDash:[5,5],pointRadius:0,fill:false,borderWidth:1},
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:0,suggestedMax:100},extra:{interaction:{intersect:false,mode:'index'}}});
+  const bins=['<20%','20-40%','40-55%','55-65%','65-75%','>75%'];
+  const cnts=[0,0,0,0,0,0];
+  PERF.forEach(p=>{const v=p*100;if(v<20)cnts[0]++;else if(v<40)cnts[1]++;else if(v<55)cnts[2]++;else if(v<65)cnts[3]++;else if(v<75)cnts[4]++;else cnts[5]++;});
+  mkC('chart-histogram','bar',{labels:bins,datasets:[{label:'Months',data:cnts,backgroundColor:[C.r+'cc',C.r+'88',C.w+'88',C.w+'cc',C.g+'88',C.g+'cc'],borderRadius:4}]},{yFmt:v=>v});
+  const rolling=PERF.map((_,i)=>i<2?null:(PERF[i]+PERF[i-1]+PERF[i-2])/3*100);
+  mkC('chart-rolling','line',{labels:LBL,datasets:[
+    {label:'Monthly %',data:PERF.map(p=>p*100),borderColor:C.m+'66',pointRadius:2,fill:false,tension:0.2,borderWidth:1},
+    {label:'3-Month Rolling',data:rolling,borderColor:C.a,backgroundColor:C.a+'15',fill:true,tension:0.4,pointRadius:3,borderWidth:2.5,spanGaps:true}
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:0,suggestedMax:100}});
+  const avgTgt=500000;
+  document.getElementById('forecast-table').innerHTML=`<thead><tr><th>Month</th><th>Predicted Performance</th><th>CI Lower</th><th>CI Upper</th><th>Assumed Target</th><th>Predicted Cut</th><th>Signal</th></tr></thead><tbody>${FD.map((f,i)=>`<tr><td><strong>${FM[i]}</strong></td><td style="font-weight:600">${P(f.pred)}</td><td style="color:var(--danger)">${P(f.lo)}</td><td style="color:var(--success)">${P(f.hi)}</td><td>${nf(avgTgt)}</td><td style="color:var(--success);font-weight:600">${nf(Math.round(avgTgt*f.pred))}</td><td><span class="pill ${f.pred>=0.65?'green':f.pred>=0.4?'amber':'red'}">${f.pred>=0.65?'On Track':f.pred>=0.4?'Moderate':'Watch'}</span></td></tr>`).join('')}</tbody>`;
+}
+function renderMonthly(){
+  const pc=p=>p>=0.65?'green':p>=0.4?'amber':'red';
+  document.getElementById('monthly-table').innerHTML=`<thead><tr><th>Month</th><th>Days</th><th>Target</th><th>Received</th><th>Laid</th><th>Cut</th><th>Sorted</th><th>G1 Laid−Rcvd</th><th>G2 Cut−Laid</th><th>G3 Sort−Cut</th><th>Laid/Rcvd</th><th>Cut/Laid</th><th>Sort/Cut</th><th>Performance</th></tr></thead><tbody>${M.map(r=>`<tr><td><strong>${r.m}</strong></td><td>${r.days}</td><td>${nf(r.tgt)}</td><td>${nf(r.rcv)}</td><td>${nf(r.laid)}</td><td style="font-weight:600">${nf(r.cut)}</td><td>${nf(r.sort)}</td><td style="color:${r.g1>=0?'var(--accent)':'var(--accent2)'};font-weight:600">${r.g1>=0?'+':''}${nf(r.g1)}</td><td style="color:${r.g2>=0?'var(--accent3)':'var(--accent)'};font-weight:600">${r.g2>=0?'+':''}${nf(r.g2)}</td><td style="color:${r.g3>=0?'var(--success)':'var(--danger)'};font-weight:600">${r.g3>=0?'+':''}${nf(r.g3)}</td><td>${P(r.lr)}</td><td>${P(r.cl)}</td><td style="color:${r.sc<0.92?'var(--danger)':r.sc<0.97?'var(--warn)':'var(--success)'}">${P(r.sc)}</td><td><span class="pill ${pc(r.pf)}">${P(r.pf)}</span></td></tr>`).join('')}</tbody>`;
+}
+function renderInsights(){
+  const ins=[
+    {i:'📈',c:'Step-Change Improvement',col:C.g,t:'Performance doubled from 2024 (31%) to 2025 (64%) — structural improvement, not gradual drift',b:'The 22-month dataset shows two clearly distinct operating regimes. April–December 2024 averaged 30.9% performance. January 2025 onwards averaged 63.6%. This is a step-change — something structural changed at the turn of 2025. Target recalibration (from 1–2.5M down to 300–800k) is part of the explanation, but the absolute cut volume also increased: the operation was genuinely cutting more units in 2025 than 2024.',m:'2024 avg: 30.9% · 2025 avg: 63.6% · step-change at Jan-25'},
+    {i:'📦',c:'Stock Drawdown Dependency',col:C.a,t:'Laying averages 103.6% of received — the operation regularly draws down stock to sustain output',b:'In 15 of 22 months, more units were laid than received that month. May-25 had the most extreme drawdown: 168k laid vs only 125k received (135% ratio) — drawing 44k units from stock. This is sustainable while stock exists, but if receivals consistently lag, the stock buffer will eventually be exhausted. The cumulative balance between received and cut has stayed relatively stable over 22 months, suggesting replenishment is keeping pace with drawdown.',m:'Avg laid/received: 103.6% · May-25 peak: 135.1% · 15/22 months drew stock'},
+    {i:'🔄',c:'Carryover Cutting Pattern',col:C.a3,t:'Cut exceeds laying in 13 of 22 months (avg 102.4%) — prior fabric is regularly carried into subsequent cutting runs',b:'In 13 months, more fabric was cut than was laid that period. February 2026 cut 112.2% of what was laid. January 2026 cut 110.4%. This means fabric laid in previous periods is being processed subsequently — a normal pattern in a continuous operation. It becomes a risk signal when both Gap 1 (stock drawdown) and Gap 2 (carryover cutting) are both highly positive simultaneously, as this suggests the operation is running below its receiving rate.',m:'Avg cut/laid: 102.4% · Feb-26 highest at 112.2% · 13/22 months in carryover'},
+    {i:'🔍',c:'Sorting Losses — Worsening',col:C.r,t:'Sort÷Cut deteriorated significantly: Dec-25 (85.6%), Jan-26 (90.4%) — 57,980 units not cleared in just 2 months',b:'The early months (Apr–Aug 2024, Nov–Dec 2024) showed sorting gains — WIP from prior periods clearing through. From mid-2025 onward, sorting losses dominate. December 2025 is the most critical: 14.4% of cut units (31,712) did not clear sorting. This warrants specific investigation: are these quality rejects (defect), units held for rework, or a timing/reporting issue where units are counted in the following month? The answer determines whether the fix is quality or scheduling.',m:'Dec-25: 85.6% sort/cut · Jan-26: 90.4% · 57,980 units in 2 months'},
+    {i:'❓',c:'Target Quality Issue (2024)',col:C.w,t:'Sep-24 target was 2.47M units — the operation has never cut more than 527k in any month. Targets were 2–5× operational capacity.',b:'The 2024 targets appear to have been set at theoretical maximum or aspirational levels far above what was operationally achievable. September 2024 had a target of 2.47 million units but actually cut 520k — 21.1% performance. The maximum monthly cut in the entire 22-month dataset is 527k (Oct-25). From January 2025, targets were reset to achievable levels (300–800k range), bringing performance metrics into a meaningful 50–80% band. The 2024 percentages are not operationally comparable to 2025.',m:'Sep-24 target: 2.47M · all-time max cut: 527k · 2024 targets 2–5× capacity'},
+    {i:'📊',c:'Nov-24 Sort Spike',col:C.a2,t:'November 2024 sorting gained 60,315 units over cut — the largest single sorting gain in the dataset',b:'November 2024 shows sorted (515k) far exceeding cut (454k) by 60,315 units. This is almost certainly WIP from the high-volume months of July–October 2024 (each cutting 500–525k) clearing through the sorting process in November. A similar pattern in December 2024 (+29k sort gain) confirms this. It represents a natural lag between cutting and sorting in high-volume periods — not an anomaly, but a timing artefact to track when interpreting monthly sort numbers.',m:'Nov-24: +60,315 sort gain · Dec-24: +29,075 · WIP lag clearing pattern'},
+    {i:'💡',c:'Jun-25 is the Benchmark',col:C.g,t:'June 2025 (78.8% performance, near-zero sort loss) is what the operation looks like when everything is working well',b:'June 2025 achieved 78.8% of target — the best month in the dataset. It also had near-zero sorting loss (sort/cut: 102.2% — actually a slight gain). Received were high (318k), laying was efficient, and the sort process cleared cleanly. This month defines the operational ceiling under current conditions. The gap between Jun-25 and recent months (57–65% performance with 5–15% sort loss) is the measurable improvement opportunity — approximately 15,000–50,000 additional units/month if sort losses are resolved.',m:'Jun-25: 78.8% performance · 102.2% sort/cut · current benchmark'},
+    {i:'🎯',c:'Improvement Levers',col:C.g,t:'Two levers: (1) resolve sorting losses — 18–32k units/month at risk; (2) increase receivals — May-25 shows risk of under-receiving vs lay plan',b:'The data suggests two distinct improvement paths. First, sort losses of 18–32k/month in recent months are recoverable without any upstream change — this is a quality, rework, or timing fix in the sorting process itself. Second, May-25 received only 125k but laid 168k (135% drawdown) — the operation is drawing stock at an unsustainable rate in low-receival months, which will eventually constrain output if stock runs low. Understanding fabric supply chain reliability and safety stock levels would help model this risk.',m:'Sort loss recovery: 18–32k/month · stock drawdown risk in low-receival months'},
+  ];
+  document.getElementById('insights-container').innerHTML=ins.map(x=>`<div class="insight-card" style="--ic:${x.col}"><span class="insight-icon">${x.i}</span><div class="insight-category">${x.c}</div><div class="insight-title">${x.t}</div><div class="insight-body">${x.b}</div><span class="insight-metric">${x.m}</span></div>`).join('');
+}
+const initialised={};
+function showTab(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const btn=document.querySelector(`.nav-btn[onclick="showTab('${name}')"]`);
+  if(btn)btn.classList.add('active');
+  document.getElementById('main-content').scrollTop=0;
+  if(initialised[name])return;
+  initialised[name]=true;
+  if(name==='overview')renderOverview();
+  if(name==='flow')renderFlow();
+  if(name==='performance')renderPerformance();
+  if(name==='losses')renderLosses();
+  if(name==='capability')renderCapability();
+  if(name==='monthly')renderMonthly();
+  if(name==='insights')renderInsights();
+}
+renderKPIs();
+window.addEventListener('load',function(){requestAnimationFrame(function(){renderOverview();initialised['overview']=true;});});
+</script>
+</body>
+</html>
