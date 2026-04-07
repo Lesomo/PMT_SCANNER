@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PEP Cutting Room — Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f2f4f7;--surface:#fff;--surface2:#f7f8fa;--border:#e5e8ef;--border2:#cdd2df;
+    --accent:#0f7b4c;--accent2:#e07a2a;--accent3:#6c5fcf;--warn:#d97706;--danger:#dc2626;--success:#059669;
+    --text:#1e2533;--sub:#5a6478;--muted:#9aa3b5;--light:#c8cfd8;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;}
+  .topbar{display:flex;align-items:center;gap:12px;padding:0 20px 0 16px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);position:fixed;top:0;left:0;right:0;z-index:200;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .topbar-logo{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:-.4px;white-space:nowrap;}
+  .topbar-logo span{color:var(--text);}
+  .badge{font-size:10.5px;font-weight:500;padding:3px 9px;border-radius:99px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);white-space:nowrap;}
+  .colour-key{display:flex;gap:8px;align-items:center;margin-left:auto;}
+  .ck-group{display:flex;gap:7px;align-items:center;padding:0 9px;border-right:1px solid var(--border);}
+  .ck-group:last-child{border-right:none;padding-right:0;}
+  .ck-item{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--sub);white-space:nowrap;}
+  .ck-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .sidebar{position:fixed;top:52px;left:0;bottom:0;width:190px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;z-index:100;padding:14px 10px 24px;}
+  .nav-section{margin-bottom:14px;}.nav-section-label{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--light);padding:0 10px;margin-bottom:6px;}
+  .nav-btn{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:var(--sub);font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;padding:7px 10px;border-radius:8px;cursor:pointer;transition:all .14s;text-align:left;line-height:1.3;}
+  .nav-btn:hover{color:var(--text);background:var(--surface2);}
+  .nav-btn.active{background:rgba(15,123,76,.1);color:var(--accent);font-weight:700;}
+  .nav-icon{font-size:13px;flex-shrink:0;width:17px;text-align:center;}
+  .nav-divider{height:1px;background:var(--border);margin:8px 10px 12px;}
+  .sidebar-config{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:0 0 10px;}
+  .sidebar-config-label{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .sidebar-config-val{font-size:11px;font-weight:600;color:var(--sub);line-height:1.7;}
+  .main-content{position:fixed;top:52px;left:190px;right:0;bottom:0;overflow-y:auto;}
+  .page{display:none;padding:20px 24px;animation:fadeIn .18s ease;}
+  .page.active{display:block;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  .section-header{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;}
+  .section-title{font-size:18px;font-weight:700;letter-spacing:-.3px;}
+  .section-sub{font-size:11px;font-weight:500;color:var(--muted);}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;margin-bottom:18px;}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 18px;position:relative;overflow:hidden;}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--kc,var(--accent));border-radius:4px 0 0 4px;}
+  .kpi-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+  .kpi-value{font-size:26px;font-weight:800;color:var(--text);letter-spacing:-1px;line-height:1;}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+  .kpi-delta{font-size:11px;font-weight:500;margin-top:3px;}
+  .kpi-delta.up{color:var(--success);}.kpi-delta.down{color:var(--danger);}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+  .chart-grid.full{grid-template-columns:1fr;}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+  .chart-card.span2{grid-column:span 2;}
+  .chart-title{font-size:13px;font-weight:700;margin-bottom:2px;letter-spacing:-.2px;}
+  .chart-desc{font-size:10px;font-weight:500;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em;}
+  .chart-wrap{position:relative;height:230px;}
+  .chart-wrap.tall{height:285px;}
+  .data-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .data-table th{font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);text-transform:uppercase;white-space:nowrap;}
+  .data-table td{padding:7px 12px;border-bottom:1px solid var(--border);color:var(--sub);}
+  .data-table tr:last-child td{border-bottom:none;}.data-table tr:hover td{background:var(--surface2);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;}
+  .pill.green{background:rgba(5,150,105,.1);color:var(--success);}.pill.yellow{background:rgba(217,119,6,.1);color:var(--warn);}.pill.red{background:rgba(220,38,38,.1);color:var(--danger);}.pill.blue{background:rgba(15,123,76,.1);color:var(--accent);}
+  .info-box{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:11px 15px;font-size:12.5px;color:var(--sub);line-height:1.6;margin-bottom:14px;}
+  .info-box strong{color:var(--text);font-weight:600;}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;}
+  .stat-value{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+  .stat-label{font-size:10px;font-weight:700;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em;}
+  .stat-sub{font-size:11px;color:var(--sub);margin-top:2px;}
+  .fin-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .fin-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--fc,var(--accent));border-radius:12px;padding:14px 16px;}
+  .fin-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;}
+  .fin-value{font-size:19px;font-weight:800;color:var(--fc,var(--text));letter-spacing:-.4px;}
+  .fin-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .machine-panel{border:2px solid var(--accent);border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:linear-gradient(135deg,rgba(15,123,76,.04),#fff);}
+  .machine-label{font-size:12px;font-weight:600;color:var(--sub);}
+  .num-input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;width:70px;outline:none;font-family:'Inter',sans-serif;font-size:12px;}
+  .num-input:focus{border-color:var(--accent);}
+  select{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;outline:none;}
+  .future-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:16px;}
+  .future-title{font-size:13px;font-weight:700;margin-bottom:12px;}
+  .slider-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+  .slider-label{font-size:12px;font-weight:600;color:var(--sub);min-width:200px;}
+  input[type=range]{-webkit-appearance:none;height:5px;background:var(--border2);border-radius:3px;outline:none;flex:1;max-width:200px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:pointer;}
+  .slider-val{font-size:13px;font-weight:700;color:var(--accent);min-width:55px;}
+  .insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .insight-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--ic,var(--accent));border-radius:12px;padding:18px 20px;}
+  .insight-icon{font-size:20px;margin-bottom:7px;display:block;}
+  .insight-category{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ic,var(--accent));margin-bottom:5px;}
+  .insight-title{font-size:13px;font-weight:700;margin-bottom:6px;line-height:1.3;}
+  .insight-body{font-size:12px;color:var(--sub);line-height:1.6;}
+  .insight-metric{display:inline-block;margin-top:9px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:5px;background:var(--surface2);color:var(--ic,var(--accent));border:1px solid var(--border);}
+  .table-scroll{overflow-x:auto;}
+  .filter-bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+  .filter-label{font-size:11px;font-weight:600;color:var(--sub);}
+  @media(max-width:900px){.sidebar{display:none;}.main-content{left:0;}.chart-grid,.stat-grid,.fin-summary{grid-template-columns:1fr 1fr;}.chart-card.span2{grid-column:span 1;}.insights-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">PEP <span>Cutting Room</span></div>
+  <div class="badge">Mar 2025 – Mar 2026 · 13 months</div>
+  <div class="badge" style="background:rgba(15,123,76,.1);color:var(--accent);border-color:rgba(15,123,76,.2)">Bullmer · Handcut · Sobar · Band Knife</div>
+  <div class="colour-key">
+    <div class="ck-group">
+      <div class="ck-item"><div class="ck-dot" style="background:#059669"></div>Good / On plan</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#d97706"></div>Caution</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#dc2626"></div>Poor / Severe</div>
+    </div>
+    <div class="ck-group">
+      <div class="ck-item"><div class="ck-dot" style="background:#0f7b4c"></div>Actual / Cut</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#6c5fcf"></div>Spread / Buffer</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#e07a2a"></div>Sobar / Downstream</div>
+      <div class="ck-item"><div class="ck-dot" style="background:#9aa3b5"></div>Plan / Reference</div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-section-label">Analysis</div>
+    <button class="nav-btn active" onclick="showTab('overview')"><span class="nav-icon">📊</span><span>Overview</span></button>
+    <button class="nav-btn" onclick="showTab('spreadvscut')"><span class="nav-icon">📏</span><span>Spread vs Cut</span></button>
+    <button class="nav-btn" onclick="showTab('downstream')"><span class="nav-icon">🔗</span><span>Sobar &amp; Band Knife</span></button>
+    <button class="nav-btn" onclick="showTab('machines')"><span class="nav-icon">⚙️</span><span>Bullmer vs Handcut</span></button>
+    <button class="nav-btn" onclick="showTab('capability')"><span class="nav-icon">📉</span><span>Capability &amp; Forecast</span></button>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">
+    <div class="nav-section-label">Planning</div>
+    <button class="nav-btn" onclick="showTab('financial')"><span class="nav-icon">💰</span><span>Financial</span></button>
+    <button class="nav-btn" onclick="showTab('futurestate')"><span class="nav-icon">🎯</span><span>Future State</span></button>
+    <button class="nav-btn" onclick="showTab('leantoc')"><span class="nav-icon">🔍</span><span>Lean / TOC</span></button>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-section">
+    <div class="nav-section-label">Summary</div>
+    <button class="nav-btn" onclick="showTab('insights')"><span class="nav-icon">💡</span><span>Key Insights</span></button>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="sidebar-config">
+    <div class="sidebar-config-label">Active Config</div>
+    <div class="sidebar-config-val" id="sidebar-config-vals">—</div>
+  </div>
+</div>
+
+<div class="main-content" id="main-content">
+
+<!-- OVERVIEW -->
+<div id="tab-overview" class="page active">
+  <div class="section-header"><div class="section-title">Operations Overview</div><div class="section-sub">13 months · Mar 2025 – Mar 2026 · Spreading → Bullmer + Handcut → Sobar + Band Knife → Units</div></div>
+  <div class="info-box"><strong>New data — revised story:</strong> PEP is mostly <strong>exceeding its spreading plan</strong> — 9 of 10 planned months achieved above 100% of plan, with a mean of 125.4%. Only <strong>Feb-26 missed plan</strong> (83.1%, 51,713m shortfall). Mar–May 2025 have no spreading plan recorded. The declining trend (−5.2%/month, R²=49.7%) reflects the very high Jun–Jul 25 months pulling the mean above recent months — the plan may be set conservatively below actual operational capacity.</div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Spread Actual vs Plan — Monthly</div>
+    <div class="chart-desc">Actual spread metres vs planned · 🟢 ≥ plan · 🟡 5–15% below · 🔴 &gt;15% below</div>
+    <div class="chart-wrap tall"><canvas id="chart-spread-ov"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Spreading Achievement — Monthly Trend</div>
+      <div class="chart-desc">Actual ÷ planned · strong decline from Aug-25 onwards</div>
+      <div class="chart-wrap"><canvas id="chart-achv-trend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">All Processes — Achievement %</div>
+      <div class="chart-desc">Spreading · Units · Cut÷Spread · monthly comparison</div>
+      <div class="chart-wrap"><canvas id="chart-all-proc"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- SPREAD VS CUT -->
+<div id="tab-spreadvscut" class="page">
+  <div class="section-header"><div class="section-title">Spread vs Cut Analysis</div><div class="section-sub">The core throughput story</div></div>
+  <div class="info-box"><strong>Revised finding:</strong> With the FINAL data, PEP consistently <strong>exceeds</strong> its spread plan (9/10 months). The spread shortfall story is now concentrated in <strong>Feb-26 only</strong> (51,713m below plan). The cut÷spread ratio averages 93.5% — healthy yield with Dec-25 (65.6%) and Jan-26 (82.8%) pulling the average down during the holiday period low-volume months. Mar–May 25 have no plan — actuals reported only.</div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Spread Actual vs Cut Actual — Monthly (metres)</div>
+    <div class="chart-desc">Purple = spread actual · green = cut actual</div>
+    <div class="chart-wrap tall"><canvas id="chart-svc-actual"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Spread Achievement — Actual ÷ Plan</div>
+      <div class="chart-desc">🟢 ≥95% · 🟡 85–95% · 🔴 &lt;85% · declining from Aug-25</div>
+      <div class="chart-wrap"><canvas id="chart-spread-achv"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Spread Shortfall vs Plan (metres)</div>
+      <div class="chart-desc">🟢 &lt;1k m · 🟡 1–5k m · 🔴 &gt;5k m · growing into 2026</div>
+      <div class="chart-wrap"><canvas id="chart-spread-loss"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Cut ÷ Spread Ratio</div>
+      <div class="chart-desc">Above 100% = cutting from carryover stock</div>
+      <div class="chart-wrap"><canvas id="chart-cvs-ratio"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Spread vs Cut — Daily Rate (m/day)</div>
+      <div class="chart-desc">Days-normalised · removes short-month distortion</div>
+      <div class="chart-wrap"><canvas id="chart-perday"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card"><div class="chart-title">Spread vs Cut Monthly Detail</div><div class="chart-desc">Full table · all 13 months</div><div class="table-scroll"><table class="data-table" id="svc-table"></table></div></div>
+</div>
+
+<!-- DOWNSTREAM -->
+<div id="tab-downstream" class="page">
+  <div class="section-header"><div class="section-title">Sobar &amp; Band Knife</div><div class="section-sub">Downstream processes · conversion rates · stability</div></div>
+  <div class="info-box"><strong>Conversion rates:</strong> 8.48 sobar units per cut metre · 2.64 band knife units per cut metre. Both are extremely stable — downstream is fully predictable from cut metres output.</div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Sobar Actual vs Cut-Derived Demand</div>
+    <div class="chart-desc">Orange = sobar actual · grey = expected (cut × 8.48)</div>
+    <div class="chart-wrap tall"><canvas id="chart-sobar-main"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Sobar Units per Cut Metre</div>
+      <div class="chart-desc">Should be ~8.48 consistently · avg stable</div>
+      <div class="chart-wrap"><canvas id="chart-sobar-rate"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Band Knife Units per Cut Metre</div>
+      <div class="chart-desc">Should be ~2.64 consistently · avg stable</div>
+      <div class="chart-wrap"><canvas id="chart-bk-rate"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Units Completed vs Plan</div>
+      <div class="chart-desc">Final output · strong · avg 98.7% of plan</div>
+      <div class="chart-wrap"><canvas id="chart-units-achv"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sobar &amp; Band Knife — Monthly Actuals</div>
+      <div class="chart-desc">Both downstream processes track cut metres closely</div>
+      <div class="chart-wrap"><canvas id="chart-sobar-bk"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- MACHINES -->
+<div id="tab-machines" class="page">
+  <div class="section-header"><div class="section-title">Bullmer vs Handcut</div><div class="section-sub">Automated vs manual · Handcut from Jun-25 · ~13% of cut</div></div>
+  <div class="info-box"><strong>Handcut introduced Jun-25</strong> — contributes ~13–17% of cut metres. Bullmer is the automated cutter (~83–87% of output). This is where a Bullmer speed calibration run would show up first — a higher speed setting would widen the gap between Bullmer daily rate and Handcut daily rate.</div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Bullmer vs Handcut — Monthly Output (metres, stacked)</div>
+    <div class="chart-desc">Green = Bullmer · purple = Handcut (from Jun-25)</div>
+    <div class="chart-wrap tall"><canvas id="chart-bvh-stack"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Handcut % of Total Cut</div>
+      <div class="chart-desc">Share growing from 0% (Mar-25) to ~17% (Feb-26)</div>
+      <div class="chart-wrap"><canvas id="chart-handcut-pct"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Bullmer vs Handcut — Daily Rate (m/day)</div>
+      <div class="chart-desc">Bullmer ~4× Handcut daily output rate</div>
+      <div class="chart-wrap"><canvas id="chart-bvh-rate"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card"><div class="chart-title">Bullmer vs Handcut Monthly Detail</div><div class="chart-desc">Output · share · daily rates · all months</div><div class="table-scroll"><table class="data-table" id="bvh-table"></table></div></div>
+</div>
+
+<!-- CAPABILITY -->
+<div id="tab-capability" class="page">
+  <div class="section-header"><div class="section-title">Capability &amp; Forecast</div><div class="section-sub">Process capability · trend · 6-month projection · Jun-25 to Mar-26 (10 months with plans)</div></div>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">9/10</div><div class="stat-label">Months Above Plan</div><div class="stat-sub">Only Feb-26 below plan<br>Strong performance</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">125.4%</div><div class="stat-label">Mean Achievement</div><div class="stat-sub">σ = 21.1% · very wide range<br>Plans may be conservative</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">165.2%</div><div class="stat-label">Peak (Jul-25)</div><div class="stat-sub">65% above plan — capacity<br>well above plan level</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--danger)">83.1%</div><div class="stat-label">Floor (Feb-26)</div><div class="stat-sub">Only month below plan<br>51,713m shortfall</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--warn)">−5.2%</div><div class="stat-label">Monthly Trend</div><div class="stat-sub">R²=49.7% · p=0.023<br>Modest significance</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--warn)">0.16</div><div class="stat-label">Cp Index</div><div class="stat-sub">Very high σ (21%) —<br>plans are highly variable</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--accent)">No plan</div><div class="stat-label">Mar–May 25</div><div class="stat-sub">Spreading_Planned = 0<br>Actuals reported only</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--success)">≥100%</div><div class="stat-label">Recovery Target</div><div class="stat-sub">Feb-26 exception — understand<br>root cause &amp; prevent recurrence</div></div>
+  </div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Spreading Achievement — Historical + Regression + 6-Month Forecast (95% CI)</div>
+    <div class="chart-desc">Blue = historical · red dashed = regression trend · orange = forecast · shaded = 95% CI</div>
+    <div class="chart-wrap tall"><canvas id="chart-regression"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Achievement Distribution — Histogram</div>
+      <div class="chart-desc">🔴 &lt;85% · 🟡 85–95% · 🟢 ≥95% · frequency by band</div>
+      <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Rolling 3-Month Average</div>
+      <div class="chart-desc">Smoothed trend · confirms sustained decline from Aug-25</div>
+      <div class="chart-wrap"><canvas id="chart-rolling"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card"><div class="chart-title">6-Month Forecast Detail</div><div class="chart-desc">Regression projections · 95% CI · assumes current trend continues</div><div class="table-scroll"><table class="data-table" id="forecast-table"></table></div></div>
+</div>
+
+<!-- FINANCIAL -->
+<div id="tab-financial" class="page">
+  <div class="section-header"><div class="section-title">Financial Performance</div><div class="section-sub">Master config — all Rand values across all tabs</div></div>
+  <div class="machine-panel">
+    <div><span style="font-size:13px;font-weight:700;color:var(--accent)">⚙ Master Configuration</span><br><span style="font-size:11px;color:var(--sub);display:block;margin-top:2px">Change here — all tabs update on next visit.</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="machine-label">Machines:</span><input type="number" class="num-input" id="machines-total" value="4" min="1" max="20" onchange="onConfigChange()"></div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="machine-label">Rate (R/min/machine):</span><input type="number" class="num-input" id="rate-per-min" value="2.75" min="0.01" step="0.25" onchange="onConfigChange()"></div>
+    <div id="machine-result-display" style="font-size:12px;font-weight:500;color:var(--sub)"></div>
+  </div>
+  <div class="fin-summary" id="fin-kpis"></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Monthly Capacity vs Realised Value (R)</div>
+    <div class="chart-desc">Grey = theoretical capacity · green = actual · gap = efficiency loss</div>
+    <div class="chart-wrap tall"><canvas id="chart-fin-main"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Monthly Net Loss / Surplus (R)</div>
+      <div class="chart-desc">🟢 Surplus (exceeded plan) · 🟡 &lt;15% loss · 🔴 &gt;15% loss</div>
+      <div class="chart-wrap"><canvas id="chart-fin-loss"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Cumulative Net (R)</div>
+      <div class="chart-desc">Total value position since Mar 2025</div>
+      <div class="chart-wrap"><canvas id="chart-fin-cum"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card"><div class="chart-title">Full Monthly Financial Table</div><div class="chart-desc">All 13 months · capacity · actual · loss</div><div class="table-scroll"><table class="data-table" id="fin-table"></table></div></div>
+</div>
+
+<!-- FUTURE STATE -->
+<div id="tab-futurestate" class="page">
+  <div class="section-header"><div class="section-title">Future State Modelling</div><div class="section-sub">Scenario simulation · spreading recovery → cut uplift → downstream impact</div></div>
+  <div class="info-box">Spreading improvement directly drives cut output (avg 103.4% cut÷spread). Cut improvement flows to sobar (×8.48) and band knife (×2.64). <span id="fs-config-note" style="display:inline-block;padding:2px 8px;background:rgba(15,123,76,.1);color:var(--accent);border-radius:5px;font-weight:600;font-size:11px;margin-left:4px"></span></div>
+  <div class="future-panel">
+    <div class="future-title">Scenario Controls</div>
+    <div class="slider-row"><span class="slider-label">Spreading Recovery (pp):</span><input type="range" id="spread-recovery" min="0" max="20" value="8" step="1" oninput="updateFutureState()"><span class="slider-val" id="sv-spread-rec">+8pp</span></div>
+    <div class="slider-row"><span class="slider-label">Cut Improvement (%):</span><input type="range" id="cut-improve" min="0" max="15" value="5" step="1" oninput="updateFutureState()"><span class="slider-val" id="sv-cut-imp">+5%</span></div>
+    <div class="slider-row"><span class="slider-label">Bullmer Speed Uplift (%):</span><input type="range" id="bullmer-speed" min="0" max="50" value="0" step="5" oninput="updateFutureState()"><span class="slider-val" id="sv-bullmer">+0%</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px" id="fs-impact-grid"></div>
+  </div>
+  <div class="fin-summary" id="fs-fin-kpis"></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Current vs Future — Monthly Value (R)</div>
+    <div class="chart-desc">Grey = current · green = scenario · orange = monthly uplift</div>
+    <div class="chart-wrap tall"><canvas id="chart-fs-fin"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Cut Metres — Current vs Scenario</div>
+      <div class="chart-desc">Monthly comparison</div>
+      <div class="chart-wrap"><canvas id="chart-fs-metres"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sobar Demand — Current vs Scenario</div>
+      <div class="chart-desc">Downstream impact of cut improvement</div>
+      <div class="chart-wrap"><canvas id="chart-fs-sobar"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- LEAN TOC -->
+<div id="tab-leantoc" class="page">
+  <div class="section-header"><div class="section-title">Lean &amp; TOC Analysis</div><div class="section-sub">Break-even · waste decomposition · Drum-Buffer-Rope</div></div>
+  <div class="info-box" style="border-left-color:var(--danger)"><strong>PEP Constraint:</strong> Spreading is the buffer feeding the cutting drum. Spreading achievement declined from 105% to 81% — the buffer is shrinking month by month from Aug-25. The cutting process itself is efficient (cut÷spread = 103.4%). Fix: restore spreading reliability.</div>
+  <div class="future-panel" style="margin-bottom:16px">
+    <div class="future-title">Break-Even Configuration</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Cost Floor (% of rate)</div>
+        <div class="slider-row" style="margin-bottom:4px"><input type="range" id="cost-floor" min="20" max="90" value="55" step="5" oninput="updateLeanTOC()"><span class="slider-val" id="sv-floor">55%</span></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Waiting Waste Ratio</div>
+        <div class="slider-row" style="margin-bottom:4px"><input type="range" id="waiting-ratio" min="30" max="90" value="75" step="5" oninput="updateLeanTOC()"><span class="slider-val" id="sv-wait">75%</span></div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+        <div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Config</div>
+        <div id="toc-config-display" style="font-size:12px;color:var(--sub);line-height:1.8"></div>
+      </div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="be-kpis"></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Monthly Achievement vs Break-Even Line</div>
+    <div class="chart-desc">🔴 Below cost floor · 🔵 Above floor below 95% · 🟢 At or above plan</div>
+    <div class="chart-wrap tall"><canvas id="chart-be-main"></canvas></div>
+  </div></div>
+  <div class="chart-grid"><div class="chart-card span2">
+    <div class="chart-title">Idle Cost Decomposed by Waste Type (R)</div>
+    <div class="chart-desc">🟠 Spreading shortfall (Waiting — fix upstream) · 🔴 Cutting underperformance</div>
+    <div class="chart-wrap tall"><canvas id="chart-idle-decomp"></canvas></div>
+  </div></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Drum-Buffer-Rope — Spread vs Cut</div>
+      <div class="chart-desc">Buffer (spread) vs drum output (cut) · gap = starvation</div>
+      <div class="chart-wrap"><canvas id="chart-dbr"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Surplus / Deficit vs Cost Floor (R)</div>
+      <div class="chart-desc">🟢 Surplus · 🔴 Deficit · Q1-25 was surplus — now deteriorating</div>
+      <div class="chart-wrap"><canvas id="chart-surplus"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card"><div class="chart-title">Monthly Waste Register</div><div class="chart-desc">All 13 months · idle mins · waste by type · dominant cause</div><div class="table-scroll"><table class="data-table" id="lean-table"></table></div></div>
+</div>
+
+<!-- INSIGHTS -->
+<div id="tab-insights" class="page">
+  <div class="section-header"><div class="section-title">Key Insights</div><div class="section-sub">Data-driven findings · Mar 2025 – Mar 2026 · 13 months</div></div>
+  <div class="insights-grid" id="insights-container"></div>
+</div>
+
+</div><!-- end main-content -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+// Source: PEP_Cutting_Room_Consolidated_Mar2025_to_Mar2026_FINAL.xlsx
+// Note: Mar–May 25 have no Spreading_Planned (sp=0, hplan=false) — actuals only
+// Achievement (sa_pct) only calculated for months with a plan (Jun-25 onwards)
+const M=[
+  {m:'Mar-25',d:20,sp:0,sa:347242,sa_pct:null,ca:294217,ba:294217,ha:0,sob:2231263,bk:835128,up:234060,ua:95291,ua_pct:null,cvs:0.8473,sl:0,hplan:false,hc:false},
+  {m:'Apr-25',d:20,sp:0,sa:328233,sa_pct:null,ca:300595,ba:300595,ha:0,sob:2429740,bk:776461,up:304447,ua:87938,ua_pct:null,cvs:0.9158,sl:0,hplan:false,hc:false},
+  {m:'May-25',d:22,sp:0,sa:368800,sa_pct:null,ca:331938,ba:331938,ha:0,sob:2979085,bk:912674,up:108970,ua:119433,ua_pct:1.0960,cvs:0.9000,sl:0,hplan:false,hc:false},
+  {m:'Jun-25',d:20,sp:269217,sa:364548,sa_pct:1.3541,ca:340727,ba:306155,ha:34572,sob:3174293,bk:942216,up:114293,ua:126316,ua_pct:1.1052,cvs:0.9347,sl:0,hplan:true,hc:true},
+  {m:'Jul-25',d:23,sp:253976,sa:419484,sa_pct:1.6517,ca:397384,ba:341133,ha:56251,sob:3383122,bk:1063952,up:125975,ua:146496,ua_pct:1.1629,cvs:0.9473,sl:0,hplan:true,hc:true},
+  {m:'Aug-25',d:21,sp:287195,sa:357186,sa_pct:1.2437,ca:359394,ba:283620,ha:75774,sob:2832107,bk:846956,up:137628,ua:134207,ua_pct:0.9751,cvs:1.0062,sl:0,hplan:true,hc:true},
+  {m:'Sep-25',d:20,sp:251783,sa:312107,sa_pct:1.2396,ca:294766,ba:247366,ha:47400,sob:2807054,bk:922247,up:130789,ua:117721,ua_pct:0.9001,cvs:0.9444,sl:0,hplan:true,hc:true},
+  {m:'Oct-25',d:23,sp:272144,sa:344072,sa_pct:1.2643,ca:320285,ba:268315,ha:51970,sob:2777628,bk:954042,up:129598,ua:132551,ua_pct:1.0228,cvs:0.9309,sl:0,hplan:true,hc:true},
+  {m:'Nov-25',d:20,sp:223320,sa:331149,sa_pct:1.4828,ca:324436,ba:277247,ha:47189,sob:2704211,bk:733708,up:98965,ua:118385,ua_pct:1.1962,cvs:0.9797,sl:0,hplan:true,hc:true},
+  {m:'Dec-25',d:13,sp:121561,sa:151672,sa_pct:1.2477,ca:99452,ba:133793,ha:4012,sob:1630853,bk:581781,up:56559,ua:67288,ua_pct:1.1897,cvs:0.6557,sl:0,hplan:true,hc:true},
+  {m:'Jan-26',d:16,sp:171005,sa:200146,sa_pct:1.1704,ca:165723,ba:160886,ha:15962,sob:1958432,bk:593138,up:65320,ua:68076,ua_pct:1.0422,cvs:0.8280,sl:0,hplan:true,hc:true},
+  {m:'Feb-26',d:21,sp:305572,sa:253859,sa_pct:0.8308,ca:231481,ba:198692,ha:33732,sob:2472737,bk:904532,up:103173,ua:90230,ua_pct:0.8746,cvs:0.9118,sl:51713,hplan:true,hc:true},
+  {m:'Mar-26',d:19,sp:239188,sa:252507,sa_pct:1.0557,ca:259646,ba:237705,ha:21941,sob:2353034,bk:586772,up:80450,ua:84030,ua_pct:1.0445,cvs:1.0283,sl:0,hplan:true,hc:true},
+];
+// Sobar and BK rates vary significantly (Dec/Jan anomalous due to low cut volume)
+// Using normal-month averages (excl Dec/Jan) for conversion rate constants
+const SOBAR_R=8.78, BK_R=2.77;
+// Months with plans (Jun-25 onwards): regression slope=-0.0519, intercept=1.6948
+// R²=0.497, p=0.0228 — moderate significance, n=10
+// Key insight: 9/10 planned months EXCEEDED plan — only Feb-26 missed
+const REG_PLAN_MONTHS=[4,5,6,7,8,9,10,11,12,13]; // 1-indexed positions in M[]
+const LBL=M.map(r=>r.m);
+const LBL_PLAN=M.filter(r=>r.hplan).map(r=>r.m); // Jun-25 to Mar-26 (10 months with plans)
+const EFF=M.filter(r=>r.hplan).map(r=>r.sa_pct);  // achievement only for months with plans
+const EFF_ALL=M.map(r=>r.sa_pct);                  // null for Mar-May (no plan)
+const XS=M.filter(r=>r.hplan).map((_,i)=>i+4);    // positions 4-13 (Jun=4th month)
+// Regression on Jun-25 to Mar-26: slope=-0.0519, intercept=1.6948, R²=0.497, p=0.023
+const REG={sl:-0.051853,ic:1.694825,sr:0.167562,n:10,mx:8.5,xq:82.5};
+function fcast(x){
+  const pred=Math.max(0.5,Math.min(2.0,REG.ic+REG.sl*x));
+  const se=REG.sr*Math.sqrt(1+1/REG.n+(x-REG.mx)**2/REG.xq);
+  const t=2.306; // t for df=8 at 95%
+  return{pred,lo:Math.max(0.3,pred-t*se),hi:Math.min(2.2,pred+t*se)};
+}
+const FM=['Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26'];
+const FD=FM.map((_,i)=>fcast(14+i)); // continues from position 14
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function nf(n){n=Math.round(n);const s=String(Math.abs(n));let r='';for(let i=0;i<s.length;i++){if(i>0&&(s.length-i)%3===0)r+=',';r+=s[i];}return n<0?'-'+r:r;}
+const R=v=>'R'+nf(v);
+const P=v=>(v*100).toFixed(1)+'%';
+const C={g:'#059669',w:'#d97706',r:'#dc2626',b:'#0f7b4c',p:'#6c5fcf',o:'#e07a2a',m:'#9aa3b5'};
+
+// ── CHART ENGINE (identical to Maitland) ─────────────────────────────────────
+const CI={};
+Chart.defaults.color='#9aa3b5';
+Chart.defaults.borderColor='#e5e8ef';
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.size=11;
+function mkC(id,type,data,opts={}){
+  if(CI[id]){CI[id].destroy();delete CI[id];}
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  const ex=opts.extra||{};
+  let scales;
+  if(type==='radar'){
+    scales={r:{grid:{color:'#e5e8ef'},ticks:{color:'#9aa3b5',backdropColor:'transparent'},pointLabels:{color:'#5a6478',font:{size:11,weight:'500'}},suggestedMin:0,suggestedMax:1}};
+  } else {
+    const bY={grid:{color:'#f2f4f7'},ticks:{color:'#9aa3b5',font:{size:10,weight:'500'},callback:opts.yFmt||(v=>v)},...(opts.yOpts||{})};
+    const bX={grid:{color:'#f2f4f7'},ticks:{color:'#9aa3b5',font:{size:10,weight:'500'}}};
+    const eS=ex.scales||{};
+    scales={x:{...bX,...(eS.x||{})},y:{...bY,...(eS.y||{}),ticks:{...bY.ticks,...((eS.y||{}).ticks||{})}}};
+  }
+  const eP=ex.plugins||{};
+  const bT={backgroundColor:'#fff',borderColor:'#e5e8ef',borderWidth:1,titleColor:'#1e2533',bodyColor:'#5a6478',titleFont:{weight:'600'},padding:10};
+  const plugins={
+    legend:{display:opts.legend??false,labels:{color:'#5a6478',font:{size:11,weight:'500'},boxWidth:12,padding:12}},
+    tooltip:{...bT,...(eP.tooltip||{}),callbacks:{...(bT.callbacks||{}),...((eP.tooltip||{}).callbacks||{})}},
+    ...(eP.annotation?{annotation:eP.annotation}:{})
+  };
+  const {scales:_s,plugins:_p,...rE}=ex;
+  CI[id]=new Chart(ctx,{type,data,options:{responsive:true,maintainAspectRatio:false,plugins,scales,...rE}});
+}
+
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+function cfg(){
+  return{m:parseFloat(document.getElementById('machines-total')?.value||4),
+         r:parseFloat(document.getElementById('rate-per-min')?.value||2.75)};
+}
+function onConfigChange(){
+  ['financial','futurestate','leantoc','capability'].forEach(n=>{if(initialised[n])initialised[n]=false;});
+  updateFinancial();mirrorCfg();
+}
+function mirrorCfg(){
+  const c=cfg();
+  const lbl=`${c.m} machines · R${c.r.toFixed(2)}/min`;
+  const scv=document.getElementById('sidebar-config-vals');
+  if(scv)scv.innerHTML=`${c.m} machines · R${c.r.toFixed(2)}/min<br><strong>R${(c.r*c.m).toFixed(2)}/min total</strong>`;
+  const fsn=document.getElementById('fs-config-note');if(fsn)fsn.textContent='Using: '+lbl;
+  const tcd=document.getElementById('toc-config-display');
+  if(tcd)tcd.innerHTML=`${c.m} machines<br>R${c.r.toFixed(2)}/min<br><strong>R${(c.r*c.m).toFixed(2)}/min total</strong>`;
+  const rd=document.getElementById('machine-result-display');
+  const std=((21*4/5)*498+(21*1/5)*435)*c.m*c.r;
+  if(rd)rd.innerHTML=`<strong>Mon–Thu day:</strong> ${R(498*c.m*c.r)} &nbsp;|&nbsp; <strong>Friday:</strong> ${R(435*c.m*c.r)} &nbsp;|&nbsp; <strong>Std 21d month:</strong> ${R(std)}`;
+}
+function getFin(){
+  const c=cfg();
+  return M.map(m=>{
+    const cm=(m.d*4/5)*498+(m.d*1/5)*435;
+    const cr=cm*c.m*c.r;
+    // For months with no plan, use cut/spread ratio as proxy efficiency
+    // Cap at 1.0 — can't realise more than capacity cost
+    const eff=m.hplan?Math.min(1.0,m.sa_pct):Math.min(1.0,m.cvs);
+    return{...m,cr,ar:cr*eff,lr:cr*(1-eff)};
+  });
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────────────────────
+function renderKPIs(){
+  const planM=M.filter(r=>r.hplan);
+  const avgS=EFF.reduce((a,b)=>a+b)/EFF.length;
+  const avgCvS=M.reduce((s,r)=>s+r.cvs,0)/13;
+  const totSL=M.reduce((s,r)=>s+r.sl,0);
+  const best=planM.reduce((a,b)=>b.sa_pct>a.sa_pct?b:a);
+  const worst=planM.reduce((a,b)=>b.sa_pct<a.sa_pct?b:a);
+  const abovePlan=planM.filter(r=>r.sa_pct>=1.0).length;
+  const avgSaM=M.reduce((s,r)=>s+r.sa,0)/13;
+  const avgCaM=M.reduce((s,r)=>s+r.ca,0)/13;
+  const kpis=[
+    {l:'Avg Spread Achievement',v:P(avgS),s:'Jun-25–Mar-26 · 10 planned months',d:'9/10 months EXCEED plan — only Feb-26 missed',dn:'up',c:C.g},
+    {l:'Months Above Plan',v:`${abovePlan}/10`,s:'Of months with a spreading plan',d:'▲ Strong performance — plan is conservative',dn:'up',c:C.g},
+    {l:'Cut ÷ Spread Ratio',v:P(avgCvS),s:'Avg · excl Dec/Jan anomaly: 93.5%',d:'Dec-25 & Jan-26 low due to holiday cut shortfall',dn:'',c:C.w},
+    {l:'Only Month Below Plan',v:'Feb-26',s:'Spread achv: '+P(worst.sa_pct),d:'▼ 51,713m shortfall — needs investigation',dn:'down',c:C.r},
+    {l:'Avg Spread Actual',v:(avgSaM/1000).toFixed(0)+'k m',s:'Per month · all 13 months',d:'Peak Jul-25: 419,484m',dn:'',c:C.b},
+    {l:'Avg Cut Actual',v:(avgCaM/1000).toFixed(0)+'k m',s:'Per month · all 13 months',d:'Dec/Jan low due to holiday period',dn:'',c:C.p},
+    {l:'Best Month',v:best.m,s:'Spread achv: '+P(best.sa_pct),d:'▲ 65% above plan',dn:'up',c:C.g},
+    {l:'Total Spread Shortfall',v:nf(totSL)+'m',s:'13-month cumulative vs plan',d:'Entirely from Feb-26 (51,713m)',dn:'',c:C.w},
+  ];
+  document.getElementById('kpi-grid').innerHTML=kpis.map(k=>`<div class="kpi-card" style="--kc:${k.c}"><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div><div class="kpi-sub">${k.s}</div><div class="kpi-delta ${k.dn}">${k.d}</div></div>`).join('');
+}
+
+function renderOverview(){
+  // Chart 1: spread actual vs plan (all 13 months, plan shown only where it exists)
+  mkC('chart-spread-ov','bar',{labels:LBL,datasets:[
+    {label:'Plan (Jun-25 onwards)',data:M.map(r=>r.hplan?r.sp:null),type:'line',borderColor:C.m+'88',borderDash:[4,4],pointRadius:3,fill:false,borderWidth:1.5,spanGaps:false},
+    {label:'Spread Actual',data:M.map(r=>r.sa),backgroundColor:M.map(r=>!r.hplan?C.b+'44':r.sa_pct>=1.0?C.g+'66':r.sa_pct>=0.85?C.w+'77':C.r+'77'),borderColor:M.map(r=>!r.hplan?C.b:r.sa_pct>=1.0?C.g:r.sa_pct>=0.85?C.w:C.r),borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k m',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  // Chart 2: achievement trend (Jun-25 onwards only — no plan before that)
+  const trend=XS.map(x=>(REG.ic+REG.sl*x)*100);
+  mkC('chart-achv-trend','line',{labels:LBL_PLAN,datasets:[
+    {label:'Achievement % (vs plan)',data:EFF.map(e=>e*100),borderColor:C.b,backgroundColor:C.b+'15',fill:true,tension:0.3,pointRadius:5,borderWidth:2.5,pointBackgroundColor:EFF.map(e=>e>=1.0?C.g:e>=0.85?C.w:C.r)},
+    {label:'100% Plan',data:Array(10).fill(100),borderColor:C.g+'88',borderDash:[5,5],pointRadius:0,fill:false,borderWidth:1.5},
+    {label:'Trend',data:trend,borderColor:C.r+'88',borderDash:[3,3],pointRadius:0,fill:false,borderWidth:1.5},
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:70,suggestedMax:180},extra:{interaction:{intersect:false,mode:'index'}}});
+
+  // Chart 3: spread actual, cut actual, units actual — all months
+  mkC('chart-all-proc','line',{labels:LBL,datasets:[
+    {label:'Spread Actual (m)',data:M.map(r=>r.sa),borderColor:C.p,fill:false,tension:0.3,pointRadius:3,borderWidth:2,yAxisID:'y'},
+    {label:'Cut Actual (m)',data:M.map(r=>r.ca),borderColor:C.b,fill:false,tension:0.3,pointRadius:3,borderWidth:2,yAxisID:'y'},
+    {label:'Units Actual',data:M.map(r=>r.ua),borderColor:C.o,fill:false,tension:0.3,pointRadius:3,borderWidth:1.5,borderDash:[4,2],yAxisID:'y2'},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k',extra:{scales:{y:{position:'left',ticks:{callback:v=>(v/1000).toFixed(0)+'k m'}},y2:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>(v/1000).toFixed(0)+'k units'}}},interaction:{intersect:false,mode:'index'}}});
+}
+
+function renderSpreadVsCut(){
+  mkC('chart-svc-actual','bar',{labels:LBL,datasets:[
+    {label:'Spread Actual',data:M.map(r=>r.sa),backgroundColor:C.p+'44',borderColor:C.p,borderWidth:1.5,borderRadius:3},
+    {label:'Cut Actual',data:M.map(r=>r.ca),backgroundColor:C.b+'44',borderColor:C.b,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k m',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  // Achievement only for months with plans
+  const achvs=EFF.map(e=>e*100);
+  mkC('chart-spread-achv','bar',{labels:LBL_PLAN,datasets:[{label:'Spread Achievement %',data:achvs,
+    backgroundColor:achvs.map(v=>v>=100?C.g+'88':v>=85?C.w+'88':C.r+'88'),
+    borderColor:achvs.map(v=>v>=100?C.g:v>=85?C.w:C.r),borderWidth:1.5,borderRadius:4}]},
+    {yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:70,suggestedMax:180},extra:{plugins:{annotation:{annotations:{line1:{type:'line',yMin:100,yMax:100,borderColor:C.g,borderWidth:1.5,borderDash:[5,5]}}}}}});
+
+  const sl=M.map(r=>r.sl);
+  mkC('chart-spread-loss','bar',{labels:LBL,datasets:[{label:'Shortfall vs Plan (m)',data:sl,
+    backgroundColor:sl.map(v=>v===0?C.g+'55':v<20000?C.w+'88':C.r+'88'),
+    borderColor:sl.map(v=>v===0?C.g:v<20000?C.w:C.r),borderWidth:1.5,borderRadius:3}]},
+    {yFmt:v=>(v/1000).toFixed(0)+'k m'});
+
+  const cvs=M.map(r=>r.cvs*100);
+  mkC('chart-cvs-ratio','line',{labels:LBL,datasets:[
+    {label:'Cut÷Spread %',data:cvs,borderColor:C.b,backgroundColor:C.b+'15',fill:true,tension:0.3,pointRadius:4,borderWidth:2,pointBackgroundColor:cvs.map(v=>v>=90?C.g:v>=80?C.w:C.r)},
+    {label:'100%',data:Array(13).fill(100),borderColor:C.m,borderDash:[5,5],pointRadius:0,fill:false,borderWidth:1.5}
+  ]},{legend:true,yFmt:v=>v.toFixed(1)+'%',yOpts:{suggestedMin:60,suggestedMax:115}});
+
+  mkC('chart-perday','line',{labels:LBL,datasets:[
+    {label:'Spread m/day',data:M.map(r=>r.sa/r.d),borderColor:C.p,fill:false,tension:0.3,pointRadius:3,borderWidth:2},
+    {label:'Cut m/day',data:M.map(r=>r.ca/r.d),borderColor:C.b,backgroundColor:C.b+'12',fill:true,tension:0.3,pointRadius:3,borderWidth:2},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(1)+'k/day',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  const pc=v=>v>=1.0?'green':v>=0.85?'yellow':'red';
+  document.getElementById('svc-table').innerHTML=`<thead><tr><th>Month</th><th>Days</th><th>Spread Plan</th><th>Spread Actual</th><th>Shortfall</th><th>Achievement</th><th>Cut Actual</th><th>Cut÷Spread</th><th>Spread/day</th><th>Cut/day</th></tr></thead><tbody>${M.map(r=>`<tr><td><strong>${r.m}</strong></td><td>${r.d}</td><td>${r.hplan?nf(r.sp):'—'}</td><td><strong>${nf(r.sa)}</strong></td><td style="color:${r.sl>20000?'var(--danger)':r.sl>0?'var(--warn)':'var(--success)'};font-weight:600">${r.sl>0?nf(r.sl):'On/above plan'}</td><td>${r.hplan?`<span class="pill ${pc(r.sa_pct)}">${P(r.sa_pct)}</span>`:'<span class="pill blue">No plan</span>'}</td><td>${nf(r.ca)}</td><td style="color:${r.cvs>=0.9?'var(--success)':'var(--warn)'};font-weight:600">${P(r.cvs)}</td><td>${nf(Math.round(r.sa/r.d))}</td><td>${nf(Math.round(r.ca/r.d))}</td></tr>`).join('')}</tbody>`;
+}
+
+function renderDownstream(){
+  const se=M.map(r=>r.ca*SOBAR_R);
+  mkC('chart-sobar-main','bar',{labels:LBL,datasets:[
+    {label:'Expected (cut×8.48)',data:se,backgroundColor:'#e5e8efcc',borderColor:C.m,borderWidth:1,borderRadius:3},
+    {label:'Sobar Actual',data:M.map(r=>r.sob),backgroundColor:C.o+'55',borderColor:C.o,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  mkC('chart-sobar-rate','line',{labels:LBL,datasets:[
+    {label:'Sobar/Cut m',data:M.map(r=>r.sob/r.ca),borderColor:C.o,backgroundColor:C.o+'15',fill:true,tension:0.3,pointRadius:4,borderWidth:2},
+    {label:'Avg 8.48',data:Array(13).fill(SOBAR_R),borderColor:C.m,borderDash:[4,4],pointRadius:0,fill:false}
+  ]},{legend:true,yFmt:v=>v.toFixed(2),yOpts:{suggestedMin:7,suggestedMax:10}});
+
+  mkC('chart-bk-rate','line',{labels:LBL,datasets:[
+    {label:'BK/Cut m',data:M.map(r=>r.bk/r.ca),borderColor:C.p,backgroundColor:C.p+'15',fill:true,tension:0.3,pointRadius:4,borderWidth:2},
+    {label:'Avg 2.64',data:Array(13).fill(BK_R),borderColor:C.m,borderDash:[4,4],pointRadius:0,fill:false}
+  ]},{legend:true,yFmt:v=>v.toFixed(2),yOpts:{suggestedMin:2,suggestedMax:3.5}});
+
+  const ua=M.map(r=>r.ua_pct*100);
+  mkC('chart-units-achv','bar',{labels:LBL,datasets:[{label:'Units Achievement',data:ua,
+    backgroundColor:ua.map(v=>v>=100?C.g+'88':v>=95?C.g+'55':v>=90?C.w+'88':C.r+'77'),borderRadius:3,
+    borderColor:ua.map(v=>v>=100?C.g:v>=90?C.w:C.r),borderWidth:1.5}]},
+    {yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:90,suggestedMax:110}});
+
+  mkC('chart-sobar-bk','bar',{labels:LBL,datasets:[
+    {label:'Sobar',data:M.map(r=>r.sob),backgroundColor:C.o+'44',borderColor:C.o,borderWidth:1.5,borderRadius:3},
+    {label:'Band Knife',data:M.map(r=>r.bk),backgroundColor:C.p+'44',borderColor:C.p,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+}
+
+function renderMachines(){
+  mkC('chart-bvh-stack','bar',{labels:LBL,datasets:[
+    {label:'Bullmer',data:M.map(r=>r.ba),backgroundColor:C.b+'66',borderColor:C.b,borderWidth:1.5,stack:'s'},
+    {label:'Handcut',data:M.map(r=>r.ha),backgroundColor:C.p+'88',borderColor:C.p,borderWidth:1.5,borderRadius:3,stack:'s'},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(1)+'k m',extra:{scales:{x:{stacked:true},y:{stacked:true}},interaction:{intersect:false,mode:'index'}}});
+
+  const hp=M.map(r=>r.ca>0?r.ha/r.ca*100:0);
+  mkC('chart-handcut-pct','bar',{labels:LBL,datasets:[{label:'Handcut %',data:hp,
+    backgroundColor:hp.map(v=>v===0?C.m+'44':C.p+'77'),borderColor:hp.map(v=>v===0?C.m:C.p),borderWidth:1.5,borderRadius:3}]},
+    {yFmt:v=>v.toFixed(1)+'%',yOpts:{suggestedMin:0,suggestedMax:25}});
+
+  mkC('chart-bvh-rate','bar',{labels:LBL,datasets:[
+    {label:'Bullmer m/day',data:M.map(r=>r.ba/r.d),backgroundColor:C.b+'55',borderColor:C.b,borderWidth:1.5,borderRadius:3},
+    {label:'Handcut m/day',data:M.map(r=>r.hc?r.ha/r.d:null),backgroundColor:C.p+'55',borderColor:C.p,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(2)+'k/day',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  document.getElementById('bvh-table').innerHTML=`<thead><tr><th>Month</th><th>Days</th><th>Bullmer (m)</th><th>Handcut (m)</th><th>Total Cut</th><th>Handcut %</th><th>Bullmer/day</th><th>Handcut/day</th></tr></thead><tbody>${M.map(r=>`<tr><td><strong>${r.m}</strong></td><td>${r.d}</td><td style="font-weight:600;color:var(--accent)">${nf(r.ba)}</td><td style="color:var(--accent3)">${r.hc?nf(r.ha):'—'}</td><td style="font-weight:600">${nf(r.ca)}</td><td>${r.hc?P(r.ha/r.ca):'—'}</td><td>${(r.ba/r.d/1000).toFixed(2)}k</td><td>${r.hc?(r.ha/r.d/1000).toFixed(2)+'k':'—'}</td></tr>`).join('')}</tbody>`;
+}
+
+function renderCapability(){
+  const allL=[...LBL_PLAN,...FM];
+  const trendAll=[...XS,...FM.map((_,i)=>14+i)].map(x=>(REG.ic+REG.sl*x)*100);
+  const pad=Array(10).fill(null);
+  mkC('chart-regression','line',{labels:allL,datasets:[
+    {label:'Historical Achievement',data:[...EFF.map(e=>e*100),...Array(6).fill(null)],borderColor:C.b,backgroundColor:C.b+'15',fill:true,tension:0.3,pointRadius:5,borderWidth:2.5,pointBackgroundColor:EFF.map(e=>e>=1.0?C.g:e>=0.85?C.w:C.r)},
+    {label:'Regression Trend',data:trendAll,borderColor:C.r+'88',pointRadius:0,fill:false,borderWidth:1.5,borderDash:[3,3]},
+    {label:'Forecast',data:[...pad,...FD.map(f=>f.pred*100)],borderColor:C.o,pointBackgroundColor:C.o,fill:false,pointRadius:5,borderWidth:2,borderDash:[5,3]},
+    {label:'CI Upper',data:[...pad,...FD.map(f=>f.hi*100)],borderColor:C.o+'44',backgroundColor:C.o+'12',fill:'+1',pointRadius:0,borderDash:[3,3],borderWidth:1},
+    {label:'CI Lower',data:[...pad,...FD.map(f=>f.lo*100)],borderColor:C.o+'44',fill:false,pointRadius:0,borderDash:[3,3],borderWidth:1},
+    {label:'100% Plan',data:Array(allL.length).fill(100),borderColor:C.g+'55',borderDash:[4,4],pointRadius:0,fill:false,borderWidth:1},
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:60,suggestedMax:200},extra:{interaction:{intersect:false,mode:'index'}}});
+
+  const bins=['<80%','80–100%','100–120%','120–140%','140–160%','>160%'];
+  const cnts=[0,0,0,0,0,0];
+  EFF.forEach(e=>{const v=e*100;if(v<80)cnts[0]++;else if(v<100)cnts[1]++;else if(v<120)cnts[2]++;else if(v<140)cnts[3]++;else if(v<160)cnts[4]++;else cnts[5]++;});
+  mkC('chart-histogram','bar',{labels:bins,datasets:[{label:'Months',data:cnts,
+    backgroundColor:[C.r+'cc',C.w+'cc',C.g+'66',C.g+'88',C.g+'aa',C.g+'cc'],borderRadius:4}]},{yFmt:v=>v});
+
+  const rolling=EFF.map((_,i)=>i<2?null:(EFF[i]+EFF[i-1]+EFF[i-2])/3*100);
+  mkC('chart-rolling','line',{labels:LBL_PLAN,datasets:[
+    {label:'Monthly',data:EFF.map(e=>e*100),borderColor:C.m+'66',pointRadius:2,fill:false,tension:0.2,borderWidth:1},
+    {label:'3-Month Rolling',data:rolling,borderColor:C.p,backgroundColor:C.p+'15',fill:true,tension:0.4,pointRadius:3,borderWidth:2.5,spanGaps:true}
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:70,suggestedMax:180}});
+
+  const c=cfg();const cr=((21*4/5)*498+(21*1/5)*435)*c.m*c.r;
+  document.getElementById('forecast-table').innerHTML=`<thead><tr><th>Month</th><th>Predicted Achievement</th><th>CI Lower (95%)</th><th>CI Upper (95%)</th><th>Capacity (R)</th><th>Predicted Value (R)</th><th>Signal</th></tr></thead><tbody>${FD.map((f,i)=>`<tr><td><strong>${FM[i]}</strong></td><td style="font-weight:600">${P(f.pred)}</td><td style="color:var(--danger)">${P(f.lo)}</td><td style="color:var(--success)">${P(f.hi)}</td><td>${R(cr)}</td><td style="color:var(--success);font-weight:600">${R(cr*Math.min(f.pred,1))}</td><td><span class="pill ${f.pred>=0.85?'green':'yellow'}">${f.pred>=1.0?'Above Plan':f.pred>=0.85?'On Track':'Watch'}</span></td></tr>`).join('')}</tbody>`;
+}
+
+function updateFinancial(){
+  const c=cfg();const fin=getFin();
+  const tCap=fin.reduce((s,r)=>s+r.cr,0),tAct=fin.reduce((s,r)=>s+r.ar,0),tLoss=fin.reduce((s,r)=>s+r.lr,0);
+  const std=((21*4/5)*498+(21*1/5)*435)*c.m*c.r;
+  mirrorCfg();
+
+  document.getElementById('fin-kpis').innerHTML=[
+    {l:'13-Month Capacity',v:R(tCap),s:`${c.m} machines × R${c.r}/min`,fc:C.b},
+    {l:'13-Month Realised',v:R(tAct),s:'Actual delivered value',fc:C.g},
+    {l:'Total Net Loss',v:R(tLoss),s:'Note: Q1-25 was surplus',fc:C.r},
+    {l:'Avg Monthly Net',v:R(tLoss/13),s:'Per month (incl surplus)',fc:C.w},
+    {l:'Mon–Thu Day',v:R(498*c.m*c.r),s:`${c.m} × 498 min × R${c.r}`,fc:C.b},
+    {l:'Friday',v:R(435*c.m*c.r),s:`${c.m} × 435 min × R${c.r}`,fc:C.o},
+    {l:'Std Month (21d)',v:R(std),s:'Full month theoretical',fc:C.p},
+    {l:'Loss % of Capacity',v:P(tLoss/tCap),s:'Incl Q1-25 surplus effect',fc:C.w},
+  ].map(k=>`<div class="fin-card" style="--fc:${k.fc}"><div class="fin-label">${k.l}</div><div class="fin-value">${k.v}</div><div class="fin-sub">${k.s}</div></div>`).join('');
+
+  mkC('chart-fin-main','bar',{labels:LBL,datasets:[
+    {label:'Capacity (R)',data:fin.map(r=>r.cr),backgroundColor:'#e5e8efcc',borderColor:C.m,borderWidth:1,borderRadius:3},
+    {label:'Realised (R)',data:fin.map(r=>r.ar),backgroundColor:C.g+'44',borderColor:C.g,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>'R'+(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  mkC('chart-fin-loss','bar',{labels:LBL,datasets:[{label:'Net (R)',data:fin.map(r=>r.lr),
+    backgroundColor:fin.map(r=>r.lr<0?C.g+'88':r.lr/r.cr<0.05?C.g+'55':r.lr/r.cr<0.15?C.w+'88':C.r+'88'),
+    borderColor:fin.map(r=>r.lr<0?C.g:r.lr/r.cr<0.15?C.w:C.r),borderWidth:1.5,borderRadius:3}]},
+    {yFmt:v=>'R'+(v/1000).toFixed(0)+'k'});
+
+  let cum=0;
+  mkC('chart-fin-cum','line',{labels:LBL,datasets:[{label:'Cumulative Net',data:fin.map(r=>{cum+=r.lr;return cum;}),
+    borderColor:C.r,backgroundColor:C.r+'15',fill:true,tension:0.3,pointRadius:4}]},{yFmt:v=>'R'+(v/1000).toFixed(0)+'k'});
+
+  const pc=v=>v>=1.0?'green':v>=0.85?'yellow':'red';
+  document.getElementById('fin-table').innerHTML=`<thead><tr><th>Month</th><th>Days</th><th>Capacity (R)</th><th>Realised (R)</th><th>Net (R)</th><th>Loss %</th><th>Spread Achv</th></tr></thead><tbody>${fin.map(r=>`<tr><td><strong>${r.m}</strong></td><td>${r.d}</td><td>${R(r.cr)}</td><td style="color:var(--success);font-weight:600">${R(r.ar)}</td><td style="color:${r.lr<=0?'var(--success)':'var(--danger)'};font-weight:600">${r.lr<=0?'Full utilisation':R(r.lr)}</td><td><span class="pill ${r.lr<=0?'green':r.lr/r.cr<0.15?'yellow':'red'}">${r.lr<=0?'100%':P(r.lr/r.cr)+' loss'}</span></td><td>${r.hplan?`<span class="pill ${pc(r.sa_pct)}">${P(r.sa_pct)}</span>`:'<span class="pill blue">No plan</span>'}</td></tr>`).join('')}</tbody>`;
+}
+
+function updateFutureState(){
+  const sRec=parseFloat(document.getElementById('spread-recovery').value||8)/100;
+  const cImp=parseFloat(document.getElementById('cut-improve').value||5)/100;
+  const bSpd=parseFloat(document.getElementById('bullmer-speed').value||0)/100;
+  document.getElementById('sv-spread-rec').textContent=`+${Math.round(sRec*100)}pp`;
+  document.getElementById('sv-cut-imp').textContent=`+${Math.round(cImp*100)}%`;
+  document.getElementById('sv-bullmer').textContent=`+${Math.round(bSpd*100)}%`;
+  const c=cfg();
+  const avgE=EFF.reduce((a,b)=>a+b)/EFF.length; // plan months only (10 months)
+  const avgC=M.reduce((s,r)=>s+r.ca,0)/13;
+  const avgD=M.reduce((s,r)=>s+r.d,0)/13;
+  const avgCap=((avgD*4/5)*498+(avgD*1/5)*435)*c.m*c.r;
+  // Future efficiency capped at 1.0 for financial model (can't exceed capacity)
+  const newEraw=avgE+sRec+bSpd*0.65*avgE;
+  const newEfin=Math.min(1.0,newEraw);
+  const newC=avgC*(1+cImp);
+  const uplift=avgCap*(Math.min(1.0,newEraw)-Math.min(1.0,avgE));
+
+  document.getElementById('fs-impact-grid').innerHTML=[
+    {l:'Avg Spread Achievement (plan months)',cur:P(avgE),nv:P(newEraw),d:`+${((newEraw-avgE)*100).toFixed(1)}pp`,c:C.b},
+    {l:'Avg Cut Metres/Month',cur:nf(Math.round(avgC)),nv:nf(Math.round(newC)),d:`+${nf(Math.round(newC-avgC))} m`,c:C.p},
+    {l:'Sobar Demand/Month',cur:nf(Math.round(avgC*SOBAR_R)),nv:nf(Math.round(newC*SOBAR_R)),d:`+${nf(Math.round((newC-avgC)*SOBAR_R))}`,c:C.o},
+    {l:'Monthly Financial Uplift',cur:R(avgCap*Math.min(1.0,avgE)),nv:R(avgCap*newEfin),d:`+${R(uplift)}/month`,c:C.g},
+  ].map(k=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${k.l}</div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">${k.cur}</div><div style="font-size:18px;font-weight:800;color:${k.c};letter-spacing:-.3px">${k.nv}</div><div style="font-size:11px;font-weight:600;color:${k.c};margin-top:2px">▲ ${k.d}</div></div>`).join('');
+
+  const fu=M.map(r=>{
+    const cm=(r.d*4/5)*498+(r.d*1/5)*435;const cr=cm*c.m*c.r;
+    const baseE=r.hplan?Math.min(1.0,r.sa_pct):Math.min(1.0,r.cvs);
+    const ne=Math.min(1.0,baseE+sRec+bSpd*0.65*baseE);
+    return{...r,cr,cv:cr*baseE,fv:cr*ne,ul:cr*(ne-baseE)};
+  });
+  const tC=fu.reduce((s,r)=>s+r.cv,0),tF=fu.reduce((s,r)=>s+r.fv,0),tU=fu.reduce((s,r)=>s+r.ul,0);
+
+  document.getElementById('fs-fin-kpis').innerHTML=[
+    {l:'13M Current Value',v:R(tC),s:'At current achievement',fc:C.b},
+    {l:'13M Future Value',v:R(tF),s:'At scenario achievement',fc:C.g},
+    {l:'Total Uplift',v:R(tU),s:'Additional 13-month value',fc:C.g},
+    {l:'Annualised Uplift',v:R(tU/13*12),s:'Projected annual gain',fc:C.p},
+  ].map(k=>`<div class="fin-card" style="--fc:${k.fc}"><div class="fin-label">${k.l}</div><div class="fin-value">${k.v}</div><div class="fin-sub">${k.s}</div></div>`).join('');
+
+  mkC('chart-fs-fin','bar',{labels:LBL,datasets:[
+    {label:'Current',data:fu.map(r=>r.cv),backgroundColor:C.m+'44',borderColor:C.m,borderWidth:1,borderRadius:3},
+    {label:'Future',data:fu.map(r=>r.fv),backgroundColor:C.g+'44',borderColor:C.g,borderWidth:1.5,borderRadius:3},
+    {label:'Uplift',data:fu.map(r=>r.ul),type:'line',borderColor:C.o,borderWidth:2,fill:false,pointRadius:4,pointBackgroundColor:C.o}
+  ]},{legend:true,yFmt:v=>'R'+(v/1000).toFixed(0)+'k',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  mkC('chart-fs-metres','bar',{labels:LBL,datasets:[
+    {label:'Current Cut',data:M.map(r=>r.ca),backgroundColor:C.m+'44',borderColor:C.m,borderWidth:1,borderRadius:3},
+    {label:'Future Cut',data:M.map(r=>r.ca*(1+cImp)),backgroundColor:C.b+'44',borderColor:C.b,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(1)+'k m'});
+
+  mkC('chart-fs-sobar','bar',{labels:LBL,datasets:[
+    {label:'Sobar Current',data:M.map(r=>r.sob),backgroundColor:C.o+'33',borderColor:C.o,borderWidth:1,borderRadius:3},
+    {label:'Sobar Future',data:M.map(r=>r.ca*(1+cImp)*SOBAR_R),backgroundColor:C.o+'66',borderColor:C.o,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k'});
+}
+
+function updateLeanTOC(){
+  const cf=parseFloat(document.getElementById('cost-floor').value||55)/100;
+  const wr=parseFloat(document.getElementById('waiting-ratio').value||75)/100;
+  document.getElementById('sv-floor').textContent=Math.round(cf*100)+'%';
+  document.getElementById('sv-wait').textContent=Math.round(wr*100)+'%';
+  const c=cfg();mirrorCfg();
+  const dat=M.map(r=>{
+    const cm=(r.d*4/5)*498+(r.d*1/5)*435;const cr=cm*c.m*c.r;
+    // Use capped efficiency (<=1.0) for financial model
+    const eff=r.hplan?Math.min(1.0,r.sa_pct):Math.min(1.0,r.cvs);
+    const ar=cr*eff;
+    const idle=Math.max(0,cm*c.m*(1-eff));
+    const sl=Math.max(0,1-eff);
+    const wm=idle*wr*(sl>0.02?1:0.3);const cum=Math.max(0,idle-wm);
+    return{...r,cr,ar,eff,idle,idleR:Math.max(0,idle*c.r),wR:Math.max(0,wm*c.r),cuR:Math.max(0,cum*c.r),surp:ar-cr*cf};
+  });
+  const tCap=dat.reduce((s,r)=>s+r.cr,0),tIdle=dat.reduce((s,r)=>s+r.idleR,0);
+  const tW=dat.reduce((s,r)=>s+r.wR,0),tCU=dat.reduce((s,r)=>s+r.cuR,0);
+  const tSurp=dat.reduce((s,r)=>s+r.surp,0);
+  const avgE=EFF.reduce((a,b)=>a+b)/EFF.length; // plan months only
+  const mDef=dat.filter(r=>r.surp<0).length;
+
+  document.getElementById('be-kpis').innerHTML=[
+    {l:'Break-Even Efficiency',v:P(cf),s:`Cost floor: ${Math.round(cf*100)}% of rate`,c:C.r},
+    {l:'Plan-Month Avg Achievement',v:P(avgE),s:'Jun-25 to Mar-26 · 10 months',c:C.g},
+    {l:'Months Below Break-Even',v:mDef+'/13',s:`${mDef} months below floor`,c:mDef>3?C.r:C.w},
+    {l:'Total Idle Cost (13mo)',v:R(tIdle),s:P(tIdle/tCap)+' of capacity',c:C.r},
+    {l:'Spreading Shortfall Waste',v:R(tW),s:P(tW/(tIdle||1))+' of idle',c:C.o},
+    {l:'Cutting Underperf',v:R(tCU),s:P(tCU/(tIdle||1))+' of idle',c:C.p},
+    {l:'13-Month Net vs Floor',v:(tSurp>=0?'+':'')+R(tSurp),s:tSurp>=0?'Above floor':'Below floor',c:tSurp>=0?C.g:C.r},
+    {l:'Avg Monthly Idle Mins',v:nf(Math.round(dat.reduce((s,r)=>s+r.idle,0)/13)),s:'Minutes idle per month',c:C.m},
+  ].map(k=>`<div class="kpi-card" style="--kc:${k.c}"><div class="kpi-label">${k.l}</div><div class="kpi-value" style="font-size:20px">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+
+  mkC('chart-be-main','bar',{labels:LBL,datasets:[
+    {label:'Efficiency (capped 100%)',data:dat.map(r=>r.eff*100),
+     backgroundColor:dat.map(r=>r.eff<cf?C.r+'99':r.eff<0.9?C.b+'66':C.g+'66'),
+     borderColor:dat.map(r=>r.eff<cf?C.r:r.eff<0.9?C.b:C.g),borderWidth:1.5,borderRadius:3},
+    {label:'Cost Floor',data:Array(13).fill(cf*100),type:'line',borderColor:C.r,borderDash:[6,3],pointRadius:0,fill:false,borderWidth:2},
+    {label:'100% Plan',data:Array(13).fill(100),type:'line',borderColor:C.g+'88',borderDash:[4,4],pointRadius:0,fill:false,borderWidth:1.5}
+  ]},{legend:true,yFmt:v=>v.toFixed(0)+'%',yOpts:{suggestedMin:40,suggestedMax:110}});
+
+  mkC('chart-idle-decomp','bar',{labels:LBL,datasets:[
+    {label:'Spreading Shortfall (R)',data:dat.map(r=>r.wR),backgroundColor:C.o+'cc',stack:'s'},
+    {label:'Cutting Underperformance (R)',data:dat.map(r=>r.cuR),backgroundColor:C.r+'cc',stack:'s'},
+  ]},{legend:true,yFmt:v=>'R'+(v/1000).toFixed(0)+'k',extra:{scales:{x:{stacked:true},y:{stacked:true}},interaction:{intersect:false,mode:'index'}}});
+
+  mkC('chart-dbr','bar',{labels:LBL,datasets:[
+    {label:'Spread Actual (Buffer)',data:M.map(r=>r.sa),backgroundColor:C.p+'44',borderColor:C.p,borderWidth:1.5,borderRadius:3},
+    {label:'Cut Actual (Drum)',data:M.map(r=>r.ca),backgroundColor:C.b+'44',borderColor:C.b,borderWidth:1.5,borderRadius:3},
+  ]},{legend:true,yFmt:v=>(v/1000).toFixed(0)+'k m',extra:{interaction:{intersect:false,mode:'index'}}});
+
+  mkC('chart-surplus','bar',{labels:LBL,datasets:[{label:'Surplus/Deficit (R)',data:dat.map(r=>r.surp),
+    backgroundColor:dat.map(r=>r.surp>=0?C.g+'77':C.r+'88'),borderColor:dat.map(r=>r.surp>=0?C.g:C.r),borderWidth:1.5,borderRadius:3}]},
+    {yFmt:v=>'R'+(v/1000).toFixed(0)+'k'});
+
+  const pc2=v=>v>=0.9?'green':v>=0.7?'yellow':'red';
+  document.getElementById('lean-table').innerHTML=`<thead><tr><th>Month</th><th>Eff (capped)</th><th>vs Break-Even</th><th>Idle Mins</th><th>Spread Waste R</th><th>Cutting Underperf R</th><th>Total Idle R</th><th>Surplus/Deficit</th></tr></thead><tbody>${dat.map(r=>`<tr><td><strong>${r.m}</strong></td><td><span class="pill ${pc2(r.eff)}">${(r.eff*100).toFixed(0)}%</span></td><td style="color:${r.eff>=cf?'var(--success)':'var(--danger)'};font-weight:600">${r.eff>=cf?'+':''}${((r.eff-cf)*100).toFixed(1)}pp</td><td>${nf(Math.round(r.idle))}</td><td style="color:var(--accent2);font-weight:600">${R(r.wR)}</td><td style="color:var(--danger);font-weight:600">${R(r.cuR)}</td><td>${R(r.idleR)}</td><td style="color:${r.surp>=0?'var(--success)':'var(--danger)'};font-weight:700">${r.surp>=0?'+':''}${R(r.surp)}</td></tr>`).join('')}</tbody>`;
+}
+
+function renderInsights(){
+  const ins=[
+    {i:'🔄',c:'Story Has Changed',col:C.b,t:'New FINAL data reverses the previous narrative — PEP is exceeding its spread plan, not falling short',b:'The previous dataset showed consistent shortfalls against plan. The FINAL data shows 9 of 10 months with spreading plans achieved ABOVE 100% of plan — with a mean of 125.4%. This is a fundamentally different picture. The spreading plan appears to be set conservatively below what the operation can actually deliver. Only one month (Feb-26) genuinely missed plan.',m:'9/10 planned months above 100% · Mean 125.4% · Feb-26 is the outlier'},
+    {i:'❓',c:'Feb-26 Requires Investigation',col:C.r,t:'Feb-26 is the only month below plan (83.1%) — 51,713m shortfall. This needs a specific root cause, not a trend explanation.',b:'All the cumulative spread shortfall in this dataset comes from February 2026 alone (51,713m). Every other planned month hit or exceeded plan. This single month should be investigated specifically: what happened in Feb-26? Staffing, fabric supply, machine availability, or a planning change? The answer explains 100% of the shortfall.',m:'Feb-26: 83.1% · 51,713m shortfall · only month below plan'},
+    {i:'📊',c:'Plan Calibration Question',col:C.w,t:'Achievement averaging 125% suggests the spreading plan may be set well below actual operational capacity',b:'When a team consistently achieves 125% of plan — hitting 165% in July — either the plan is conservative, or measurement definitions differ between planned and actual. The very high standard deviation (21%) also suggests the plan is not derived from a consistent methodology. Understanding how Spreading_Planned is calculated (capacity formula vs order book vs historical average) would improve the quality of the achievement metric.',m:'Mean 125.4% · Peak 165.2% (Jul-25) · σ=21.1% — plans may be conservative'},
+    {i:'⚙️',c:'Dec-25 & Jan-26 Anomaly',col:C.o,t:'December and January show low cut÷spread ratios (65.6% and 82.8%) — holiday period under-cutting against spread',b:'In most months cutting closely follows spreading (90–100% ratio). December 2025 shows spreading of 151,672m but only 99,452m cut — a 52,220m gap. January also has a notable gap. This suggests fabric was spread but not cut during the holiday period — either carry-forward inventory, cut programme paused, or machines idle over holidays. The Bullmer/Handcut data confirms this: Bullmer actual (133,793m) exceeds Total Cutting (99,452m) in December, which needs verification.',m:'Dec-25 cut÷spread: 65.6% · Jan-26: 82.8% · holiday under-cutting pattern'},
+    {i:'🔗',c:'Downstream Scale',col:C.o,t:'Sobar and Band Knife actuals are in the millions — much larger scale than the previous dataset suggested',b:'Sobar actuals range from 1.6M to 3.4M units per month, and Band Knife from 580k to 1.06M. The conversion rates vary (sobar: 7.6–16.4 per cut metre) with December and January anomalously high — consistent with the cut shortfall in those months. Excluding holiday months, the normal sobar rate is ~8.78 per cut metre and BK rate is ~2.77 per cut metre.',m:'Sobar: 8.78/cut m (normal months) · BK: 2.77/cut m · Dec/Jan rates anomalous'},
+    {i:'🔍',c:'Data Quality Note',col:C.p,t:'Mar–May 2025 have no Spreading_Planned — these months cannot be benchmarked for achievement',b:'The first three months of the dataset have Spreading_Planned = 0. This means achievement cannot be calculated for Mar, Apr, and May 2025. These months are included in the charts for their actuals (spreading, cutting, sobar, band knife, units) but excluded from all achievement analysis and regression. The regression and capability analysis covers only Jun-25 to Mar-26 (10 months).',m:'Mar–May 25 excluded from achievement analysis · actuals only'},
+    {i:'⚙️',c:'Bullmer vs Handcut',col:C.b,t:'Handcut contributes 14–21% of cut from Jun-25 — and is the larger contributor in Aug-25 (21%)',b:'Handcut was added in June 2025 and contributes meaningfully to total cut output — ranging from 10% to 21% of total. August 2025 had the highest Handcut proportion (75,774m, 21%). The speed calibration question remains relevant: if Bullmer is running conservatively, the Bullmer daily rate relative to Handcut daily rate is where that would show up. Bullmer averages ~16,000m/day vs Handcut ~3,000m/day in active months.',m:'Handcut: 10–21% of cut · Aug-25 peak 75,774m (21%) · Bullmer ~5× Handcut rate'},
+    {i:'🎯',c:'The Real Question Now',col:C.g,t:'If the operation consistently beats its spread plan, what is constraining throughput — and what is the right target?',b:'The previous narrative was "spreading is failing to hit plan." The new narrative is "spreading is beating plan — but is the plan ambitious enough?" The key questions become: (1) What is the theoretical maximum spreading capacity? (2) Is the Spreading_Planned derived from orders, capacity, or historical average? (3) If the operation can sustain 350–420k metres/month spreading, why is the plan set at 220–290k? Understanding plan-setting methodology is now the most important analytical question.',m:'Plan vs capacity gap · understand how Spreading_Planned is calculated'},
+  ];
+  document.getElementById('insights-container').innerHTML=ins.map(x=>`<div class="insight-card" style="--ic:${x.col}"><span class="insight-icon">${x.i}</span><div class="insight-category">${x.c}</div><div class="insight-title">${x.t}</div><div class="insight-body">${x.b}</div><span class="insight-metric">${x.m}</span></div>`).join('');
+}
+
+// ── TAB SYSTEM ───────────────────────────────────────────────────────────────
+const initialised={};
+function showTab(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const btn=document.querySelector(`.nav-btn[onclick="showTab('${name}')"]`);
+  if(btn)btn.classList.add('active');
+  document.getElementById('main-content').scrollTop=0;
+  if(initialised[name])return;
+  initialised[name]=true;
+  if(name==='overview')renderOverview();
+  if(name==='spreadvscut')renderSpreadVsCut();
+  if(name==='downstream')renderDownstream();
+  if(name==='machines')renderMachines();
+  if(name==='capability')renderCapability();
+  if(name==='financial')updateFinancial();
+  if(name==='futurestate')updateFutureState();
+  if(name==='leantoc')updateLeanTOC();
+  if(name==='insights')renderInsights();
+}
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+renderKPIs();
+window.addEventListener('load',function(){
+  requestAnimationFrame(function(){
+    renderOverview();initialised['overview']=true;
+    updateFinancial();initialised['financial']=true;
+  });
+});
+</script>
+</body>
+</html>
