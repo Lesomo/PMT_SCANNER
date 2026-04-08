@@ -143,6 +143,21 @@ textarea { min-height: 90px; resize: vertical; }
 .spinner { width: 28px; height: 28px; border: 3px solid #f0f2f5; border-top-color: #2E5597; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+
+<!-- OneSignal Push Notifications -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "81ad3998-627e-479f-b011-cb08acc7c3d8",
+      serviceWorkerPath: "/PMT_SCANNER/OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/PMT_SCANNER/" },
+      notifyButton: { enable: false },
+      allowLocalhostAsSecureOrigin: true,
+    });
+  });
+</script>
 </head>
 <body>
 
@@ -153,6 +168,17 @@ textarea { min-height: 90px; resize: vertical; }
 
 <!-- ── HOME: ROLE SELECTOR ────────────────────────────────────────── -->
 <div class="app" id="screenHome">
+
+  <!-- Notification permission prompt -->
+  <div id="notifPrompt" style="display:none;background:#EBF3FB;border:1.5px solid #2E5597;border-radius:12px;padding:14px 16px;margin-bottom:12px;margin-top:8px;">
+    <div style="font-size:13px;font-weight:700;color:#1F3864;margin-bottom:4px;">🔔 Enable push notifications</div>
+    <div style="font-size:12px;color:#555;margin-bottom:10px;">Get notified instantly when a machine goes down — even when this app is in the background.</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="enableNotifications()" style="flex:1;padding:10px;background:#1F3864;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Enable notifications</button>
+      <button onclick="dismissNotifPrompt()" style="padding:10px 14px;background:white;color:#888;border:1.5px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">Not now</button>
+    </div>
+  </div>
+
   <div class="card" style="margin-top:8px;">
     <div class="card-title">Select your role</div>
     <div class="role-grid">
@@ -580,6 +606,8 @@ async function submitDowntime() {
       body: JSON.stringify(payload)
     });
     if (res.ok || res.status === 201) {
+      // Send push notification to all subscribed mechanics
+      sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault);
       document.getElementById('supFormView').style.display = 'none';
       document.getElementById('supSuccessView').style.display = 'block';
       document.getElementById('supSuccessDetail').textContent =
@@ -1110,6 +1138,73 @@ function showToast(msg, type) {
   t.className = 'toast ' + type + ' show';
   setTimeout(() => t.classList.remove('show'), 3500);
 }
+
+// ── PUSH NOTIFICATIONS (OneSignal) ────────────────────────────────
+function checkNotificationPrompt() {
+  // Show prompt if permission not yet decided
+  try {
+    if (Notification.permission === 'default') {
+      const dismissed = localStorage.getItem('pmt_notif_dismissed');
+      if (!dismissed) {
+        document.getElementById('notifPrompt').style.display = 'block';
+      }
+    }
+  } catch(e) {}
+}
+
+function enableNotifications() {
+  OneSignalDeferred.push(async function(OneSignal) {
+    try {
+      await OneSignal.Notifications.requestPermission();
+      document.getElementById('notifPrompt').style.display = 'none';
+      if (Notification.permission === 'granted') {
+        showToast('Notifications enabled!', 'success');
+      } else {
+        showToast('Notifications not enabled — check browser settings.', 'error');
+      }
+    } catch(e) {
+      showToast('Could not enable notifications.', 'error');
+    }
+  });
+}
+
+function dismissNotifPrompt() {
+  document.getElementById('notifPrompt').style.display = 'none';
+  try { localStorage.setItem('pmt_notif_dismissed', '1'); } catch(e) {}
+}
+
+async function sendIncidentNotification(assetNo, machineType, line, fault) {
+  try {
+    const title   = '🔴 Machine Down — ' + line;
+    const message = 'Asset: ' + assetNo + (machineType ? ' (' + machineType + ')' : '') + ' | ' + fault;
+    const res = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic os_v2_app_qgwttgdcpzdz7marzmekzr6d3bzlai52rcsegnmt6dugucvqc5iic6wcstcxavbcmc5xhrjuejajg2nq5i7uaddkh5vsyptr7fgbp4a'
+      },
+      body: JSON.stringify({
+        app_id: '81ad3998-627e-479f-b011-cb08acc7c3d8',
+        included_segments: ['All'],
+        headings: { en: title },
+        contents: { en: message },
+        url: 'https://lesomo.github.io/PMT_SCANNER/Downtime.html',
+        web_push_topic: 'pmt-incident',
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      console.warn('OneSignal send error:', err);
+    }
+  } catch(e) {
+    console.warn('Notification send failed:', e);
+  }
+}
+
+// Show notification prompt on load
+window.addEventListener('load', () => {
+  setTimeout(checkNotificationPrompt, 1500);
+});
 </script>
 </body>
 </html>
