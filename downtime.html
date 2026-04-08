@@ -152,7 +152,7 @@ textarea { min-height: 90px; resize: vertical; }
     await OneSignal.init({
       appId: "81ad3998-627e-479f-b011-cb08acc7c3d8",
       serviceWorkerPath: "/PMT_SCANNER/OneSignalSDKWorker.js",
-      serviceWorkerParam: { scope: "/PMT_SCANNER/" },
+      serviceWorkerParam: { scope: "/" },
       notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
     });
@@ -1188,7 +1188,7 @@ async function sendIncidentNotification(assetNo, machineType, line, fault) {
         included_segments: ['All'],
         headings: { en: title },
         contents: { en: message },
-        url: 'https://lesomo.github.io/PMT_SCANNER/Downtime.html',
+        url: 'https://lesomo.github.io/PMT_SCANNER/downtime.html',
         web_push_topic: 'pmt-incident',
       })
     });
