@@ -1177,24 +1177,21 @@ async function sendIncidentNotification(assetNo, machineType, line, fault) {
   try {
     const title   = '🔴 Machine Down — ' + line;
     const message = 'Asset: ' + assetNo + (machineType ? ' (' + machineType + ')' : '') + ' | ' + fault;
-    const res = await fetch('https://onesignal.com/api/v1/notifications', {
+
+    // Call Supabase Edge Function which proxies to OneSignal (avoids CORS)
+    const res = await fetch(SUPABASE_URL + '/functions/v1/send-notification', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic os_v2_app_qgwttgdcpzdz7marzmekzr6d3bzlai52rcsegnmt6dugucvqc5iic6wcstcxavbcmc5xhrjuejajg2nq5i7uaddkh5vsyptr7fgbp4a'
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
       },
-      body: JSON.stringify({
-        app_id: '81ad3998-627e-479f-b011-cb08acc7c3d8',
-        included_segments: ['All'],
-        headings: { en: title },
-        contents: { en: message },
-        url: 'https://lesomo.github.io/PMT_SCANNER/downtime.html',
-        web_push_topic: 'pmt-incident',
-      })
+      body: JSON.stringify({ title, message, url: 'https://lesomo.github.io/PMT_SCANNER/downtime.html' })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      console.warn('OneSignal send error:', err);
+
+    if (res.ok) {
+      showToast('Mechanics notified.', 'success');
+    } else {
+      console.warn('Notification error:', await res.text());
     }
   } catch(e) {
     console.warn('Notification send failed:', e);
