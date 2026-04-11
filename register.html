@@ -388,6 +388,8 @@ function handleAssetInput(val) {
   btn.disabled = true;
   clearTimeout(lookupTimer);
   if (!val) return;
+  // Validate format before looking up
+  if (!isValidBarcode(val)) return;
   lookupTimer = setTimeout(() => lookupAsset(val), 400);
 }
 
@@ -485,9 +487,12 @@ async function saveToStaging() {
     });
     if (res.ok || res.status === 201) {
       showToast('Saved to staging!', 'success');
-      closeModal();
-      resetScan();
-      updateStagingBadge();
+      // Auto-close and reset after 1.5 seconds
+      setTimeout(() => {
+        closeModal();
+        resetScan();
+        updateStagingBadge();
+      }, 1500);
     } else {
       const errText = await res.text();
       console.error('Save error:', res.status, errText);
