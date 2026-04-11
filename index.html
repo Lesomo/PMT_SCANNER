@@ -299,7 +299,7 @@
 
     <div class="field">
       <label>Your Name</label>
-      <select id="mechanic" onchange="checkReady()">
+      <select id="mechanic" onchange="saveMechanicName(); checkReady();">
         <option value="">Select your name...</option>
         <option>Ashley</option>
         <option>Bernard</option>
@@ -421,6 +421,13 @@ async function setAsset(val) {
   const mtDisplay = document.getElementById('machineTypeDisplay');
 
   if (val) {
+    // Validate format — only look up and confirm if valid length
+    if (!isValidBarcode(val)) {
+      confirmed.style.display = 'none';
+      tsRow.style.display = 'none';
+      document.getElementById('submitBtn').disabled = true;
+      return;
+    }
     scanTimestamp = new Date();
     document.getElementById('assetVal').textContent = val;
     mtDisplay.textContent = 'Looking up...';
@@ -561,7 +568,6 @@ function stopScanner() {
 async function submitScan() {
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  btn.classList.add('loading');
   btn.textContent = 'Saving...';
 
   const ts = scanTimestamp || new Date();
@@ -595,10 +601,11 @@ async function submitScan() {
     });
 
     if (res.ok || res.status === 201) {
-      document.getElementById('mainForm').style.display = 'none';
-      document.getElementById('successState').style.display = 'block';
       document.getElementById('successDetail').textContent =
         currentAsset + ' (' + currentMachineType + ') → ' + location + ' — ' + status;
+      showToast('Scan saved — ' + currentAsset, 'success');
+      // Auto-reset after 2 seconds for next scan
+      setTimeout(() => resetForm(), 2000);
     } else {
       const errText = await res.text();
       if (errText.includes('does not exist')) {
@@ -607,7 +614,6 @@ async function submitScan() {
         showToast('Save failed: ' + res.status, 'error');
       }
       btn.disabled = false;
-      btn.classList.remove('loading');
       btn.textContent = 'Submit Scan';
       checkReady();
     }
@@ -618,6 +624,18 @@ async function submitScan() {
     btn.textContent = 'Submit Scan';
     checkReady();
   }
+}
+
+function saveMechanicName() {
+  const val = document.getElementById('mechanic').value;
+  if (val) try { localStorage.setItem('pmt_mechanic', val); } catch(e) {}
+}
+
+function loadMechanicName() {
+  try {
+    const saved = localStorage.getItem('pmt_mechanic');
+    if (saved) document.getElementById('mechanic').value = saved;
+  } catch(e) {}
 }
 
 function resetForm() {
@@ -631,8 +649,19 @@ function resetForm() {
   document.getElementById('tsRow').style.display = 'none';
   document.getElementById('status').value = '';
   document.getElementById('maintenanceTypeField').style.display = 'none';
-  document.getElementById('mainForm').style.display = 'block';
-  document.getElementById('successState').style.display = 'none';
+  document.getElementById('btnMinor').style.border = '2px solid #ddd';
+  document.getElementById('btnMinor').style.background = 'white';
+  document.getElementById('btnMinor').style.color = '#555';
+  document.getElementById('btnMajor').style.border = '2px solid #ddd';
+  document.getElementById('btnMajor').style.background = 'white';
+  document.getElementById('btnMajor').style.color = '#555';
+  // Clear line — must be consciously selected each time
+  document.getElementById('location').value = '';
+  // Restore mechanic name from localStorage
+  loadMechanicName();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submit Scan';
   checkReady();
 }
 
@@ -642,6 +671,9 @@ function showToast(msg, type) {
   t.className = 'toast ' + type + ' show';
   setTimeout(() => t.classList.remove('show'), 3500);
 }
+
+// Load saved mechanic name on startup
+loadMechanicName();
 
 // Show install banner on iOS
 if (window.navigator.standalone === false &&
