@@ -151,8 +151,8 @@ textarea { min-height: 90px; resize: vertical; }
   OneSignalDeferred.push(async function(OneSignal) {
     await OneSignal.init({
       appId: "81ad3998-627e-479f-b011-cb08acc7c3d8",
-      serviceWorkerPath: "/PMT_SCANNER/OneSignalSDKWorker.js",
-      serviceWorkerParam: { scope: "/" },
+      serviceWorkerPath: "OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/PMT_SCANNER/" },
       notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
     });
@@ -370,7 +370,7 @@ textarea { min-height: 90px; resize: vertical; }
         <!-- Mechanic name — captured here so it's on the request -->
         <div class="field">
           <label>Your name</label>
-          <select id="partsRequestMechanic">
+          <select id="partsRequestMechanic" onchange="saveMechName();">
             <option value="">Select your name...</option>
             <option>Ashley</option>
             <option>Bernard</option>
@@ -419,7 +419,7 @@ textarea { min-height: 90px; resize: vertical; }
         <div class="card-title">Resolve job card</div>
         <div class="field">
           <label>Your name</label>
-          <select id="mechName">
+          <select id="mechName" onchange="saveMechName();">
             <option value="">Select your name...</option>
             <option>Ashley</option>
             <option>Bernard</option>
@@ -556,6 +556,14 @@ async function supSetAsset(val) {
   currentAssetNo = val;
   const conf = document.getElementById('supAssetConfirmed');
   if (!val) { conf.style.display = 'none'; checkSupReady(); return; }
+
+  // Validate format before looking up
+  if (!isValidBarcode(val)) {
+    conf.style.display = 'none';
+    checkSupReady();
+    return;
+  }
+
   document.getElementById('supAssetVal').textContent = val;
   document.getElementById('supMachineType').textContent = 'Looking up...';
   conf.style.display = 'flex';
@@ -608,8 +616,9 @@ async function submitDowntime() {
     if (res.ok || res.status === 201) {
       // Send push notification to all subscribed mechanics
       sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault);
-      document.getElementById('supFormView').style.display = 'none';
       document.getElementById('supSuccessView').style.display = 'block';
+      // Auto-reset after 3 seconds for next incident
+      setTimeout(() => resetSupervisor(), 3000);
       document.getElementById('supSuccessDetail').textContent =
         currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
     } else {
@@ -654,6 +663,8 @@ function resetSupervisor() {
 
 // ── MECHANIC SCREEN ───────────────────────────────────────────────
 async function loadMechanicScreen() {
+  // Restore saved mechanic name
+  setTimeout(loadMechName, 100);
   showScreen('screenMechanic');
   document.getElementById('mechListView').style.display = 'block';
   document.getElementById('mechDetailView').style.display = 'none';
@@ -1137,6 +1148,27 @@ function showToast(msg, type) {
   t.textContent = msg;
   t.className = 'toast ' + type + ' show';
   setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── MECHANIC NAME PERSISTENCE ────────────────────────────────────
+function saveMechName() {
+  const sel = document.getElementById('mechName') || document.getElementById('partsRequestMechanic');
+  if (!sel) return;
+  const val = document.getElementById('mechName') ? document.getElementById('mechName').value : '';
+  const val2 = document.getElementById('partsRequestMechanic') ? document.getElementById('partsRequestMechanic').value : '';
+  const name = val || val2;
+  if (name) try { localStorage.setItem('pmt_mechanic', name); } catch(e) {}
+}
+
+function loadMechName() {
+  try {
+    const saved = localStorage.getItem('pmt_mechanic');
+    if (!saved) return;
+    const mechSel  = document.getElementById('mechName');
+    const partsSel = document.getElementById('partsRequestMechanic');
+    if (mechSel)  mechSel.value  = saved;
+    if (partsSel) partsSel.value = saved;
+  } catch(e) {}
 }
 
 // ── PUSH NOTIFICATIONS (OneSignal) ────────────────────────────────
