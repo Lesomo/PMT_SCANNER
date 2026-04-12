@@ -272,7 +272,6 @@
       class="manual-input"
       id="manualAsset"
       type="text"
-      inputmode="numeric"
       placeholder="Enter asset number..."
       oninput="setAsset(this.value.replace(/\s+/g, ''))"
     >
@@ -415,19 +414,20 @@ async function lookupMachineType(assetNo) {
 }
 
 async function setAsset(val) {
-  currentAsset = val;
   const confirmed = document.getElementById('assetConfirmed');
   const tsRow = document.getElementById('tsRow');
   const mtDisplay = document.getElementById('machineTypeDisplay');
 
   if (val) {
-    // Validate format — only look up and confirm if valid length
+    // Validate format — only accept if valid length
     if (!isValidBarcode(val)) {
+      currentAsset = '';
       confirmed.style.display = 'none';
       tsRow.style.display = 'none';
       document.getElementById('submitBtn').disabled = true;
       return;
     }
+    currentAsset = val;
     scanTimestamp = new Date();
     document.getElementById('assetVal').textContent = val;
     mtDisplay.textContent = 'Looking up...';
@@ -440,7 +440,7 @@ async function setAsset(val) {
     currentMachineType = await lookupMachineType(val);
     mtDisplay.textContent = currentMachineType !== 'Unknown'
       ? 'Type: ' + currentMachineType
-      : 'Type: Not found in master data';
+      : 'Type: Not in master data — will save as unknown';
   } else {
     confirmed.style.display = 'none';
     tsRow.style.display = 'none';
