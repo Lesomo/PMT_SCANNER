@@ -1261,14 +1261,12 @@ function renderStatusHeatmap() {
     html += `<tr><td class="hm-row-label">${type}</td>`;
     ALL_LOCS.forEach(loc => {
       const recs = latest.filter(r => r.machine_type === type && r.location === loc);
-      // Mutually exclusive — Pool A/B = Stored regardless of status
+      const a = recs.filter(r => r.status === 'Active / In Use').length;
+      const m = recs.filter(r => (r.status||'').startsWith('Under Maintenance')).length;
+      const total = recs.length;
+      const cls = cellClass(a, m, 0);
       const isPool = loc === 'Pool A' || loc === 'Pool B';
-      const s = isPool ? recs.length : 0;
-      const a = isPool ? 0 : recs.filter(r => r.status === 'Active / In Use').length;
-      const m = isPool ? 0 : recs.filter(r => (r.status||'').startsWith('Under Maintenance')).length;
-      const total = a + m + s;
-      const cls = cellClass(a, m, s);
-      const tip = total === 0 ? 'No assets' : `Active:${a} Maint:${m} Stored:${s}`;
+      const tip = total === 0 ? 'No assets' : `Active:${a} Maint:${m}${isPool ? ' (Pool)' : ''}`;
       html += `<td class="hm-cell ${cls}" title="${loc} — ${type}: ${tip}">${total > 0 ? total : ''}</td>`;
     });
     html += '</tr>';
@@ -1279,31 +1277,32 @@ function renderStatusHeatmap() {
 
 function renderStatusTable() {
   const latest = getLatestData(filteredData);
-  let html = '<table class="sl-table"><thead><tr><th>Line</th><th class="num">Active</th><th class="num">Maintenance</th><th class="num">Stored</th><th class="num">Total</th><th>Breakdown</th></tr></thead><tbody>';
+  let html = '<table class="sl-table"><thead><tr><th>Line</th><th class="num">Active</th><th class="num">Maint Minor</th><th class="num">Maint Major</th><th class="num">Total</th><th>Breakdown</th></tr></thead><tbody>';
   let hasData = false;
 
   ALL_LOCS.forEach(loc => {
-    const isPool = loc === 'Pool A' || loc === 'Pool B';
-    const recs = latest.filter(r => r.location === loc);
-    const s = isPool ? recs.length : recs.filter(r => (r.location === 'Pool A' || r.location === 'Pool B')).length;
-    const a = isPool ? 0 : recs.filter(r => r.status === 'Active / In Use').length;
-    const m = isPool ? 0 : recs.filter(r => r.location === loc && (r.status||'').startsWith('Under Maintenance')).length;
-    const total = a + m + s;
-    if (total === 0) return;
+    const recs  = latest.filter(r => r.location === loc);
+    if (recs.length === 0) return;
     hasData = true;
-    const aW = Math.round((a / total) * 100);
-    const mW = Math.round((m / total) * 100);
-    const sW = 100 - aW - mW;
-    html += `<tr>
+    const a     = recs.filter(r => r.status === 'Active / In Use').length;
+    const minor = recs.filter(r => (r.status||'') === 'Under Maintenance — Minor').length;
+    const major = recs.filter(r => (r.status||'') === 'Under Maintenance — Major').length;
+    const m     = minor + major;
+    const other = recs.length - a - m; // catch any legacy status values
+    const total = recs.length;
+    const aW    = Math.round((a / total) * 100);
+    const mW    = Math.round((m / total) * 100);
+    const isPool = loc === 'Pool A' || loc === 'Pool B';
+    const rowStyle = isPool ? 'background:#EBF3FB;' : '';
+    html += `<tr style="${rowStyle}">
       <td style="font-weight:600;">${loc}</td>
       <td style="text-align:center;"><span class="count-pill pill-a">${a}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-m">${m}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-s">${s}</span></td>
+      <td style="text-align:center;"><span class="count-pill" style="background:#FFF2CC;color:#8B6914;">${minor}</span></td>
+      <td style="text-align:center;"><span class="count-pill" style="background:#FCE4D6;color:#C00000;">${major}</span></td>
       <td style="text-align:center;font-weight:600;">${total}</td>
       <td><div class="mini-bar-wrap">
         ${aW > 0 ? `<div class="mini-bar mb-a" style="width:${aW}px;" title="Active: ${a}"></div>` : ''}
         ${mW > 0 ? `<div class="mini-bar mb-m" style="width:${mW}px;" title="Maintenance: ${m}"></div>` : ''}
-        ${sW > 0 ? `<div class="mini-bar mb-s" style="width:${sW}px;" title="Stored: ${s}"></div>` : ''}
       </div></td>
     </tr>`;
   });
@@ -1348,29 +1347,27 @@ function renderMachineSearch() {
   let rows = '';
   let hasData = false;
   ALL_LOCS.forEach(loc => {
-    const isPool = loc === 'Pool A' || loc === 'Pool B';
     const locRecs = recs.filter(r => r.location === loc);
-    const s = isPool ? locRecs.length : 0;
-    const a = isPool ? 0 : locRecs.filter(r => r.status === 'Active / In Use').length;
-    const m = isPool ? 0 : locRecs.filter(r => (r.status||'').startsWith('Under Maintenance')).length;
-    const t = a + m + s;
-    if (t === 0) return;
+    if (locRecs.length === 0) return;
     hasData = true;
-    const pct = Math.round((t / total) * 100);
-    const aW = Math.round((a / t) * 120);
-    const mW = Math.round((m / t) * 120);
-    const sW = 120 - aW - mW;
-    rows += `<tr>
+    const a     = locRecs.filter(r => r.status === 'Active / In Use').length;
+    const minor = locRecs.filter(r => (r.status||'') === 'Under Maintenance — Minor').length;
+    const major = locRecs.filter(r => (r.status||'') === 'Under Maintenance — Major').length;
+    const t     = locRecs.length;
+    const pct   = Math.round((t / total) * 100);
+    const aW    = Math.round((a / t) * 120);
+    const mW    = Math.round(((minor+major) / t) * 120);
+    const isPool = loc === 'Pool A' || loc === 'Pool B';
+    rows += `<tr${isPool ? ' style="background:#EBF3FB;"' : ''}>
       <td style="font-weight:600;">${loc}</td>
       <td style="text-align:center;"><span class="count-pill pill-a">${a}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-m">${m}</span></td>
-      <td style="text-align:center;"><span class="count-pill pill-s">${s}</span></td>
+      <td style="text-align:center;"><span class="count-pill" style="background:#FFF2CC;color:#8B6914;">${minor}</span></td>
+      <td style="text-align:center;"><span class="count-pill" style="background:#FCE4D6;color:#C00000;">${major}</span></td>
       <td style="text-align:center;font-weight:600;">${t}</td>
       <td style="font-size:12px;color:#888;">${pct}%</td>
       <td><div class="mini-bar-wrap">
         ${aW > 0 ? `<div class="mini-bar mb-a" style="width:${aW}px;"></div>` : ''}
         ${mW > 0 ? `<div class="mini-bar mb-m" style="width:${mW}px;"></div>` : ''}
-        ${sW > 0 ? `<div class="mini-bar mb-s" style="width:${sW}px;"></div>` : ''}
       </div></td>
     </tr>`;
   });
@@ -1390,12 +1387,16 @@ function renderMachineSearch() {
         <div style="font-size:11px;color:#3B6D11;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Active</div>
         <div style="font-size:22px;font-weight:700;color:#27500A;">${recs.filter(r=>r.status==='Active / In Use').length}</div>
       </div>
-      <div style="background:#F5C4B3;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:11px;color:#712B13;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Maintenance</div>
-        <div style="font-size:22px;font-weight:700;color:#4A1B0C;">${recs.filter(r=>r.status==='Under Maintenance').length}</div>
+      <div style="background:#FFF2CC;border-radius:8px;padding:10px 16px;font-size:13px;">
+        <div style="font-size:11px;color:#8B6914;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Maint Minor</div>
+        <div style="font-size:22px;font-weight:700;color:#8B6914;">${recs.filter(r=>(r.status||'')==='Under Maintenance — Minor').length}</div>
+      </div>
+      <div style="background:#FCE4D6;border-radius:8px;padding:10px 16px;font-size:13px;">
+        <div style="font-size:11px;color:#843C0C;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Maint Major</div>
+        <div style="font-size:22px;font-weight:700;color:#C00000;">${recs.filter(r=>(r.status||'')==='Under Maintenance — Major').length}</div>
       </div>
       <div style="background:#DEEAF1;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:11px;color:#185FA5;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Stored</div>
+        <div style="font-size:11px;color:#185FA5;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">In Pool</div>
         <div style="font-size:22px;font-weight:700;color:#0C447C;">${recs.filter(r=>r.location==='Pool A'||r.location==='Pool B').length}</div>
       </div>
     </div>
@@ -1404,8 +1405,8 @@ function renderMachineSearch() {
         <thead><tr>
           <th>Line</th>
           <th class="num">Active</th>
-          <th class="num">Maintenance</th>
-          <th class="num">Stored</th>
+          <th class="num">Maint Minor</th>
+          <th class="num">Maint Major</th>
           <th class="num">Total</th>
           <th class="num">Share</th>
           <th>Breakdown</th>
