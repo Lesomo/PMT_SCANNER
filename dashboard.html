@@ -1090,6 +1090,18 @@ function clearFilter() {
 }
 
 // ── RENDER ALL ───────────────────────────────────────────────────────────────
+function getLatestData(data) {
+  // Reduce to most recent scan per asset — one record per asset_no
+  const map = {};
+  data.forEach(r => {
+    if (!r.asset_no) return;
+    if (!map[r.asset_no] || r.scan_timestamp > map[r.asset_no].scan_timestamp) {
+      map[r.asset_no] = r;
+    }
+  });
+  return Object.values(map);
+}
+
 function renderAll() {
   renderKPIs();
   renderLocationChart();
@@ -1103,8 +1115,8 @@ function renderAll() {
 
 // ── KPIs ─────────────────────────────────────────────────────────────────────
 function renderKPIs() {
-  const d = filteredData;
-  document.getElementById('kpiTotal').textContent  = d.length;
+  const d = getLatestData(filteredData);
+  document.getElementById('kpiTotal').textContent   = d.length;
   document.getElementById('kpiActive').textContent  = d.filter(r => r.status === 'Active / In Use').length;
   document.getElementById('kpiMinor').textContent   = d.filter(r => (r.status||'') === 'Under Maintenance — Minor').length;
   document.getElementById('kpiMajor').textContent   = d.filter(r => (r.status||'') === 'Under Maintenance — Major').length;
@@ -1114,7 +1126,8 @@ function renderKPIs() {
 
 // ── LOCATION BAR CHART ───────────────────────────────────────────────────────
 function renderLocationChart() {
-  const counts = ALL_LOCS.map(loc => filteredData.filter(r => r.location === loc).length);
+  const latest = getLatestData(filteredData);
+  const counts = ALL_LOCS.map(loc => latest.filter(r => r.location === loc).length);
   const ctx = document.getElementById('locationChart').getContext('2d');
 
   if (locationChart) locationChart.destroy();
@@ -1165,11 +1178,12 @@ function renderLocationChart() {
 
 // ── STATUS PIE CHART ─────────────────────────────────────────────────────────
 function renderStatusChart() {
-  const active = filteredData.filter(r => r.status === 'Active / In Use').length;
-  const minor  = filteredData.filter(r => (r.status||'') === 'Under Maintenance — Minor').length;
-  const major  = filteredData.filter(r => (r.status||'') === 'Under Maintenance — Major').length;
-  const maint  = filteredData.filter(r => (r.status||'').startsWith('Under Maintenance') && !r.status.includes('Minor') && !r.status.includes('Major')).length;
-  const stored = filteredData.filter(r => r.location === 'Pool A' || r.location === 'Pool B').length;
+  const latest = getLatestData(filteredData);
+  const active = latest.filter(r => r.status === 'Active / In Use').length;
+  const minor  = latest.filter(r => (r.status||'') === 'Under Maintenance — Minor').length;
+  const major  = latest.filter(r => (r.status||'') === 'Under Maintenance — Major').length;
+  const maint  = latest.filter(r => (r.status||'').startsWith('Under Maintenance') && !r.status.includes('Minor') && !r.status.includes('Major')).length;
+  const stored = latest.filter(r => r.location === 'Pool A' || r.location === 'Pool B').length;
   const ctx = document.getElementById('statusChart').getContext('2d');
 
   // Build dynamic labels — only show segments with data
@@ -1232,7 +1246,8 @@ function cellClass(a, m, s) {
 }
 
 function renderStatusHeatmap() {
-  const types = [...new Set(filteredData.map(r => r.machine_type).filter(Boolean))].sort();
+  const latest = getLatestData(filteredData);
+  const types = [...new Set(latest.map(r => r.machine_type).filter(Boolean))].sort();
   if (types.length === 0) {
     document.getElementById('heatmapContainer').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">No data available</div>';
     return;
@@ -1245,10 +1260,12 @@ function renderStatusHeatmap() {
   types.forEach(type => {
     html += `<tr><td class="hm-row-label">${type}</td>`;
     ALL_LOCS.forEach(loc => {
-      const recs = filteredData.filter(r => r.machine_type === type && r.location === loc);
-      const a = recs.filter(r => r.status === 'Active / In Use').length;
-      const m = recs.filter(r => (r.status||'').startsWith('Under Maintenance')).length;
-      const s = recs.filter(r => r.location === 'Pool A' || r.location === 'Pool B').length;
+      const recs = latest.filter(r => r.machine_type === type && r.location === loc);
+      // Mutually exclusive — Pool A/B = Stored regardless of status
+      const isPool = loc === 'Pool A' || loc === 'Pool B';
+      const s = isPool ? recs.length : 0;
+      const a = isPool ? 0 : recs.filter(r => r.status === 'Active / In Use').length;
+      const m = isPool ? 0 : recs.filter(r => (r.status||'').startsWith('Under Maintenance')).length;
       const total = a + m + s;
       const cls = cellClass(a, m, s);
       const tip = total === 0 ? 'No assets' : `Active:${a} Maint:${m} Stored:${s}`;
@@ -1261,13 +1278,16 @@ function renderStatusHeatmap() {
 }
 
 function renderStatusTable() {
+  const latest = getLatestData(filteredData);
   let html = '<table class="sl-table"><thead><tr><th>Line</th><th class="num">Active</th><th class="num">Maintenance</th><th class="num">Stored</th><th class="num">Total</th><th>Breakdown</th></tr></thead><tbody>';
   let hasData = false;
 
   ALL_LOCS.forEach(loc => {
-    const a = filteredData.filter(r => r.location === loc && r.status === 'Active / In Use').length;
-    const m = filteredData.filter(r => r.location === loc && (r.status||'').startsWith('Under Maintenance')).length;
-    const s = filteredData.filter(r => (r.location === 'Pool A' || r.location === 'Pool B') && r.location === loc).length;
+    const isPool = loc === 'Pool A' || loc === 'Pool B';
+    const recs = latest.filter(r => r.location === loc);
+    const s = isPool ? recs.length : recs.filter(r => (r.location === 'Pool A' || r.location === 'Pool B')).length;
+    const a = isPool ? 0 : recs.filter(r => r.status === 'Active / In Use').length;
+    const m = isPool ? 0 : recs.filter(r => r.location === loc && (r.status||'').startsWith('Under Maintenance')).length;
     const total = a + m + s;
     if (total === 0) return;
     hasData = true;
@@ -1317,8 +1337,9 @@ function renderMachineSearch() {
     return;
   }
 
-  const recs = filteredData.filter(r => r.machine_type === type);
-  const total = recs.length;
+  const latest = getLatestData(filteredData);
+  const recs   = latest.filter(r => r.machine_type === type);
+  const total  = recs.length;
   if (total === 0) {
     container.innerHTML = `<div class="search-placeholder">No scans found for "${type}" in the selected period</div>`;
     return;
@@ -1327,9 +1348,11 @@ function renderMachineSearch() {
   let rows = '';
   let hasData = false;
   ALL_LOCS.forEach(loc => {
-    const a = recs.filter(r => r.location === loc && r.status === 'Active / In Use').length;
-    const m = recs.filter(r => r.location === loc && (r.status||'').startsWith('Under Maintenance')).length;
-    const s = recs.filter(r => r.location === 'Pool A' || r.location === 'Pool B').length;
+    const isPool = loc === 'Pool A' || loc === 'Pool B';
+    const locRecs = recs.filter(r => r.location === loc);
+    const s = isPool ? locRecs.length : 0;
+    const a = isPool ? 0 : locRecs.filter(r => r.status === 'Active / In Use').length;
+    const m = isPool ? 0 : locRecs.filter(r => (r.status||'').startsWith('Under Maintenance')).length;
     const t = a + m + s;
     if (t === 0) return;
     hasData = true;
