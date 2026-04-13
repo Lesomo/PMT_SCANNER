@@ -482,11 +482,11 @@ function renderKPIs() {
   if (todayCost <= DAILY_TARGET) {
     dailyStatusEl.textContent = '✓ On track';
     dailyStatusEl.style.color = '#3B6D11';
-    dailySubEl.innerHTML = fmt(todayCost.toFixed(0)) + ' vs R<span id="kpiDailyTarget">'+DAILY_TARGET.toLocaleString('en-ZA')+'</span> target';
+    dailySubEl.textContent = fmt(todayCost.toFixed(0)) + ' vs R' + DAILY_TARGET.toLocaleString('en-ZA') + ' target';
   } else {
     dailyStatusEl.textContent = '↑ Over target';
     dailyStatusEl.style.color = '#C00000';
-    dailySubEl.innerHTML = fmt(todayCost.toFixed(0)) + ' vs R<span id="kpiDailyTarget">'+DAILY_TARGET.toLocaleString('en-ZA')+'</span> target';
+    dailySubEl.textContent = fmt(todayCost.toFixed(0)) + ' vs R' + DAILY_TARGET.toLocaleString('en-ZA') + ' target';
   }
 
   // Today delta vs yesterday
