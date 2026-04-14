@@ -5,1300 +5,726 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PMT Downtime">
+<meta name="apple-mobile-web-app-title" content="PMT Scanner">
 <meta name="theme-color" content="#1F3864">
-<title>PMT Downtime Tracker</title>
+<title>PMT Asset Tracker</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; color: #1a1a1a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-.header { background: #1F3864; color: white; padding: 16px; text-align: center; }
-.header h1 { font-size: 18px; font-weight: 600; }
-.header p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    color: #1a1a1a;
+  }
 
-.app { max-width: 480px; margin: 0 auto; padding: 16px; }
+  .header {
+    background: #1F3864;
+    color: white;
+    padding: 20px 16px 16px;
+    text-align: center;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.3px; }
+  .header p { font-size: 13px; opacity: 0.75; margin-top: 3px; }
 
-/* ROLE SELECTOR */
-.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-.role-btn { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
-.role-btn:active { transform: scale(0.97); }
-.role-btn.supervisor:hover, .role-btn.supervisor.active { border-color: #1F3864; background: #EBF3FB; }
-.role-btn.mechanic:hover, .role-btn.mechanic.active { border-color: #70AD47; background: #E2EFDA; }
-.role-icon { font-size: 32px; margin-bottom: 10px; }
-.role-title { font-size: 14px; font-weight: 700; color: #1a1a1a; }
-.role-sub { font-size: 11px; color: #888; margin-top: 3px; }
+  .app { max-width: 480px; margin: 0 auto; padding: 16px; }
 
-/* SCREENS */
-.screen { display: none; }
-.screen.active { display: block; }
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
 
-/* CARDS */
-.card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
-.card-title { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
 
-/* FORM */
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-select, textarea { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; background: white; transition: border-color 0.2s; font-family: inherit; }
-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; cursor: pointer; }
-select:focus, textarea:focus { outline: none; border-color: #2E5597; }
-textarea { min-height: 90px; resize: vertical; }
+  /* Scan button */
+  .scan-btn {
+    width: 100%;
+    padding: 18px;
+    border: 2px dashed #2E5597;
+    border-radius: 12px;
+    background: #EBF3FB;
+    color: #2E5597;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+  }
+  .scan-btn:active { transform: scale(0.98); }
+  .scan-btn.scanning { background: #FFF2CC; border-color: #C9A84C; color: #C9A84C; }
 
-.asset-confirmed { display: none; align-items: center; gap: 10px; margin-top: 10px; padding: 12px 14px; background: #E2EFDA; border-radius: 10px; border: 1px solid #70AD47; }
-.asset-confirmed .num { font-size: 18px; font-weight: 700; color: #3B6D11; flex: 1; }
-.asset-confirmed .type { font-size: 11px; color: #3B6D11; font-weight: 600; }
-.asset-check { width: 24px; height: 24px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.asset-check svg { width: 13px; height: 13px; stroke: white; fill: none; stroke-width: 2.5; }
+  #reader { border-radius: 10px; overflow: hidden; margin-top: 12px; }
+  #reader video { border-radius: 10px; width: 100% !important; }
 
-.manual-input { width: 100%; padding: 13px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; color: #1a1a1a; margin-top: 8px; }
-.manual-input:focus { outline: none; border-color: #2E5597; }
-.or-divider { text-align: center; font-size: 11px; color: #bbb; margin: 8px 0; }
+  .divider { text-align: center; font-size: 12px; color: #aaa; margin: 10px 0; }
 
-/* SCAN BTN */
-.scan-btn { width: 100%; padding: 15px; border: 2px dashed #2E5597; border-radius: 12px; background: #EBF3FB; color: #2E5597; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.scan-btn.scanning { border-color: #ED7D31; background: #FFF2CC; color: #ED7D31; }
-#readerSup { border-radius: 8px; overflow: hidden; margin-top: 10px; display: none; }
+  .manual-input {
+    width: 100%;
+    padding: 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    color: #1a1a1a;
+    background: white;
+    transition: border-color 0.2s;
+  }
+  .manual-input:focus { outline: none; border-color: #2E5597; }
 
-/* SUBMIT BTN */
-.submit-btn { width: 100%; padding: 17px; border: none; border-radius: 14px; color: white; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; }
-.submit-btn.navy { background: #1F3864; }
-.submit-btn.navy:hover { background: #162B4D; }
-.submit-btn.green { background: #70AD47; }
-.submit-btn.green:hover { background: #5A9438; }
-.submit-btn.orange { background: #ED7D31; }
-.submit-btn.orange:hover { background: #D4691E; }
-.submit-btn:disabled { background: #ccc; color: #999; cursor: not-allowed; }
-.submit-btn:active:not(:disabled) { transform: scale(0.98); }
+  .asset-confirmed {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: #E2EFDA;
+    border-radius: 10px;
+    border: 1px solid #70AD47;
+  }
+  .asset-confirmed .number { font-size: 20px; font-weight: 700; color: #3B6D11; flex: 1; }
+  .asset-confirmed .check {
+    width: 26px; height: 26px; background: #70AD47; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .asset-confirmed .check svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 2.5; }
 
-/* BACK BTN */
-.back-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: #2E5597; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; }
-.back-btn svg { width: 16px; height: 16px; stroke: #2E5597; fill: none; stroke-width: 2.5; }
+  .timestamp-row {
+    display: none;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .ts-pill {
+    background: #f0f2f5;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #555;
+    font-weight: 500;
+  }
 
-/* SUCCESS */
-.success-screen { text-align: center; padding: 40px 20px; }
-.success-screen .big-check { width: 72px; height: 72px; background: #70AD47; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-.success-screen .big-check svg { width: 36px; height: 36px; stroke: white; fill: none; stroke-width: 2.5; }
-.success-screen h2 { font-size: 22px; font-weight: 700; color: #1F3864; }
-.success-screen p { font-size: 13px; color: #666; margin-top: 6px; }
-.next-btn { margin-top: 20px; padding: 14px 32px; background: #1F3864; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+  /* Form fields */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+  }
 
-/* JOB CARD LIST */
-.job-card { background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 4px solid #ED7D31; cursor: pointer; transition: background 0.15s; }
-.job-card:hover { background: #fafafa; }
-.job-card.completed { border-left-color: #70AD47; }
-.job-card.investigating { border-left-color: #2E5597; }
-.job-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.job-card-asset { font-size: 16px; font-weight: 700; color: #1F3864; }
-.job-card-line { font-size: 12px; font-weight: 600; color: #888; }
-.job-card-fault { font-size: 13px; color: #444; margin-bottom: 4px; }
-.job-card-meta { font-size: 11px; color: #aaa; }
-.status-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-.pill-open { background: #FCE4D6; color: #843C0C; }
-.pill-investigating { background: #DEEAF1; color: #1F497D; }
-.pill-completed { background: #E2EFDA; color: #3B6D11; }
+  select {
+    width: 100%;
+    padding: 14px 40px 14px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    background: white;
+    font-size: 16px;
+    color: #1a1a1a;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select:focus { outline: none; border-color: #2E5597; }
 
-/* SUMMARY CARDS */
-.summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-.summary-card { background: white; border-radius: 10px; padding: 14px 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.summary-val { font-size: 26px; font-weight: 700; color: #1F3864; }
-.summary-lbl { font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+  /* Submit button */
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    background: #1F3864;
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled {
+    background: #ccc;
+    color: #999;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .submit-btn.loading { background: #2E5597; }
 
-/* DOWNTIME TABLE */
-.dt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.dt-table th { text-align: left; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 8px; border-bottom: 2px solid #f0f2f5; }
-.dt-table td { padding: 8px 8px; border-bottom: 1px solid #f5f5f5; color: #333; }
-.dt-table tr:last-child td { border-bottom: none; }
+  /* Toast notifications */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 999;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .toast.success { background: #3B6D11; }
+  .toast.error { background: #A32D2D; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* SECTION TABS */
-.mech-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.mech-tab { flex: 1; padding: 9px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; color: #666; background: white; transition: all 0.15s; }
-.mech-tab.active { background: #1F3864; color: white; border-color: #1F3864; }
+  /* Success flash */
+  .success-flash {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    text-align: center;
+  }
+  .success-flash .big-check {
+    width: 64px; height: 64px; background: #70AD47; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+  }
+  .success-flash .big-check svg { width: 32px; height: 32px; stroke: white; fill: none; stroke-width: 2.5; }
+  .success-flash h2 { font-size: 20px; font-weight: 700; color: #3B6D11; }
+  .success-flash p { font-size: 14px; color: #666; margin-top: 4px; }
+  .next-btn {
+    margin-top: 16px; padding: 14px 32px; background: #1F3864;
+    border: none; border-radius: 10px; color: white; font-size: 16px;
+    font-weight: 600; cursor: pointer;
+  }
 
-.section { display: none; }
-.section.active { display: block; }
-
-/* DETAIL SCREEN */
-.detail-header { background: #1F3864; color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
-.detail-asset { font-size: 22px; font-weight: 700; }
-.detail-type { font-size: 12px; opacity: 0.75; margin-top: 2px; }
-.detail-line { font-size: 13px; opacity: 0.85; margin-top: 6px; }
-.detail-fault { font-size: 13px; margin-top: 4px; opacity: 0.9; }
-.detail-time { font-size: 11px; opacity: 0.65; margin-top: 8px; }
-.time-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-.time-pill { background: white; border-radius: 8px; padding: 8px 12px; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); flex: 1; min-width: 120px; }
-.time-pill-label { color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
-.time-pill-value { color: #1F3864; font-weight: 600; font-size: 12px; margin-top: 2px; }
-
-/* EMPTY STATE */
-.empty { text-align: center; padding: 50px 20px; color: #bbb; font-size: 14px; }
-
-/* TOAST */
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; opacity: 0; transition: all 0.3s; z-index: 999; max-width: 340px; text-align: center; }
-.toast.success { background: #3B6D11; }
-.toast.error { background: #A32D2D; }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-.loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
-.spinner { width: 28px; height: 28px; border: 3px solid #f0f2f5; border-top-color: #2E5597; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+  /* Install banner */
+  .install-banner {
+    background: #1F3864;
+    color: white;
+    padding: 10px 16px;
+    font-size: 13px;
+    text-align: center;
+    display: none;
+  }
+  .install-banner b { font-weight: 700; }
 </style>
-
-<!-- OneSignal Push Notifications -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-      appId: "81ad3998-627e-479f-b011-cb08acc7c3d8",
-      serviceWorkerPath: "OneSignalSDKWorker.js",
-      serviceWorkerParam: { scope: "/PMT_SCANNER/" },
-      notifyButton: { enable: false },
-      allowLocalhostAsSecureOrigin: true,
-    });
-  });
-</script>
 </head>
 <body>
 
+<div class="install-banner" id="installBanner">
+  <b>Add to Home Screen</b> for the best experience — tap Share then "Add to Home Screen"
+</div>
+
 <div class="header">
-  <h1>PMT Downtime Tracker</h1>
-  <p>Production floor incident management</p>
+  <h1>PMT Asset Tracker</h1>
+  <p>Production floor asset scanning</p>
 </div>
 
-<!-- ── HOME: ROLE SELECTOR ────────────────────────────────────────── -->
-<div class="app" id="screenHome">
-
-  <!-- Notification permission prompt -->
-  <div id="notifPrompt" style="display:none;background:#EBF3FB;border:1.5px solid #2E5597;border-radius:12px;padding:14px 16px;margin-bottom:12px;margin-top:8px;">
-    <div style="font-size:13px;font-weight:700;color:#1F3864;margin-bottom:4px;">🔔 Enable push notifications</div>
-    <div style="font-size:12px;color:#555;margin-bottom:10px;">Get notified instantly when a machine goes down — even when this app is in the background.</div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="enableNotifications()" style="flex:1;padding:10px;background:#1F3864;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Enable notifications</button>
-      <button onclick="dismissNotifPrompt()" style="padding:10px 14px;background:white;color:#888;border:1.5px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">Not now</button>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:8px;">
-    <div class="card-title">Select your role</div>
-    <div class="role-grid">
-      <div class="role-btn supervisor" onclick="goScreen('screenSupervisor')">
-        <div class="role-icon">👔</div>
-        <div class="role-title">Supervisor</div>
-        <div class="role-sub">Log a machine down</div>
+<!-- SUCCESS STATE -->
+<div class="app" id="successState" style="display:none">
+  <div class="card">
+    <div class="success-flash" style="display:flex">
+      <div class="big-check">
+        <svg viewBox="0 0 32 32"><polyline points="6,16 13,23 26,9"/></svg>
       </div>
-      <div class="role-btn mechanic" onclick="loadMechanicScreen()">
-        <div class="role-icon">🔧</div>
-        <div class="role-title">Mechanic</div>
-        <div class="role-sub">View open job cards</div>
-      </div>
+      <h2>Scan Saved!</h2>
+      <p id="successDetail">Asset recorded successfully</p>
+      <button class="next-btn" onclick="resetForm()">Scan Next Asset</button>
     </div>
   </div>
 </div>
 
-<!-- ── SUPERVISOR: LOG DOWNTIME ───────────────────────────────────── -->
-<div class="app screen" id="screenSupervisor">
-  <button class="back-btn" onclick="goScreen('screenHome')">
-    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
-    Back
-  </button>
+<!-- MAIN FORM -->
+<div class="app" id="mainForm">
 
-  <div id="supFormView">
-    <div class="card">
-      <div class="card-title">Step 1 — Asset</div>
-      <button class="scan-btn" id="scanBtnSup" onclick="toggleScannerSup()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg>
-        Scan Machine Barcode
-      </button>
-      <div id="readerSup"></div>
-      <div class="or-divider">— or enter manually —</div>
-      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(this.value.replace(/\s+/g, ''))">
-      <div class="asset-confirmed" id="supAssetConfirmed">
-        <div style="flex:1">
-          <div class="num" id="supAssetVal"></div>
-          <div class="type" id="supMachineType"></div>
-        </div>
-        <div class="asset-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>
-      </div>
-    </div>
+  <!-- Step 1: Scan -->
+  <div class="card">
+    <div class="card-title">Step 1 — Asset Number</div>
 
-    <div class="card">
-      <div class="card-title">Step 2 — Incident details</div>
-      <div class="field">
-        <label>Line</label>
-        <select id="supLine" onchange="checkSupReady()">
-          <option value="">Select line...</option>
-          <option>Line 1</option><option>Line 2</option><option>Line 3</option>
-          <option>Line 4</option><option>Line 5</option><option>Line 6</option>
-          <option>Line 7</option><option>Line 8</option><option>Line 9</option>
-          <option>Line 10</option><option>Line 11</option><option>Line 12</option>
-          <option>Line 13</option><option>Line 14</option><option>Line 15</option>
-          <option>Line 16</option><option>Line 17</option><option>Line 18</option>
-          <option>Line 19</option><option>Line 20</option><option>Line 21</option>
-          <option>Line 22</option><option>Line 23</option><option>Line 24</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Fault reported by operator</label>
-        <select id="supFault" onchange="checkSupReady()">
-          <option value="">Select fault...</option>
-          <option>Thread breaking</option>
-          <option>Needle breaking</option>
-          <option>Skipped stitches</option>
-          <option>Machine not feeding</option>
-          <option>Machine not sewing</option>
-          <option>Unusual noise / vibration</option>
-          <option>Machine stopped — error light</option>
-        </select>
-      </div>
-    </div>
-
-    <button class="submit-btn navy" id="supSubmitBtn" onclick="submitDowntime()" disabled>
-      Log Machine Down
-    </button>
-  </div>
-
-  <!-- Success -->
-  <div id="supSuccessView" style="display:none">
-    <div class="card">
-      <div class="success-screen">
-        <div class="big-check"><svg viewBox="0 0 36 36"><polyline points="6,18 14,26 30,10"/></svg></div>
-        <h2>Job Card Created</h2>
-        <p id="supSuccessDetail">Machine logged as down</p>
-        <p style="font-size:12px;color:#aaa;margin-top:8px;">Mechanic has been notified via the app</p>
-        <button class="next-btn" onclick="resetSupervisor()">Log Another</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── MECHANIC: JOB CARDS ────────────────────────────────────────── -->
-<div class="app screen" id="screenMechanic">
-  <button class="back-btn" onclick="goScreen('screenHome')">
-    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
-    Back
-  </button>
-
-  <div id="mechListView">
-    <!-- Summary -->
-    <div class="summary-grid" id="mechSummary">
-      <div class="summary-card">
-        <div class="summary-val" id="sumOpen">—</div>
-        <div class="summary-lbl">Open</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-val" id="sumInvestigating">—</div>
-        <div class="summary-lbl">Active</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-val" id="sumDone">—</div>
-        <div class="summary-lbl">Done today</div>
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="mech-tabs">
-      <div class="mech-tab active" id="tabOpen" onclick="switchMechTab('open')">Open Jobs</div>
-      <div class="mech-tab" id="tabDone" onclick="switchMechTab('done')">Completed</div>
-      <div class="mech-tab" id="tabDowntime" onclick="switchMechTab('downtime')">Downtime</div>
-    </div>
-
-    <!-- Open jobs -->
-    <div class="section active" id="sectionOpen">
-      <div id="openJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
-    </div>
-
-    <!-- Completed -->
-    <div class="section" id="sectionDone">
-      <div id="doneJobsList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
-    </div>
-
-    <!-- Downtime summary -->
-    <div class="section" id="sectionDowntime">
-      <div class="card">
-        <div class="card-title">Total downtime per line — today</div>
-        <div id="downtimeTable"><div class="loading"><div class="spinner"></div>Loading...</div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Job detail view -->
-  <div id="mechDetailView" style="display:none">
-    <button class="back-btn" onclick="backToList()">
-      <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
-      Back to job cards
+    <button class="scan-btn" id="scanBtn" onclick="toggleScanner()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+        <rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/>
+        <line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/>
+      </svg>
+      Tap to Scan Barcode
     </button>
 
-    <div class="detail-header" id="detailHeader"></div>
+    <div id="reader"></div>
 
-    <div class="time-row" id="detailTimes"></div>
+    <div class="divider">— or type manually —</div>
 
-    <!-- Investigate section -->
-    <div id="investigateSection" style="display:none">
-      <button class="submit-btn navy" id="investigateBtn" onclick="markInvestigate()" style="margin-bottom:14px;">
-        Investigate — Take this job
-      </button>
-    </div>
+    <input
+      class="manual-input"
+      id="manualAsset"
+      type="text"
+      placeholder="Enter asset number..."
+      oninput="setAsset(this.value.replace(/\s+/g, ''))"
+    >
 
-    <!-- Parts decision section (shown after investigating) -->
-    <div id="partsDecisionSection" style="display:none">
-      <div class="card" style="margin-bottom:14px;">
-        <div class="card-title">Spare parts required?</div>
-        <p style="font-size:13px;color:#555;margin-bottom:14px;">Does this repair require a spare part from the workshop?</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <button class="submit-btn green" onclick="showPartsRequest()" style="padding:14px;font-size:15px;">
-            Yes — Request Part
-          </button>
-          <button class="submit-btn navy" onclick="showResolveSection()" style="padding:14px;font-size:15px;">
-            No — Proceed
-          </button>
-        </div>
+    <div class="asset-confirmed" id="assetConfirmed">
+      <div style="flex:1;">
+        <div class="number" id="assetVal"></div>
+        <div id="machineTypeDisplay" style="font-size:12px;color:#3B6D11;font-weight:600;margin-top:3px;"></div>
+      </div>
+      <div class="check">
+        <svg viewBox="0 0 14 14"><polyline points="2,7 6,11 12,3"/></svg>
       </div>
     </div>
 
-    <!-- Parts request section -->
-    <div id="partsRequestSection" style="display:none">
-      <div class="card" style="margin-bottom:14px;">
-        <div class="card-title">Request spare part</div>
-
-        <!-- Machine type display (auto from job card) -->
-        <div style="background:#EBF3FB;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
-          <span style="color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Machine type</span>
-          <div style="font-size:15px;font-weight:700;color:#1F3864;margin-top:2px;" id="partsJobMachineType">—</div>
-        </div>
-
-        <!-- Mechanic name — captured here so it's on the request -->
-        <div class="field">
-          <label>Your name</label>
-          <select id="partsRequestMechanic" onchange="saveMechName();">
-            <option value="">Select your name...</option>
-            <option>Ashley</option>
-            <option>Bernard</option>
-            <option>Bradwin</option>
-            <option>Keenan</option>
-            <option>Khanyisa</option>
-            <option>Lele</option>
-            <option>Monray</option>
-            <option>Nur</option>
-            <option>Phillip</option>
-            <option>Phumzi</option>
-            <option>Rameez</option>
-            <option>Ralton</option>
-            <option>Riedaw</option>
-            <option>Wallied</option>
-          </select>
-        </div>
-
-        <!-- Existing requests list -->
-        <div id="existingRequestsList" style="margin-bottom:12px;"></div>
-
-        <!-- Add new request — free text -->
-        <div class="field">
-          <label>Part description</label>
-          <input type="text" id="partDescInput" placeholder="e.g. Feed dog, Needle bar, Bobbin case..."
-            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;"
-            onkeydown="if(event.key==='Enter'){addPartRequest();}">
-        </div>
-        <div class="field">
-          <label>Quantity</label>
-          <input type="number" id="partQty" value="1" min="1" max="99"
-            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;">
-        </div>
-        <button class="submit-btn orange" onclick="addPartRequest()" style="margin-bottom:10px;">
-          + Add Part Request
-        </button>
-        <button class="submit-btn navy" id="donePartsBtn" onclick="submitAndProceed()" disabled>
-          Submit Request &amp; Proceed to Resolve
-        </button>
-      </div>
-    </div>
-
-    <!-- Resolve section -->
-    <div id="resolveSection" style="display:none">
-      <div class="card">
-        <div class="card-title">Resolve job card</div>
-        <div class="field">
-          <label>Your name</label>
-          <select id="mechName" onchange="saveMechName();">
-            <option value="">Select your name...</option>
-            <option>Ashley</option>
-            <option>Bernard</option>
-            <option>Bradwin</option>
-            <option>Keenan</option>
-            <option>Khanyisa</option>
-            <option>Lele</option>
-            <option>Monray</option>
-            <option>Nur</option>
-            <option>Phillip</option>
-            <option>Phumzi</option>
-            <option>Rameez</option>
-            <option>Ralton</option>
-            <option>Riedaw</option>
-            <option>Wallied</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Error code</label>
-          <select id="mechErrorCode">
-            <option value="">Select error code...</option>
-            <option>Feed system fault</option>
-            <option>Mechanical / timing fault</option>
-            <option>Thread system fault</option>
-            <option>Needle / hook fault</option>
-            <option>Setup / operator error</option>
-            <option>Electrical / sensor fault</option>
-            <option>Other — see comments</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Corrective measures taken</label>
-          <textarea id="mechCorrectiveMeasures" placeholder="Describe what you did to fix the machine..."></textarea>
-        </div>
-        <button class="submit-btn green" id="resolveBtn" onclick="markResolved()">
-          Mark as Resolved
-        </button>
-      </div>
-    </div>
-
-    <!-- Completed view -->
-    <div id="completedSection" style="display:none">
-      <div class="card" id="completedDetails"></div>
-      <div class="card" id="completedParts" style="display:none;margin-top:0;"></div>
+    <div class="timestamp-row" id="tsRow">
+      <span class="ts-pill" id="tsTime"></span>
+      <span class="ts-pill" id="tsDate"></span>
     </div>
   </div>
+
+  <!-- Step 2: Details -->
+  <div class="card">
+    <div class="card-title">Step 2 — Details</div>
+
+    <div class="field">
+      <label>Your Name</label>
+      <select id="mechanic" onchange="saveMechanicName(); checkReady();">
+        <option value="">Select your name...</option>
+        <option>Ashley</option>
+        <option>Bernard</option>
+        <option>Bradwin</option>
+        <option>Keenan</option>
+        <option>Khanyisa</option>
+        <option>Lele</option>
+        <option>Monray</option>
+        <option>Nur</option>
+        <option>Phillip</option>
+        <option>Phumzi</option>
+        <option>Rameez</option>
+        <option>Ralton</option>
+        <option>Riedaw</option>
+        <option>Wallied</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Location</label>
+      <select id="location" onchange="checkReady(); if(currentAsset) checkLastLocation(currentAsset);">
+        <option value="">Select location...</option>
+        <option>Line 1</option><option>Line 2</option><option>Line 3</option>
+        <option>Line 4</option><option>Line 5</option><option>Line 6</option>
+        <option>Line 7</option><option>Line 8</option><option>Line 9</option>
+        <option>Line 10</option><option>Line 11</option><option>Line 12</option>
+        <option>Line 13</option><option>Line 14</option><option>Line 15</option>
+        <option>Line 16</option><option>Line 17</option><option>Line 18</option>
+        <option>Line 19</option><option>Line 20</option><option>Line 21</option>
+        <option>Line 22</option><option>Line 23</option><option>Line 24</option>
+        <option>Pool A</option><option>Pool B</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Status</label>
+      <select id="status" onchange="handleStatusChange()">
+        <option value="">Select status...</option>
+        <option>Active / In Use</option>
+        <option>Under Maintenance</option>
+      </select>
+    </div>
+
+    <!-- Maintenance type — shown only when Under Maintenance selected -->
+    <div class="field" id="maintenanceTypeField" style="display:none;">
+      <label>Maintenance type</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+        <button type="button" id="btnMinor" onclick="selectMaintenanceType('Minor')"
+          style="padding:14px;border:2px solid #ddd;border-radius:10px;background:white;font-size:15px;font-weight:600;color:#555;cursor:pointer;transition:all 0.15s;">
+          Minor
+        </button>
+        <button type="button" id="btnMajor" onclick="selectMaintenanceType('Major')"
+          style="padding:14px;border:2px solid #ddd;border-radius:10px;background:white;font-size:15px;font-weight:600;color:#555;cursor:pointer;transition:all 0.15s;">
+          Major
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <button class="submit-btn" id="submitBtn" onclick="submitScan()" disabled>
+    Submit Scan
+  </button>
+
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- MOVEMENT CONFIRMATION OVERLAY -->
+<div id="moveOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:999;display:none;align-items:flex-end;justify-content:center;">
+  <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;">
+    <div style="font-size:18px;font-weight:700;color:#1F3864;margin-bottom:6px;">⚠ Asset movement detected</div>
+    <div style="font-size:13px;color:#888;margin-bottom:16px;" id="moveMsg"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="confirmMove()" style="padding:14px;background:#1F3864;color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Confirm move</button>
+      <button onclick="cancelMove()" style="padding:14px;background:#f0f2f5;color:#555;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
 
-let currentAssetNo = '';
+let currentAsset = '';
 let currentMachineType = '';
-let currentJobId = null;
-let currentJobData = null;
-let supScanner = null;
-let supScannerActive = false;
-let allJobs = [];
+let scanner = null;
+let scannerActive = false;
+let scanTimestamp = null;
+let maintenanceType = '';
+function pad(n) { return String(n).padStart(2, '0'); }
 
-// ── NAVIGATION ────────────────────────────────────────────────────
-function goScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  if (id === 'screenHome') {
-    document.getElementById('screenHome').style.display = 'block';
+function formatTime(d) {
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+function formatDate(d) {
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
+async function lookupMachineType(assetNo) {
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(assetNo) + '&select=*&limit=1',
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY
+        }
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.length > 0) {
+        const row = data[0];
+        console.log('master_data row:', JSON.stringify(row));
+        // Try all known column name variations
+        return row.asset_type || row['asset type'] || row.ASSET_TYPE || row.type || row.Type || row.classification || 'Unknown';
+      } else {
+        console.log('master_data: no row found for', assetNo);
+      }
+    }
+  } catch (e) { console.error('Lookup error:', e); }
+  return 'Unknown';
+}
+
+async function setAsset(val) {
+  const confirmed = document.getElementById('assetConfirmed');
+  const tsRow = document.getElementById('tsRow');
+  const mtDisplay = document.getElementById('machineTypeDisplay');
+
+  if (val) {
+    // Validate format — only accept if valid length
+    if (!isValidBarcode(val)) {
+      currentAsset = '';
+      confirmed.style.display = 'none';
+      tsRow.style.display = 'none';
+      document.getElementById('submitBtn').disabled = true;
+      return;
+    }
+    currentAsset = val;
+    scanTimestamp = new Date();
+    document.getElementById('assetVal').textContent = val;
+    mtDisplay.textContent = 'Looking up...';
+    confirmed.style.display = 'flex';
+    tsRow.style.display = 'flex';
+    document.getElementById('tsTime').textContent = formatTime(scanTimestamp);
+    document.getElementById('tsDate').textContent = formatDate(scanTimestamp);
+
+    // Lookup machine type from master_data
+    currentMachineType = await lookupMachineType(val);
+    mtDisplay.textContent = currentMachineType !== 'Unknown'
+      ? 'Type: ' + currentMachineType
+      : 'Type: Not in master data — will save as unknown';
+
+    // Check last known location from scan_log
+    checkLastLocation(val);
+  } else {
+    confirmed.style.display = 'none';
+    tsRow.style.display = 'none';
+    scanTimestamp = null;
+    currentMachineType = '';
+  }
+  checkReady();
+}
+
+function handleStatusChange() {
+  const status = document.getElementById('status').value;
+  const field = document.getElementById('maintenanceTypeField');
+  if (status === 'Under Maintenance') {
+    field.style.display = 'block';
+    maintenanceType = '';
+    document.getElementById('btnMinor').style.border = '2px solid #ddd';
+    document.getElementById('btnMinor').style.background = 'white';
+    document.getElementById('btnMinor').style.color = '#555';
+    document.getElementById('btnMajor').style.border = '2px solid #ddd';
+    document.getElementById('btnMajor').style.background = 'white';
+    document.getElementById('btnMajor').style.color = '#555';
+  } else {
+    field.style.display = 'none';
+    maintenanceType = '';
+  }
+  checkReady();
+}
+
+function selectMaintenanceType(type) {
+  maintenanceType = type;
+  const isMinor = type === 'Minor';
+  const activeColor = '#ED7D31';
+  document.getElementById('btnMinor').style.border = isMinor  ? '2px solid ' + activeColor : '2px solid #ddd';
+  document.getElementById('btnMinor').style.background = isMinor  ? '#FFF2CC' : 'white';
+  document.getElementById('btnMinor').style.color = isMinor  ? '#8B5E0A' : '#555';
+  document.getElementById('btnMajor').style.border = !isMinor ? '2px solid #C00000' : '2px solid #ddd';
+  document.getElementById('btnMajor').style.background = !isMinor ? '#FCE4D6' : 'white';
+  document.getElementById('btnMajor').style.color = !isMinor ? '#C00000' : '#555';
+  checkReady();
+}
+
+function checkReady() {
+  const status = document.getElementById('status').value;
+  const maintenanceOk = status !== 'Under Maintenance' || maintenanceType !== '';
+  const ready = currentAsset &&
+    document.getElementById('mechanic').value &&
+    document.getElementById('location').value &&
+    status &&
+    maintenanceOk;
+  document.getElementById('submitBtn').disabled = !ready;
+}
+
+function toggleScanner() {
+  if (scannerActive) {
+    stopScanner();
+  } else {
+    startScanner();
   }
 }
 
-function showScreen(id) {
-  document.getElementById('screenHome').style.display = 'none';
-  goScreen(id);
-}
-
-// ── SUPERVISOR SCANNER ────────────────────────────────────────────
-function toggleScannerSup() {
-  if (supScannerActive) stopScannerSup();
-  else startScannerSup();
-}
-
 function isValidBarcode(val) {
+  // Pure numeric — minimum 5 digits
   if (/^\d+$/.test(val)) return val.length >= 5;
+  // Alphanumeric — minimum 6, maximum 7 characters
   return val.length >= 6 && val.length <= 7;
 }
 
-function startScannerSup() {
-  const btn = document.getElementById('scanBtnSup');
+function startScanner() {
+  const btn = document.getElementById('scanBtn');
   btn.classList.add('scanning');
-  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
-  document.getElementById('readerSup').style.display = 'block';
-  supScannerActive = true;
+  btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera`;
+  scannerActive = true;
 
   let lastRead = '';
   let lastReadTime = 0;
-  const DEBOUNCE_MS = 300;
+  const DEBOUNCE_MS = 300; // must read same value twice within 300ms
 
-  supScanner = new Html5Qrcode('readerSup');
-  supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
+  document.getElementById('reader').style.display = 'block';
+  scanner = new Html5Qrcode('reader');
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 260, height: 100 } },
     (decoded) => {
       const clean = decoded.replace(/\s+/g, '');
       const now = Date.now();
 
+      // Debounce — must see same value twice within DEBOUNCE_MS
       if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
+        // Validation
         if (!isValidBarcode(clean)) {
           showToast('Invalid barcode: ' + clean + ' — check and try again.', 'error');
           lastRead = '';
           lastReadTime = 0;
           return;
         }
-        supSetAsset(clean);
-        document.getElementById('supAssetInput').value = clean;
-        stopScannerSup();
+        setAsset(clean);
+        document.getElementById('manualAsset').value = clean;
+        stopScanner();
         showToast('Barcode scanned!', 'success');
       } else {
+        // First read — store and wait for confirmation
         lastRead = clean;
         lastReadTime = now;
       }
-    }, () => {}
-  ).catch(() => { showToast('Camera blocked. Use manual entry.', 'error'); stopScannerSup(); });
+    },
+    () => {}
+  ).catch((err) => {
+    showToast('Camera blocked. Use manual entry.', 'error');
+    stopScanner();
+  });
 }
 
-function stopScannerSup() {
-  if (supScanner) { supScanner.stop().catch(() => {}); supScanner = null; }
-  document.getElementById('readerSup').style.display = 'none';
-  const btn = document.getElementById('scanBtnSup');
+function stopScanner() {
+  if (scanner) {
+    scanner.stop().catch(() => {});
+    scanner = null;
+  }
+  document.getElementById('reader').style.display = 'none';
+  const btn = document.getElementById('scanBtn');
   btn.classList.remove('scanning');
-  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2.5"/></svg> Scan Machine Barcode`;
-  supScannerActive = false;
+  btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/></svg> Tap to Scan Barcode`;
+  scannerActive = false;
 }
 
-async function supSetAsset(val) {
-  const conf = document.getElementById('supAssetConfirmed');
-  if (!val) {
-    currentAssetNo = '';
-    conf.style.display = 'none';
-    checkSupReady();
-    return;
-  }
-
-  // Validate format before looking up
-  if (!isValidBarcode(val)) {
-    currentAssetNo = '';
-    conf.style.display = 'none';
-    checkSupReady();
-    return;
-  }
-  currentAssetNo = val;
-
-  document.getElementById('supAssetVal').textContent = val;
-  document.getElementById('supMachineType').textContent = 'Looking up...';
-  conf.style.display = 'flex';
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(val) + '&select=asset_type', {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-    });
-    const data = await res.json();
-    if (data.length > 0 && data[0].asset_type) {
-      currentMachineType = data[0].asset_type;
-      document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
-    } else {
-      currentMachineType = '';
-      document.getElementById('supMachineType').textContent = 'Not found in master data — check asset number';
-      document.getElementById('supMachineType').style.color = '#C00000';
-    }
-  } catch(e) {
-    currentMachineType = '';
-    document.getElementById('supMachineType').textContent = 'Lookup failed — check connection';
-    document.getElementById('supMachineType').style.color = '#C00000';
-  }
-  checkSupReady();
-}
-
-function checkSupReady() {
-  const ready = currentAssetNo &&
-    document.getElementById('supLine').value &&
-    document.getElementById('supFault').value;
-  document.getElementById('supSubmitBtn').disabled = !ready;
-}
-
-async function submitDowntime() {
-  const btn = document.getElementById('supSubmitBtn');
+async function submitScan() {
+  const btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  btn.textContent = 'Logging...';
+  btn.textContent = 'Saving...';
+
+  const ts = scanTimestamp || new Date();
+  const mechanic = document.getElementById('mechanic').value;
+  const location = document.getElementById('location').value;
+  const baseStatus = document.getElementById('status').value;
+  const status = baseStatus === 'Under Maintenance' && maintenanceType
+    ? 'Under Maintenance — ' + maintenanceType
+    : baseStatus;
+
   const payload = {
-    asset_no: currentAssetNo,
+    asset_no: currentAsset,
+    mechanic: mechanic,
+    location: location,
+    status: status,
     machine_type: currentMachineType,
-    line: document.getElementById('supLine').value,
-    fault: document.getElementById('supFault').value,
-    reported_time: new Date().toISOString(),
-    status: 'Open'
+    scan_timestamp: ts.toISOString(),
+    shift_date: ts.toISOString().split('T')[0]
   };
+
   try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log', {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/scan_log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Prefer': 'return=minimal'
+      },
       body: JSON.stringify(payload)
     });
+
     if (res.ok || res.status === 201) {
-      // Send push notification to all subscribed mechanics
-      sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault);
-      document.getElementById('supSuccessView').style.display = 'block';
-      // Auto-reset after 3 seconds for next incident
-      setTimeout(() => resetSupervisor(), 3000);
-      document.getElementById('supSuccessDetail').textContent =
-        currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
+      document.getElementById('successDetail').textContent =
+        currentAsset + ' (' + currentMachineType + ') → ' + location + ' — ' + status;
+      showToast('Scan saved — ' + currentAsset, 'success');
+      // Auto-reset after 2 seconds for next scan
+      setTimeout(() => resetForm(), 2000);
     } else {
-      showToast('Error submitting. Please try again.', 'error');
-      btn.disabled = false; btn.textContent = 'Log Machine Down';
+      const errText = await res.text();
+      if (errText.includes('does not exist')) {
+        showToast('Table not created yet. Run SQL in Supabase first.', 'error');
+      } else {
+        showToast('Save failed: ' + res.status, 'error');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Submit Scan';
+      checkReady();
     }
-  } catch(e) {
-    showToast('Connection error.', 'error');
-    btn.disabled = false; btn.textContent = 'Log Machine Down';
+  } catch (e) {
+    showToast('No connection. Check your internet.', 'error');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = 'Submit Scan';
+    checkReady();
   }
 }
 
-function resetSupervisor() {
-  // Stop scanner if running
-  if (supScannerActive) stopScannerSup();
+// ── MOVEMENT CONFIRMATION ─────────────────────────────────────────────────────
+let pendingMoveAsset = '';
+let pendingMoveFrom  = '';
 
-  // Reset state
-  currentAssetNo = '';
-  currentMachineType = '';
-
-  // Reset form fields
-  document.getElementById('supAssetInput').value = '';
-  document.getElementById('supAssetConfirmed').style.display = 'none';
-  document.getElementById('supMachineType').textContent = '';
-  document.getElementById('supMachineType').style.color = '';
-  document.getElementById('supLine').value = '';
-  document.getElementById('supFault').value = '';
-
-  // Show form, hide success
-  document.getElementById('supFormView').style.display = 'block';
-  document.getElementById('supSuccessView').style.display = 'none';
-
-  // Reset submit button
-  const btn = document.getElementById('supSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Log Machine Down';
-
-  // Scroll to top of form
-  document.getElementById('screenSupervisor').scrollTop = 0;
-  window.scrollTo(0, 0);
-}
-
-// ── MECHANIC SCREEN ───────────────────────────────────────────────
-async function loadMechanicScreen() {
-  // Restore saved mechanic name
-  setTimeout(loadMechName, 100);
-  showScreen('screenMechanic');
-  document.getElementById('mechListView').style.display = 'block';
-  document.getElementById('mechDetailView').style.display = 'none';
-  await fetchJobs();
-}
-
-async function fetchJobs() {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-    );
-    allJobs = await res.json();
-    renderMechanicView();
-  } catch(e) {
-    showToast('Could not load job cards.', 'error');
-  }
-}
-
-function renderMechanicView() {
-  const today = new Date().toISOString().split('T')[0];
-  const open  = allJobs.filter(j => j.status === 'Open');
-  const investigating = allJobs.filter(j => j.status === 'Investigating');
-  const openAndInv = [...open, ...investigating];
-  const done  = allJobs.filter(j => j.status === 'Resolved' && (j.resolved_time || '').startsWith(today));
-
-  document.getElementById('sumOpen').textContent = openAndInv.length;
-  document.getElementById('sumInvestigating').textContent = investigating.length;
-  document.getElementById('sumDone').textContent = done.length;
-
-  // Open jobs list
-  if (openAndInv.length === 0) {
-    document.getElementById('openJobsList').innerHTML = '<div class="empty">No open job cards — all clear!</div>';
-  } else {
-    document.getElementById('openJobsList').innerHTML = openAndInv.map(j => jobCardHTML(j)).join('');
-  }
-
-  // Completed jobs
-  if (done.length === 0) {
-    document.getElementById('doneJobsList').innerHTML = '<div class="empty">No completed jobs today yet.</div>';
-  } else {
-    document.getElementById('doneJobsList').innerHTML = done.map(j => jobCardHTML(j)).join('');
-  }
-
-  // Downtime table
-  renderDowntimeTable(done);
-}
-
-function jobCardHTML(j) {
-  const statusClass = j.status === 'Resolved' ? 'completed' : j.status === 'Investigating' ? 'investigating' : '';
-  const pillClass   = j.status === 'Resolved' ? 'pill-completed' : j.status === 'Investigating' ? 'pill-investigating' : 'pill-open';
-  const time = j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : '—';
-  const downtime = j.total_downtime_minutes ? formatMins(j.total_downtime_minutes) : '';
-  return `<div class="job-card ${statusClass}" onclick="openJobDetail(${j.id})">
-    <div class="job-card-top">
-      <div class="job-card-asset">${j.asset_no || '—'}</div>
-      <div><span class="status-pill ${pillClass}">${j.status}</span></div>
-    </div>
-    <div class="job-card-line">${j.line || '—'} &nbsp;|&nbsp; ${j.machine_type || '—'}</div>
-    <div class="job-card-fault">${j.fault || '—'}</div>
-    <div class="job-card-meta">Reported: ${time}${downtime ? ' &nbsp;|&nbsp; Downtime: ' + downtime : ''}</div>
-  </div>`;
-}
-
-function renderDowntimeTable(jobs) {
-  if (jobs.length === 0) {
-    document.getElementById('downtimeTable').innerHTML = '<div class="empty" style="padding:20px;">No completed jobs today.</div>';
-    return;
-  }
-  const byLine = {};
-  jobs.forEach(j => {
-    if (!byLine[j.line]) byLine[j.line] = 0;
-    byLine[j.line] += j.total_downtime_minutes || 0;
-  });
-  const sorted = Object.entries(byLine).sort((a,b) => b[1]-a[1]);
-  let html = '<table class="dt-table"><thead><tr><th>Line</th><th>Incidents</th><th>Total downtime</th></tr></thead><tbody>';
-  sorted.forEach(([line, mins]) => {
-    const count = jobs.filter(j => j.line === line).length;
-    html += `<tr><td><strong>${line}</strong></td><td>${count}</td><td>${formatMins(mins)}</td></tr>`;
-  });
-  html += '</tbody></table>';
-  document.getElementById('downtimeTable').innerHTML = html;
-}
-
-function formatMins(mins) {
-  if (!mins) return '0min';
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h > 0 ? `${h}hr ${m}min` : `${m}min`;
-}
-
-function formatWallClock(ms) {
-  // Format raw elapsed milliseconds as wall-clock duration
-  const totalMins = Math.floor(ms / 60000);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
-  if (h >= 24) return Math.floor(h/24) + 'd ' + (h%24) + 'h ' + m + 'min';
-  return h > 0 ? h + 'h ' + m + 'min' : m + 'min';
-}
-
-// ── SHIFT-AWARE TIME CALCULATION ─────────────────────────────────────────────
-// Shift hours: Mon–Thu 07:45–16:45 (540 min), Fri 07:45–15:30 (465 min)
-// Weekends: no shift
-
-function getShiftForDate(date) {
-  const day = date.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-  if (day === 0 || day === 6) return null; // Weekend — no shift
-  const shiftStart = new Date(date);
-  shiftStart.setHours(7, 45, 0, 0);
-  const shiftEnd = new Date(date);
-  if (day === 5) {
-    shiftEnd.setHours(15, 30, 0, 0); // Friday
-  } else {
-    shiftEnd.setHours(16, 45, 0, 0); // Mon–Thu
-  }
-  return { start: shiftStart, end: shiftEnd };
-}
-
-function nextShiftStart(fromDate) {
-  // Find the next shift start after fromDate
-  const d = new Date(fromDate);
-  d.setDate(d.getDate() + 1);
-  for (let i = 0; i < 7; i++) {
-    const shift = getShiftForDate(d);
-    if (shift) {
-      return shift.start;
-    }
-    d.setDate(d.getDate() + 1);
-  }
-  return null;
-}
-
-function shiftAwareMinutes(startISO, endISO) {
-  // Count only minutes within valid shift windows between two timestamps
-  if (!startISO || !endISO) return 0;
-  let current = new Date(startISO);
-  const end   = new Date(endISO);
-  if (current >= end) return 0;
-
-  let totalMins = 0;
-  let safetyLimit = 0; // prevent infinite loop
-
-  while (current < end && safetyLimit < 50) {
-    safetyLimit++;
-    const shift = getShiftForDate(current);
-
-    if (!shift) {
-      // Weekend or no shift — jump to next shift start
-      const next = nextShiftStart(current);
-      if (!next) break;
-      current = next;
-      continue;
-    }
-
-    // Clamp current to shift start if before shift
-    if (current < shift.start) current = new Date(shift.start);
-
-    // If still before end and within shift
-    if (current >= shift.end) {
-      // Past shift end — jump to next shift start
-      const next = nextShiftStart(current);
-      if (!next) break;
-      current = next;
-      continue;
-    }
-
-    // Count minutes within this shift window
-    const segEnd = end < shift.end ? end : shift.end;
-    totalMins += Math.round((segEnd - current) / 60000);
-    current = new Date(segEnd);
-
-    if (current < shift.end) break; // Resolved within this shift — done
-    // Otherwise loop to next shift
-    const next = nextShiftStart(current);
-    if (!next) break;
-    current = next;
-  }
-
-  return totalMins;
-}
-
-function shiftAwareElapsed(startISO) {
-  // Shift-aware minutes from start to now
-  return shiftAwareMinutes(startISO, new Date().toISOString());
-}
-
-// ── LIVE TIMER ────────────────────────────────────────────────────────────────
-let liveTimerInterval = null;
-let liveTimerStart    = null;
-
-function startLiveTimer(reportedISO) {
-  stopLiveTimer();
-  liveTimerStart = reportedISO;
-  liveTimerInterval = setInterval(() => {
-    const wallEl  = document.getElementById('wallClockPill');
-    const shiftEl = document.getElementById('shiftTimePill');
-    if (!wallEl || !shiftEl) { stopLiveTimer(); return; }
-    const wallMs    = Date.now() - new Date(liveTimerStart).getTime();
-    const shiftMins = shiftAwareElapsed(liveTimerStart);
-    wallEl.textContent  = formatWallClock(wallMs);
-    shiftEl.textContent = formatMins(shiftMins);
-  }, 30000); // update every 30 seconds
-}
-
-function stopLiveTimer() {
-  if (liveTimerInterval) {
-    clearInterval(liveTimerInterval);
-    liveTimerInterval = null;
-    liveTimerStart    = null;
-  }
-}
-
-function switchMechTab(tab) {
-  document.querySelectorAll('.mech-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-  document.getElementById('section' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-}
-
-// ── JOB DETAIL ────────────────────────────────────────────────────
-function openJobDetail(id) {
-  currentJobId = id;
-  currentJobData = allJobs.find(j => j.id === id);
-  if (!currentJobData) return;
-  const j = currentJobData;
-
-  document.getElementById('mechListView').style.display = 'none';
-  document.getElementById('mechDetailView').style.display = 'block';
-
-  // Header
-  document.getElementById('detailHeader').innerHTML = `
-    <div class="detail-asset">${j.asset_no}</div>
-    <div class="detail-type">${j.machine_type || ''}</div>
-    <div class="detail-line">${j.line} &nbsp;|&nbsp; <span class="status-pill ${j.status==='Resolved'?'pill-completed':j.status==='Investigating'?'pill-investigating':'pill-open'}">${j.status}</span></div>
-    <div class="detail-fault">Fault: ${j.fault}</div>
-    <div class="detail-time">Reported by ${j.reported_by} at ${j.reported_time ? new Date(j.reported_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '—'}</div>`;
-
-  // Time pills
-  let timesHTML = `<div class="time-pill"><div class="time-pill-label">Reported</div><div class="time-pill-value">${j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—'}</div></div>`;
-  if (j.investigate_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Investigated</div><div class="time-pill-value">${new Date(j.investigate_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
-  if (j.resolved_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Resolved</div><div class="time-pill-value">${new Date(j.resolved_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
-  if (j.total_downtime_minutes) timesHTML += `<div class="time-pill" style="background:#FCE4D6;"><div class="time-pill-label">Production lost</div><div class="time-pill-value" style="color:#843C0C;">${formatMins(j.total_downtime_minutes)}</div></div>`;
-
-  // For open/investigating incidents — show live wall clock AND shift-adjusted time
-  if (j.status !== 'Resolved' && j.reported_time) {
-    const wallMs       = Date.now() - new Date(j.reported_time).getTime();
-    const shiftMins    = shiftAwareElapsed(j.reported_time);
-    timesHTML += `
-      <div class="time-pill" style="background:#FFF2CC;border:1px solid #C9A84C;">
-        <div class="time-pill-label" style="color:#8B6914;">⏱ Open for</div>
-        <div class="time-pill-value" style="color:#8B6914;" id="wallClockPill">${formatWallClock(wallMs)}</div>
-      </div>
-      <div class="time-pill" style="background:#FCE4D6;border:1px solid #C00000;">
-        <div class="time-pill-label" style="color:#843C0C;">📉 Production lost</div>
-        <div class="time-pill-value" style="color:#843C0C;" id="shiftTimePill">${formatMins(shiftMins)}</div>
-      </div>`;
-    // Start live timer
-    startLiveTimer(j.reported_time);
-  }
-
-  document.getElementById('detailTimes').innerHTML = timesHTML;
-
-  // Show correct action section
-  document.getElementById('investigateSection').style.display = 'none';
-  document.getElementById('resolveSection').style.display = 'none';
-  document.getElementById('completedSection').style.display = 'none';
-  document.getElementById('partsDecisionSection').style.display = 'none';
-
-  if (j.status === 'Open') {
-    document.getElementById('investigateSection').style.display = 'block';
-  } else if (j.status === 'Investigating') {
-    document.getElementById('partsDecisionSection').style.display = 'block';
-  } else if (j.status === 'Resolved') {
-    document.getElementById('completedSection').style.display = 'block';
-    document.getElementById('completedDetails').innerHTML = `
-      <div class="card-title">Resolution details</div>
-      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Mechanic:</strong> ${j.mechanic || '—'}</p>
-      <p style="font-size:13px;color:#555;margin-bottom:8px;"><strong>Error code:</strong> ${j.error_code || '—'}</p>
-      <p style="font-size:13px;color:#555;margin-bottom:4px;"><strong>Corrective measures:</strong></p>
-      <p style="font-size:13px;color:#333;line-height:1.6;">${j.corrective_measures || '—'}</p>`;
-    loadCompletedParts(j.id);
-  }
-
-  // Reset pending parts for new session
-  pendingRequests = [];
-}
-
-function backToList() {
-  stopLiveTimer();
-  document.getElementById('mechListView').style.display = 'block';
-  document.getElementById('mechDetailView').style.display = 'none';
-  fetchJobs();
-}
-
-async function markInvestigate() {
-  const btn = document.getElementById('investigateBtn');
-  btn.disabled = true; btn.textContent = 'Updating...';
-  const now = new Date().toISOString();
-  // Shift-aware response time — only counts production minutes from reported to now
-  const responseMins = shiftAwareMinutes(currentJobData.reported_time, now);
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status: 'Investigating', investigate_time: now, response_minutes: responseMins })
-    });
-    if (res.ok) {
-      showToast('Job card taken — go fix it!', 'success');
-      await fetchJobs();
-      currentJobData = allJobs.find(j => j.id === currentJobId);
-      openJobDetail(currentJobId);
-    } else {
-      showToast('Update failed.', 'error');
-      btn.disabled = false; btn.textContent = 'Investigate — Take this job';
-    }
-  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Investigate — Take this job'; }
-}
-
-async function markResolved() {
-  const mechName   = document.getElementById('mechName').value;
-  const errorCode  = document.getElementById('mechErrorCode').value;
-  const corrective = document.getElementById('mechCorrectiveMeasures').value.trim();
-  if (!mechName)   { showToast('Please select your name.', 'error'); return; }
-  if (!errorCode)  { showToast('Please select an error code.', 'error'); return; }
-  if (!corrective) { showToast('Please describe corrective measures.', 'error'); return; }
-
-  const btn = document.getElementById('resolveBtn');
-  btn.disabled = true; btn.textContent = 'Resolving...';
-
-  const now = new Date().toISOString();
-  const reported    = currentJobData.reported_time    ? new Date(currentJobData.reported_time)    : new Date();
-  const investigate = currentJobData.investigate_time ? new Date(currentJobData.investigate_time) : new Date();
-
-  // Shift-aware total downtime — only counts production minutes lost
-  const totalMins  = shiftAwareMinutes(currentJobData.reported_time, now);
-  // Repair time — shift-aware from investigation to resolution
-  const repairMins = currentJobData.investigate_time
-    ? shiftAwareMinutes(currentJobData.investigate_time, now)
-    : totalMins;
-  // Response time — shift-aware from reported to investigation
-  const responseMins = currentJobData.investigate_time
-    ? shiftAwareMinutes(currentJobData.reported_time, currentJobData.investigate_time)
-    : 0;
-
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        status: 'Resolved',
-        mechanic: mechName,
-        error_code: errorCode,
-        corrective_measures: corrective,
-        resolved_time: now,
-        repair_minutes: repairMins,
-        total_downtime_minutes: totalMins
-      })
-    });
-    if (res.ok) {
-      const partsMsg = pendingRequests.length > 0 ? ' Parts requested: ' + pendingRequests.length + '.' : '';
-      showToast('Resolved! Downtime: ' + formatMins(totalMins) + '.' + partsMsg, 'success');
-      pendingRequests = [];
-      await fetchJobs();
-      backToList();
-    } else {
-      showToast('Update failed.', 'error');
-      btn.disabled = false; btn.textContent = 'Mark as Resolved';
-    }
-  } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Mark as Resolved'; }
-}
-
-// ── PARTS ─────────────────────────────────────────────────────────
-let pendingRequests = [];
-
-function showPartsRequest() {
-  document.getElementById('partsDecisionSection').style.display = 'none';
-  document.getElementById('partsRequestSection').style.display = 'block';
-  const mt = (currentJobData && currentJobData.machine_type) ? currentJobData.machine_type : '—';
-  document.getElementById('partsJobMachineType').textContent = mt;
-  document.getElementById('partsRequestMechanic').value = '';
-  pendingRequests = [];
-  renderExistingRequests();
-  document.getElementById('partDescInput').focus();
-}
-
-function showResolveSection() {
-  document.getElementById('partsDecisionSection').style.display = 'none';
-  document.getElementById('partsRequestSection').style.display = 'none';
-  document.getElementById('resolveSection').style.display = 'block';
-}
-
-async function submitAndProceed() {
-  const mechName = document.getElementById('partsRequestMechanic').value;
-  if (!mechName) { showToast('Please select your name before submitting.', 'error'); return; }
-
-  const btn = document.getElementById('donePartsBtn');
-  btn.disabled = true;
-  btn.textContent = 'Submitting request...';
-
-  // Submit parts to Supabase immediately with mechanic name
-  if (pendingRequests.length > 0) {
-    await submitPartRequests(
-      currentJobId,
-      currentJobData.asset_no,
-      currentJobData.machine_type,
-      currentJobData.line,
-      mechName
-    );
-    pendingRequests = [];
-  }
-
-  // Pre-fill mechanic name on the resolve screen
-  const resolveSelect = document.getElementById('mechName');
-  if (resolveSelect) resolveSelect.value = mechName;
-
-  showToast('Part request sent to workshop!', 'success');
-  showResolveSection();
-}
-
-function renderExistingRequests() {
-  const el = document.getElementById('existingRequestsList');
-  if (pendingRequests.length === 0) {
-    el.innerHTML = '<p style="font-size:12px;color:#aaa;margin-bottom:8px;">No parts requested yet.</p>';
-    document.getElementById('donePartsBtn').disabled = true;
-    return;
-  }
-  el.innerHTML = '<div style="margin-bottom:10px;">' +
-    pendingRequests.map((r, i) => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f5f5;border-radius:8px;margin-bottom:6px;font-size:13px;">
-        <div>
-          <strong>${r.description}</strong>
-          <span style="color:#2E5597;font-weight:600;margin-left:8px;">x${r.quantity}</span>
-        </div>
-        <button onclick="removePartRequest(${i})" style="background:none;border:none;color:#C00000;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;">x</button>
-      </div>`).join('') + '</div>';
-  document.getElementById('donePartsBtn').disabled = false;
-}
-
-function addPartRequest() {
-  const desc = document.getElementById('partDescInput').value.trim();
-  const qty  = parseInt(document.getElementById('partQty').value) || 1;
-  if (!desc) { showToast('Please describe the part needed.', 'error'); return; }
-  pendingRequests.push({ description: desc, part_no: '', quantity: qty });
-  document.getElementById('partDescInput').value = '';
-  document.getElementById('partQty').value = 1;
-  document.getElementById('partDescInput').focus();
-  renderExistingRequests();
-  showToast('Part added to request.', 'success');
-}
-
-function removePartRequest(idx) {
-  pendingRequests.splice(idx, 1);
-  renderExistingRequests();
-}
-
-async function submitPartRequests(jobId, assetNo, machineType, line, mechName) {
-  if (pendingRequests.length === 0) return;
-  const payloads = pendingRequests.map(r => ({
-    job_card_id: jobId,
-    asset_no: assetNo,
-    machine_type: machineType,
-    line: line,
-    mechanic: mechName,
-    part_no: '',
-    part_description: r.description,
-    quantity: r.quantity,
-    status: 'Pending',
-    requested_time: new Date().toISOString()
-  }));
-  try {
-    await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify(payloads)
-    });
-  } catch(e) { console.error('Parts submit error', e); }
-}
-
-async function loadCompletedParts(jobId) {
+async function checkLastLocation(assetNo) {
   try {
     const res = await fetch(
-      SUPABASE_URL + '/rest/v1/parts_requests?job_card_id=eq.' + jobId + '&select=*',
+      SUPABASE_URL + '/rest/v1/scan_log?asset_no=eq.' + encodeURIComponent(assetNo) +
+      '&select=location,scan_timestamp&order=scan_timestamp.desc&limit=1',
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
     );
-    const parts = await res.json();
-    const el = document.getElementById('completedParts');
-    if (parts.length === 0) { el.style.display = 'none'; return; }
-    el.style.display = 'block';
-    el.innerHTML = '<div class="card-title">Parts issued</div>' +
-      parts.map(p => {
-        const consumed = p.quantity_consumed || 0;
-        const returned = p.quantity_returned || 0;
-        const canReturn = p.status === 'Issued' && (p.quantity - returned) > 0;
-        const remaining = p.quantity - returned;
-        return `
-        <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-            <div>
-              <strong style="font-size:13px;">${p.part_description || '—'}</strong>
-              ${p.part_no ? '<span style="color:#888;font-size:11px;"> (' + p.part_no + ')</span>' : ''}
-            </div>
-            <span class="status-pill ${p.status === 'Issued' ? 'pill-completed' : 'pill-open'}">${p.status}</span>
-          </div>
-          <div style="font-size:11px;color:#666;display:flex;gap:12px;flex-wrap:wrap;">
-            <span>Issued: <strong>x${p.quantity}</strong></span>
-            ${consumed > 0 ? '<span style="color:#3B6D11;">Used: <strong>x' + consumed + '</strong></span>' : ''}
-            ${returned > 0 ? '<span style="color:#ED7D31;">Returned: <strong>x' + returned + '</strong></span>' : ''}
-          </div>
-          ${canReturn ? `<button onclick="showReturnForm(${p.id}, '${(p.part_description||'').replace(/'/g,"\\'")}', ${remaining}, '${p.part_no||''}')"
-            style="margin-top:8px;padding:6px 14px;background:#ED7D31;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;">
-            Return Part
-          </button>` : ''}
-        </div>`;
-      }).join('');
+    const data = await res.json();
+    if (data.length === 0) return; // No previous scan — first time, no prompt needed
+
+    const lastLocation = data[0].location;
+    const selectedLocation = document.getElementById('location').value;
+
+    // Only prompt if a location is already selected AND it differs from last known
+    if (selectedLocation && lastLocation && selectedLocation !== lastLocation) {
+      pendingMoveAsset = assetNo;
+      pendingMoveFrom  = lastLocation;
+      document.getElementById('moveMsg').textContent =
+        'Asset ' + assetNo + ' was last scanned into ' + lastLocation +
+        '. Are you moving it to ' + selectedLocation + '?';
+      document.getElementById('moveOverlay').style.display = 'flex';
+    }
+  } catch(e) { /* silent — movement check is non-blocking */ }
+}
+
+function confirmMove() {
+  document.getElementById('moveOverlay').style.display = 'none';
+  pendingMoveAsset = '';
+  pendingMoveFrom  = '';
+  // Proceed — form is already ready, user just confirms
+}
+
+function cancelMove() {
+  document.getElementById('moveOverlay').style.display = 'none';
+  // Clear the location selection — force them to consciously re-select
+  document.getElementById('location').value = '';
+  pendingMoveAsset = '';
+  pendingMoveFrom  = '';
+  checkReady();
+}
+
+function saveMechanicName() {
+  const val = document.getElementById('mechanic').value;
+  if (val) try { localStorage.setItem('pmt_mechanic', val); } catch(e) {}
+}
+
+function loadMechanicName() {
+  try {
+    const saved = localStorage.getItem('pmt_mechanic');
+    if (saved) document.getElementById('mechanic').value = saved;
   } catch(e) {}
 }
 
-function showReturnForm(requestId, partDesc, maxQty, partNo) {
-  const overlay = document.createElement('div');
-  overlay.id = 'returnOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-  overlay.innerHTML = `
-    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:420px;">
-      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Return Part</div>
-      <div style="font-size:13px;color:#666;margin-bottom:16px;"><strong>${partDesc}</strong> — up to x${maxQty} available to return</div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Quantity to return</label>
-        <input type="number" id="returnQty" value="${maxQty}" min="1" max="${maxQty}"
-          style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;">
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Reason for return</label>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Wrong part issued"> Wrong part issued</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Not needed"> Not needed</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Partial return"> Partial return</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="returnReason" value="Faulty / defective"> Faulty / defective <span style="font-size:10px;color:#888;"> — awaiting supplier</span></label>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button onclick="document.getElementById('returnOverlay').remove()"
-          style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
-        <button onclick="submitReturn(${requestId}, '${partDesc.replace(/'/g,"\\'")}', ${maxQty}, '${partNo}')"
-          style="padding:12px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Submit Return</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
+function resetForm() {
+  currentAsset = '';
+  currentMachineType = '';
+  maintenanceType = '';
+  scanTimestamp = null;
+  document.getElementById('manualAsset').value = '';
+  document.getElementById('assetConfirmed').style.display = 'none';
+  document.getElementById('machineTypeDisplay').textContent = '';
+  document.getElementById('tsRow').style.display = 'none';
+  document.getElementById('status').value = '';
+  document.getElementById('maintenanceTypeField').style.display = 'none';
+  document.getElementById('btnMinor').style.border = '2px solid #ddd';
+  document.getElementById('btnMinor').style.background = 'white';
+  document.getElementById('btnMinor').style.color = '#555';
+  document.getElementById('btnMajor').style.border = '2px solid #ddd';
+  document.getElementById('btnMajor').style.background = 'white';
+  document.getElementById('btnMajor').style.color = '#555';
+  // Clear line — must be consciously selected each time
+  document.getElementById('location').value = '';
+  // Restore mechanic name from localStorage
+  loadMechanicName();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submit Scan';
+  checkReady();
 }
 
-async function submitReturn(requestId, partDesc, maxQty, partNo) {
-  const qty = parseInt(document.getElementById('returnQty').value) || 1;
-  const reasonEl = document.querySelector('input[name="returnReason"]:checked');
-  if (!reasonEl) { showToast('Please select a return reason.', 'error'); return; }
-  const reason = reasonEl.value;
-  if (qty < 1 || qty > maxQty) { showToast('Invalid quantity.', 'error'); return; }
-
-  const isFaulty   = reason === 'Faulty / defective';
-  const restoreStock = !isFaulty;
-  const consumed   = maxQty - qty;
-
-  try {
-    // Get request details
-    const reqRes = await fetch(
-      SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + requestId + '&select=*',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-    );
-    const reqData = await reqRes.json();
-    const req = reqData[0];
-
-    // Create return record
-    const returnPayload = {
-      request_id: requestId,
-      job_card_id: req.job_card_id,
-      asset_no: req.asset_no,
-      machine_type: req.machine_type,
-      line: req.line,
-      part_no: partNo || req.part_no || '',
-      part_description: partDesc,
-      quantity_issued: maxQty,
-      quantity_returned: qty,
-      quantity_consumed: consumed,
-      return_reason: reason,
-      stock_restored: restoreStock,
-      returned_by: req.mechanic || '',
-      return_time: new Date().toISOString(),
-      supplier_return_status: isFaulty ? 'Awaiting supplier return' : null
-    };
-    await fetch(SUPABASE_URL + '/rest/v1/parts_returns', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify(returnPayload)
-    });
-
-    // Update parts_requests with consumed and returned quantities
-    await fetch(SUPABASE_URL + '/rest/v1/parts_requests?id=eq.' + requestId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ quantity_returned: qty, quantity_consumed: consumed })
-    });
-
-    // Restore stock if not faulty
-    if (restoreStock && (partNo || req.part_no)) {
-      const pno = partNo || req.part_no;
-      const invRes = await fetch(
-        SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(pno) + '&select=stock_qty',
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-      );
-      const invData = await invRes.json();
-      if (invData.length > 0) {
-        await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(pno), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ stock_qty: invData[0].stock_qty + qty, updated_at: new Date().toISOString() })
-        });
-      }
-    }
-
-    document.getElementById('returnOverlay').remove();
-    const msg = isFaulty
-      ? 'Return logged — marked as awaiting supplier return. Stock not restored.'
-      : 'Return received — stock restored by ' + qty + '.';
-    showToast(msg, 'success');
-    loadCompletedParts(currentJobId);
-  } catch(e) { showToast('Return failed. Try again.', 'error'); }
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1306,90 +732,14 @@ function showToast(msg, type) {
   setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-// ── MECHANIC NAME PERSISTENCE ────────────────────────────────────
-function saveMechName() {
-  const sel = document.getElementById('mechName') || document.getElementById('partsRequestMechanic');
-  if (!sel) return;
-  const val = document.getElementById('mechName') ? document.getElementById('mechName').value : '';
-  const val2 = document.getElementById('partsRequestMechanic') ? document.getElementById('partsRequestMechanic').value : '';
-  const name = val || val2;
-  if (name) try { localStorage.setItem('pmt_mechanic', name); } catch(e) {}
+// Load saved mechanic name on startup
+loadMechanicName();
+
+// Show install banner on iOS
+if (window.navigator.standalone === false &&
+    /iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  document.getElementById('installBanner').style.display = 'block';
 }
-
-function loadMechName() {
-  try {
-    const saved = localStorage.getItem('pmt_mechanic');
-    if (!saved) return;
-    const mechSel  = document.getElementById('mechName');
-    const partsSel = document.getElementById('partsRequestMechanic');
-    if (mechSel)  mechSel.value  = saved;
-    if (partsSel) partsSel.value = saved;
-  } catch(e) {}
-}
-
-// ── PUSH NOTIFICATIONS (OneSignal) ────────────────────────────────
-function checkNotificationPrompt() {
-  // Show prompt if permission not yet decided
-  try {
-    if (Notification.permission === 'default') {
-      const dismissed = localStorage.getItem('pmt_notif_dismissed');
-      if (!dismissed) {
-        document.getElementById('notifPrompt').style.display = 'block';
-      }
-    }
-  } catch(e) {}
-}
-
-function enableNotifications() {
-  OneSignalDeferred.push(async function(OneSignal) {
-    try {
-      await OneSignal.Notifications.requestPermission();
-      document.getElementById('notifPrompt').style.display = 'none';
-      if (Notification.permission === 'granted') {
-        showToast('Notifications enabled!', 'success');
-      } else {
-        showToast('Notifications not enabled — check browser settings.', 'error');
-      }
-    } catch(e) {
-      showToast('Could not enable notifications.', 'error');
-    }
-  });
-}
-
-function dismissNotifPrompt() {
-  document.getElementById('notifPrompt').style.display = 'none';
-  try { localStorage.setItem('pmt_notif_dismissed', '1'); } catch(e) {}
-}
-
-async function sendIncidentNotification(assetNo, machineType, line, fault) {
-  try {
-    const title   = '🔴 Machine Down — ' + line;
-    const message = 'Asset: ' + assetNo + (machineType ? ' (' + machineType + ')' : '') + ' | ' + fault;
-
-    // Call Supabase Edge Function which proxies to OneSignal (avoids CORS)
-    const res = await fetch(SUPABASE_URL + '/functions/v1/send-notification', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-      },
-      body: JSON.stringify({ title, message, url: 'https://lesomo.github.io/PMT_SCANNER/downtime.html' })
-    });
-
-    if (res.ok) {
-      showToast('Mechanics notified.', 'success');
-    } else {
-      console.warn('Notification error:', await res.text());
-    }
-  } catch(e) {
-    console.warn('Notification send failed:', e);
-  }
-}
-
-// Show notification prompt on load
-window.addEventListener('load', () => {
-  setTimeout(checkNotificationPrompt, 1500);
-});
 </script>
 </body>
 </html>
