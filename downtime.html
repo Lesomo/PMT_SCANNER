@@ -335,6 +335,26 @@ textarea { min-height: 90px; resize: vertical; }
 
     <!-- Investigate section -->
     <div id="investigateSection" style="display:none">
+      <div class="field" style="margin-bottom:12px;">
+        <label>Your name</label>
+        <select id="investigateMechName" onchange="saveMechName();">
+          <option value="">Select your name...</option>
+          <option>Ashley</option>
+          <option>Bernard</option>
+          <option>Bradwin</option>
+          <option>Keenan</option>
+          <option>Khanyisa</option>
+          <option>Lele</option>
+          <option>Monray</option>
+          <option>Nur</option>
+          <option>Phillip</option>
+          <option>Phumzi</option>
+          <option>Rameez</option>
+          <option>Ralton</option>
+          <option>Riedaw</option>
+          <option>Wallied</option>
+        </select>
+      </div>
       <button class="submit-btn navy" id="investigateBtn" onclick="markInvestigate()" style="margin-bottom:14px;">
         Investigate — Take this job
       </button>
@@ -553,16 +573,22 @@ function stopScannerSup() {
 }
 
 async function supSetAsset(val) {
-  currentAssetNo = val;
   const conf = document.getElementById('supAssetConfirmed');
-  if (!val) { conf.style.display = 'none'; checkSupReady(); return; }
-
-  // Validate format before looking up
-  if (!isValidBarcode(val)) {
+  if (!val) {
+    currentAssetNo = '';
     conf.style.display = 'none';
     checkSupReady();
     return;
   }
+
+  // Validate format before looking up
+  if (!isValidBarcode(val)) {
+    currentAssetNo = '';
+    conf.style.display = 'none';
+    checkSupReady();
+    return;
+  }
+  currentAssetNo = val;
 
   document.getElementById('supAssetVal').textContent = val;
   document.getElementById('supMachineType').textContent = 'Looking up...';
@@ -719,6 +745,11 @@ function jobCardHTML(j) {
   const pillClass   = j.status === 'Resolved' ? 'pill-completed' : j.status === 'Investigating' ? 'pill-investigating' : 'pill-open';
   const time = j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : '—';
   const downtime = j.total_downtime_minutes ? formatMins(j.total_downtime_minutes) : '';
+  const mechInfo = j.status === 'Investigating' && j.mechanic
+    ? ` &nbsp;|&nbsp; 🔧 ${j.mechanic}`
+    : j.status === 'Resolved' && j.mechanic
+    ? ` &nbsp;|&nbsp; ✓ ${j.mechanic}`
+    : '';
   return `<div class="job-card ${statusClass}" onclick="openJobDetail(${j.id})">
     <div class="job-card-top">
       <div class="job-card-asset">${j.asset_no || '—'}</div>
@@ -726,7 +757,7 @@ function jobCardHTML(j) {
     </div>
     <div class="job-card-line">${j.line || '—'} &nbsp;|&nbsp; ${j.machine_type || '—'}</div>
     <div class="job-card-fault">${j.fault || '—'}</div>
-    <div class="job-card-meta">Reported: ${time}${downtime ? ' &nbsp;|&nbsp; Downtime: ' + downtime : ''}</div>
+    <div class="job-card-meta">Reported: ${time}${downtime ? ' &nbsp;|&nbsp; Downtime: ' + downtime : ''}${mechInfo}</div>
   </div>`;
 }
 
@@ -757,6 +788,127 @@ function formatMins(mins) {
   return h > 0 ? `${h}hr ${m}min` : `${m}min`;
 }
 
+function formatWallClock(ms) {
+  // Format raw elapsed milliseconds as wall-clock duration
+  const totalMins = Math.floor(ms / 60000);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h >= 24) return Math.floor(h/24) + 'd ' + (h%24) + 'h ' + m + 'min';
+  return h > 0 ? h + 'h ' + m + 'min' : m + 'min';
+}
+
+// ── SHIFT-AWARE TIME CALCULATION ─────────────────────────────────────────────
+// Shift hours: Mon–Thu 07:45–16:45 (540 min), Fri 07:45–15:30 (465 min)
+// Weekends: no shift
+
+function getShiftForDate(date) {
+  const day = date.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  if (day === 0 || day === 6) return null; // Weekend — no shift
+  const shiftStart = new Date(date);
+  shiftStart.setHours(7, 45, 0, 0);
+  const shiftEnd = new Date(date);
+  if (day === 5) {
+    shiftEnd.setHours(15, 30, 0, 0); // Friday
+  } else {
+    shiftEnd.setHours(16, 45, 0, 0); // Mon–Thu
+  }
+  return { start: shiftStart, end: shiftEnd };
+}
+
+function nextShiftStart(fromDate) {
+  // Find the next shift start after fromDate
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 7; i++) {
+    const shift = getShiftForDate(d);
+    if (shift) {
+      return shift.start;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function shiftAwareMinutes(startISO, endISO) {
+  // Count only minutes within valid shift windows between two timestamps
+  if (!startISO || !endISO) return 0;
+  let current = new Date(startISO);
+  const end   = new Date(endISO);
+  if (current >= end) return 0;
+
+  let totalMins = 0;
+  let safetyLimit = 0; // prevent infinite loop
+
+  while (current < end && safetyLimit < 50) {
+    safetyLimit++;
+    const shift = getShiftForDate(current);
+
+    if (!shift) {
+      // Weekend or no shift — jump to next shift start
+      const next = nextShiftStart(current);
+      if (!next) break;
+      current = next;
+      continue;
+    }
+
+    // Clamp current to shift start if before shift
+    if (current < shift.start) current = new Date(shift.start);
+
+    // If still before end and within shift
+    if (current >= shift.end) {
+      // Past shift end — jump to next shift start
+      const next = nextShiftStart(current);
+      if (!next) break;
+      current = next;
+      continue;
+    }
+
+    // Count minutes within this shift window
+    const segEnd = end < shift.end ? end : shift.end;
+    totalMins += Math.round((segEnd - current) / 60000);
+    current = new Date(segEnd);
+
+    if (current < shift.end) break; // Resolved within this shift — done
+    // Otherwise loop to next shift
+    const next = nextShiftStart(current);
+    if (!next) break;
+    current = next;
+  }
+
+  return totalMins;
+}
+
+function shiftAwareElapsed(startISO) {
+  // Shift-aware minutes from start to now
+  return shiftAwareMinutes(startISO, new Date().toISOString());
+}
+
+// ── LIVE TIMER ────────────────────────────────────────────────────────────────
+let liveTimerInterval = null;
+let liveTimerStart    = null;
+
+function startLiveTimer(reportedISO) {
+  stopLiveTimer();
+  liveTimerStart = reportedISO;
+  liveTimerInterval = setInterval(() => {
+    const wallEl  = document.getElementById('wallClockPill');
+    const shiftEl = document.getElementById('shiftTimePill');
+    if (!wallEl || !shiftEl) { stopLiveTimer(); return; }
+    const wallMs    = Date.now() - new Date(liveTimerStart).getTime();
+    const shiftMins = shiftAwareElapsed(liveTimerStart);
+    wallEl.textContent  = formatWallClock(wallMs);
+    shiftEl.textContent = formatMins(shiftMins);
+  }, 30000); // update every 30 seconds
+}
+
+function stopLiveTimer() {
+  if (liveTimerInterval) {
+    clearInterval(liveTimerInterval);
+    liveTimerInterval = null;
+    liveTimerStart    = null;
+  }
+}
+
 function switchMechTab(tab) {
   document.querySelectorAll('.mech-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -780,19 +932,40 @@ function openJobDetail(id) {
     <div class="detail-type">${j.machine_type || ''}</div>
     <div class="detail-line">${j.line} &nbsp;|&nbsp; <span class="status-pill ${j.status==='Resolved'?'pill-completed':j.status==='Investigating'?'pill-investigating':'pill-open'}">${j.status}</span></div>
     <div class="detail-fault">Fault: ${j.fault}</div>
-    <div class="detail-time">Reported by ${j.reported_by} at ${j.reported_time ? new Date(j.reported_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '—'}</div>`;
+    <div class="detail-time">Reported by ${j.reported_by} at ${j.reported_time ? new Date(j.reported_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}) : '—'}</div>
+    ${j.mechanic && j.status === 'Investigating' ? `<div class="detail-time" style="color:#2E5597;font-weight:600;opacity:1;">🔧 Being investigated by ${j.mechanic}</div>` : ''}
+    ${j.mechanic && j.status === 'Resolved'      ? `<div class="detail-time" style="color:#3B6D11;font-weight:600;opacity:1;">✓ Resolved by ${j.mechanic}</div>` : ''}`;
 
   // Time pills
   let timesHTML = `<div class="time-pill"><div class="time-pill-label">Reported</div><div class="time-pill-value">${j.reported_time ? new Date(j.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—'}</div></div>`;
   if (j.investigate_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Investigated</div><div class="time-pill-value">${new Date(j.investigate_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
   if (j.resolved_time) timesHTML += `<div class="time-pill"><div class="time-pill-label">Resolved</div><div class="time-pill-value">${new Date(j.resolved_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
-  if (j.total_downtime_minutes) timesHTML += `<div class="time-pill" style="background:#FCE4D6;"><div class="time-pill-label">Total downtime</div><div class="time-pill-value" style="color:#843C0C;">${formatMins(j.total_downtime_minutes)}</div></div>`;
+  if (j.total_downtime_minutes) timesHTML += `<div class="time-pill" style="background:#FCE4D6;"><div class="time-pill-label">Production lost</div><div class="time-pill-value" style="color:#843C0C;">${formatMins(j.total_downtime_minutes)}</div></div>`;
+
+  // For open/investigating incidents — show live wall clock AND shift-adjusted time
+  if (j.status !== 'Resolved' && j.reported_time) {
+    const wallMs       = Date.now() - new Date(j.reported_time).getTime();
+    const shiftMins    = shiftAwareElapsed(j.reported_time);
+    timesHTML += `
+      <div class="time-pill" style="background:#FFF2CC;border:1px solid #C9A84C;">
+        <div class="time-pill-label" style="color:#8B6914;">⏱ Open for</div>
+        <div class="time-pill-value" style="color:#8B6914;" id="wallClockPill">${formatWallClock(wallMs)}</div>
+      </div>
+      <div class="time-pill" style="background:#FCE4D6;border:1px solid #C00000;">
+        <div class="time-pill-label" style="color:#843C0C;">📉 Production lost</div>
+        <div class="time-pill-value" style="color:#843C0C;" id="shiftTimePill">${formatMins(shiftMins)}</div>
+      </div>`;
+    // Start live timer
+    startLiveTimer(j.reported_time);
+  }
+
   document.getElementById('detailTimes').innerHTML = timesHTML;
 
   // Show correct action section
   document.getElementById('investigateSection').style.display = 'none';
   document.getElementById('resolveSection').style.display = 'none';
   document.getElementById('completedSection').style.display = 'none';
+  document.getElementById('partsDecisionSection').style.display = 'none';
 
   if (j.status === 'Open') {
     document.getElementById('investigateSection').style.display = 'block';
@@ -814,22 +987,26 @@ function openJobDetail(id) {
 }
 
 function backToList() {
+  stopLiveTimer();
   document.getElementById('mechListView').style.display = 'block';
   document.getElementById('mechDetailView').style.display = 'none';
   fetchJobs();
 }
 
 async function markInvestigate() {
+  const mechSel = document.getElementById('investigateMechName');
+  const mechName = mechSel ? mechSel.value : '';
+  if (!mechName) { showToast('Please select your name before taking this job.', 'error'); return; }
   const btn = document.getElementById('investigateBtn');
   btn.disabled = true; btn.textContent = 'Updating...';
   const now = new Date().toISOString();
-  const reported = currentJobData.reported_time ? new Date(currentJobData.reported_time) : new Date();
-  const responseMins = Math.round((new Date(now) - reported) / 60000);
+  // Shift-aware response time — only counts production minutes from reported to now
+  const responseMins = shiftAwareMinutes(currentJobData.reported_time, now);
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status: 'Investigating', investigate_time: now, response_minutes: responseMins })
+      body: JSON.stringify({ status: 'Investigating', investigate_time: now, response_minutes: responseMins, mechanic: mechName })
     });
     if (res.ok) {
       showToast('Job card taken — go fix it!', 'success');
@@ -857,8 +1034,17 @@ async function markResolved() {
   const now = new Date().toISOString();
   const reported    = currentJobData.reported_time    ? new Date(currentJobData.reported_time)    : new Date();
   const investigate = currentJobData.investigate_time ? new Date(currentJobData.investigate_time) : new Date();
-  const totalMins   = Math.round((new Date(now) - reported)    / 60000);
-  const repairMins  = Math.round((new Date(now) - investigate) / 60000);
+
+  // Shift-aware total downtime — only counts production minutes lost
+  const totalMins  = shiftAwareMinutes(currentJobData.reported_time, now);
+  // Repair time — shift-aware from investigation to resolution
+  const repairMins = currentJobData.investigate_time
+    ? shiftAwareMinutes(currentJobData.investigate_time, now)
+    : totalMins;
+  // Response time — shift-aware from reported to investigation
+  const responseMins = currentJobData.investigate_time
+    ? shiftAwareMinutes(currentJobData.reported_time, currentJobData.investigate_time)
+    : 0;
 
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log?id=eq.' + currentJobId, {
@@ -1164,10 +1350,12 @@ function loadMechName() {
   try {
     const saved = localStorage.getItem('pmt_mechanic');
     if (!saved) return;
-    const mechSel  = document.getElementById('mechName');
-    const partsSel = document.getElementById('partsRequestMechanic');
-    if (mechSel)  mechSel.value  = saved;
-    if (partsSel) partsSel.value = saved;
+    const mechSel    = document.getElementById('mechName');
+    const partsSel   = document.getElementById('partsRequestMechanic');
+    const investSel  = document.getElementById('investigateMechName');
+    if (mechSel)   mechSel.value   = saved;
+    if (partsSel)  partsSel.value  = saved;
+    if (investSel) investSel.value = saved;
   } catch(e) {}
 }
 
