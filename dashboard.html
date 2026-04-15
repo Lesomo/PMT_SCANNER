@@ -627,6 +627,14 @@ tbody td {
         <button id="sectionPurple" onclick="setSectionFilter('purple')" class="section-btn"          style="--sc:#6B3FA0;">Purple (L14–18)</button>
         <button id="sectionBlue"   onclick="setSectionFilter('blue')"   class="section-btn"          style="--sc:#1B4F8A;">Blue (L19–24)</button>
       </div>
+      <!-- Efficiency target -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
+        <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap;">Eff. target:</span>
+        <input type="number" id="effTargetInput" value="90" min="50" max="100" step="1"
+          style="width:64px;padding:5px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;"
+          onchange="setEfficiencyTarget(this.value)">
+        <span style="font-size:12px;color:#888;">%</span>
+      </div>
     </div>
 
     <!-- Downtime KPIs -->
@@ -1646,6 +1654,7 @@ let dtLineChart = null;
 let dtTrendChart = null;
 let dtEfficiencyChart = null;
 let activeDtSection = 'all';
+let EFFICIENCY_TARGET = 90; // default 90% — editable
 
 const SECTIONS = {
   all:    null,
@@ -1669,6 +1678,27 @@ function setSectionFilter(section) {
     if (btn) btn.classList.toggle('active', s === section);
   });
   applyDtFilter();
+}
+
+function setEfficiencyTarget(val) {
+  const t = parseInt(val);
+  if (!isNaN(t) && t >= 50 && t <= 100) {
+    EFFICIENCY_TARGET = t;
+    try { localStorage.setItem('pmt_eff_target', t); } catch(e) {}
+    renderDtKPIs();
+    renderDtEfficiencyChart();
+  }
+}
+
+function loadEfficiencyTarget() {
+  try {
+    const saved = localStorage.getItem('pmt_eff_target');
+    if (saved) {
+      EFFICIENCY_TARGET = parseInt(saved) || 90;
+      const input = document.getElementById('effTargetInput');
+      if (input) input.value = EFFICIENCY_TARGET;
+    }
+  } catch(e) {}
 }
 
 async function loadDowntimeData() {
@@ -1759,6 +1789,59 @@ function getShiftMinutes(dateStr) {
   return 540;                   // Mon-Thu: 07:45-16:45 = 540 min
 }
 
+function getShiftForDate(date) {
+  const day = date.getDay();
+  if (day === 0 || day === 6) return null;
+  const start = new Date(date); start.setHours(7, 45, 0, 0);
+  const end   = new Date(date);
+  if (day === 5) end.setHours(15, 30, 0, 0);
+  else           end.setHours(16, 45, 0, 0);
+  return { start, end };
+}
+
+function nextShiftStart(fromDate) {
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 7; i++) {
+    const shift = getShiftForDate(d);
+    if (shift) return shift.start;
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function shiftAwareMinutes(startISO, endISO) {
+  if (!startISO || !endISO) return 0;
+  let current = new Date(startISO);
+  const end   = new Date(endISO);
+  if (current >= end) return 0;
+  let totalMins = 0;
+  let safety = 0;
+  while (current < end && safety < 50) {
+    safety++;
+    const shift = getShiftForDate(current);
+    if (!shift) {
+      const next = nextShiftStart(current);
+      if (!next) break;
+      current = next; continue;
+    }
+    if (current < shift.start) current = new Date(shift.start);
+    if (current >= shift.end) {
+      const next = nextShiftStart(current);
+      if (!next) break;
+      current = next; continue;
+    }
+    const segEnd = end < shift.end ? end : shift.end;
+    totalMins += Math.round((segEnd - current) / 60000);
+    current = new Date(segEnd);
+    if (current < shift.end) break;
+    const next = nextShiftStart(current);
+    if (!next) break;
+    current = next;
+  }
+  return totalMins;
+}
+
 function getTodayStr() {
   return new Date().toISOString().split('T')[0];
 }
@@ -1780,29 +1863,56 @@ function renderDtKPIs() {
   // MTBF & efficiency — today's incidents scoped to active section
   const today = getTodayStr();
   const todayResolved = sectionAll.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
+  const todayOpen     = sectionAll.filter(r => (r.status === 'Open' || r.status === 'Investigating') && (r.reported_time||'').startsWith(today));
   const shiftMins = getShiftMinutes(today);
   const noShift = shiftMins === null;
 
-  const totalDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
+  // Improvement 1 — include open incidents using shift-aware elapsed time
+  const resolvedDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
+  const openDowntimeToday     = todayOpen.reduce((s,r) => {
+    // Estimate open incident downtime using shift-aware elapsed from reported_time
+    if (!r.reported_time) return s;
+    const reported = new Date(r.reported_time).toISOString();
+    const nowISO   = new Date().toISOString();
+    return s + shiftAwareMinutes(reported, nowISO);
+  }, 0);
+  const totalDowntimeToday = resolvedDowntimeToday + openDowntimeToday;
   const operatingMins = shiftMins != null ? Math.max(0, shiftMins - totalDowntimeToday) : 0;
   const failures = todayResolved.length;
   const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
   const efficiency = noShift ? null : shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
 
-  // Period avg efficiency — scoped to filtered + section data, full shift mins
+  // Improvement 2 — count zero-incident working days as 100% in avg efficiency
+  // Get date range from filtered data or use last 30 days
+  const allDates = filteredDowntime.map(r => (r.reported_time||'').split('T')[0]).filter(Boolean);
+  const minDate  = allDates.length ? allDates.reduce((a,b) => a<b?a:b) : today;
+  const maxDate  = today;
+
+  // Walk all working days in range, default to 100% if no incidents
   const dayMap = {};
   filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
     const d = r.reported_time.split('T')[0];
     if (!dayMap[d]) dayMap[d] = 0;
     dayMap[d] += r.total_downtime_minutes || 0;
   });
-  const dayEfficiencies = Object.entries(dayMap)
-    .map(([d, dtMins]) => {
-      const sm = getShiftMinutes(d);
-      if (!sm) return null;
-      return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
-    })
-    .filter(v => v !== null);
+
+  // Build list of all working days in the range
+  const workingDays = [];
+  const cursor = new Date(minDate);
+  const endDay = new Date(maxDate);
+  while (cursor <= endDay) {
+    const dateStr = cursor.toISOString().split('T')[0];
+    if (getShiftMinutes(dateStr) !== null) workingDays.push(dateStr);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const dayEfficiencies = workingDays.map(d => {
+    const sm     = getShiftMinutes(d);
+    if (!sm) return null;
+    const dtMins = dayMap[d] || 0; // 0 = no incidents = 100% efficient
+    return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
+  }).filter(v => v !== null);
+
   const avgEfficiency = dayEfficiencies.length > 0
     ? Math.round(dayEfficiencies.reduce((a,b) => a+b, 0) / dayEfficiencies.length)
     : null;
@@ -1812,8 +1922,10 @@ function renderDtKPIs() {
   document.getElementById('dtKpiOpen').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = sectionLabel;
   document.getElementById('dtKpiTotal').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent    = sectionLabel;
   document.getElementById('dtKpiMtbf').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = 'today — ' + sectionLabel;
-  document.getElementById('dtKpiEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent = 'today — ' + sectionLabel;
-  document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent = sectionLabel;
+  document.getElementById('dtKpiEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent =
+    'today incl. open — ' + sectionLabel + ' | target: ' + EFFICIENCY_TARGET + '%';
+  document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent =
+    workingDays.length + ' working days — ' + sectionLabel;
 
   document.getElementById('dtKpiOpen').textContent           = open.length;
   document.getElementById('dtKpiTotal').textContent          = filteredDowntime.length;
@@ -1823,13 +1935,13 @@ function renderDtKPIs() {
   document.getElementById('dtKpiEfficiency').textContent     = noShift ? 'No shift' : efficiency + '%';
   document.getElementById('dtKpiAvgEfficiency').textContent  = avgEfficiency != null ? avgEfficiency + '%' : '—';
 
-  // Colour today's efficiency KPI
+  // Colour today's efficiency KPI — vs target
   const effEl = document.getElementById('dtKpiEfficiency').closest('.dt-kpi');
-  effEl.style.borderLeftColor = noShift ? '#888' : efficiency >= 90 ? '#70AD47' : efficiency >= 75 ? '#ED7D31' : '#C00000';
+  effEl.style.borderLeftColor = noShift ? '#888' : efficiency >= EFFICIENCY_TARGET ? '#70AD47' : efficiency >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000';
 
-  // Colour period avg efficiency KPI
+  // Colour period avg efficiency KPI — vs target
   const avgEl = document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi');
-  avgEl.style.borderLeftColor = avgEfficiency == null ? '#888' : avgEfficiency >= 90 ? '#70AD47' : avgEfficiency >= 75 ? '#ED7D31' : '#C00000';
+  avgEl.style.borderLeftColor = avgEfficiency == null ? '#888' : avgEfficiency >= EFFICIENCY_TARGET ? '#70AD47' : avgEfficiency >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000';
 
   renderRepeatAlerts();
 }
@@ -2101,7 +2213,7 @@ function faultCellClass(count, max) {
 }
 
 function renderDtEfficiencyChart() {
-  // Build daily efficiency from filteredDowntime
+  // Build daily downtime map from resolved incidents
   const dayMap = {};
   filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
     const d = r.reported_time.split('T')[0];
@@ -2109,18 +2221,32 @@ function renderDtEfficiencyChart() {
     dayMap[d] += r.total_downtime_minutes || 0;
   });
 
-  // Get all weekdays in the filtered range
-  const days = Object.keys(dayMap).sort().filter(d => getShiftMinutes(d) !== null);
+  // Get date range — walk all working days, include zero-incident days as 100%
+  const allDates = filteredDowntime.map(r => (r.reported_time||'').split('T')[0]).filter(Boolean);
+  if (allDates.length === 0) {
+    if (dtEfficiencyChart) { dtEfficiencyChart.destroy(); dtEfficiencyChart = null; }
+    return;
+  }
+  const minDate = allDates.reduce((a,b) => a<b?a:b);
+  const maxDate = getTodayStr();
+
+  const days = [];
+  const cursor = new Date(minDate);
+  const endDay = new Date(maxDate);
+  while (cursor <= endDay) {
+    const dateStr = cursor.toISOString().split('T')[0];
+    if (getShiftMinutes(dateStr) !== null) days.push(dateStr);
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
   if (days.length === 0) {
-    // No data — destroy chart and show placeholder
     if (dtEfficiencyChart) { dtEfficiencyChart.destroy(); dtEfficiencyChart = null; }
     return;
   }
 
   const efficiencies = days.map(d => {
-    const sm = getShiftMinutes(d);
-    const dtMins = dayMap[d] || 0;
+    const sm     = getShiftMinutes(d);
+    const dtMins = dayMap[d] || 0; // zero = 100% efficient day
     return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
   });
 
@@ -2135,28 +2261,45 @@ function renderDtEfficiencyChart() {
     type: 'line',
     data: {
       labels,
-      datasets: [{
-        label: 'Efficiency %',
-        data: efficiencies,
-        borderColor: '#70AD47',
-        backgroundColor: 'rgba(112,173,71,0.1)',
-        borderWidth: 2,
-        pointRadius: 5,
-        pointBackgroundColor: efficiencies.map(e =>
-          e >= 90 ? '#70AD47' : e >= 75 ? '#ED7D31' : '#C00000'
-        ),
-        fill: true,
-        tension: 0.3
-      }]
+      datasets: [
+        {
+          label: 'Efficiency %',
+          data: efficiencies,
+          borderColor: '#70AD47',
+          backgroundColor: 'rgba(112,173,71,0.1)',
+          borderWidth: 2,
+          pointRadius: 5,
+          pointBackgroundColor: efficiencies.map(e =>
+            e >= EFFICIENCY_TARGET ? '#70AD47' : e >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000'
+          ),
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Target ' + EFFICIENCY_TARGET + '%',
+          data: days.map(() => EFFICIENCY_TARGET),
+          borderColor: '#2E5597',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          labels: { font: { size: 11 }, color: '#888', boxWidth: 24, padding: 12 }
+        },
         tooltip: {
           callbacks: {
-            label: item => ' ' + item.raw + '% efficiency'
+            label: item => item.datasetIndex === 0
+              ? ' ' + item.raw + '% efficiency'
+              : ' Target: ' + EFFICIENCY_TARGET + '%'
           }
         }
       },
@@ -2979,6 +3122,7 @@ function switchDashTab(tab) {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadData();
+loadEfficiencyTarget();
 startAutoRefresh();
 fetchStorageUsage();
 </script>
