@@ -3051,7 +3051,7 @@ async function confirmInvImport(rows) {
 }
 
 function switchInvTab(tab) {
-  const tabs = ['today','byline','stock','reorder','returns'];
+  const tabs = ['today','byline','stock','reorder','returns','import'];
   document.querySelectorAll('#invInnerTabs .view-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   tabs.forEach(t => {
     const el = document.getElementById('invTab-' + t);
