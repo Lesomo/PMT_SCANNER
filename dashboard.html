@@ -883,11 +883,21 @@ tbody td {
       <div id="pendingRequestsList" style="margin-top:12px;"><div class="loading-state"><div class="spinner"></div><p>Loading...</p></div></div>
     </div>
 
-    <!-- Low stock warnings -->
+    <!-- Low stock warnings — compact collapsible (Option C) -->
     <div class="chart-card" style="margin-bottom:16px;" id="lowStockCard">
-      <div class="chart-title" style="color:#C00000;">Low stock warnings</div>
-      <div class="chart-sub">Parts at or below minimum quantity</div>
-      <div id="lowStockList" style="margin-top:12px;"></div>
+      <!-- Summary bar — always visible, click to expand/collapse -->
+      <div id="lowStockSummaryBar"
+        onclick="toggleLowStock()"
+        style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:2px 0;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:700;color:#C00000;">⚠ Low stock warnings</span>
+          <span id="lowStockOosBadge"  style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#FCE4D6;color:#C00000;"></span>
+          <span id="lowStockLowBadge"  style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#FFF2CC;color:#8B6914;"></span>
+        </div>
+        <span id="lowStockExpandLabel" style="font-size:11px;color:#888;font-weight:600;white-space:nowrap;">Expand ▼</span>
+      </div>
+      <!-- Detail list — hidden until expanded -->
+      <div id="lowStockList" style="display:none;margin-top:12px;border-top:1px solid #f0f2f5;padding-top:10px;"></div>
     </div>
 
     <!-- Inner tabs -->
@@ -2862,14 +2872,55 @@ function setAvailability(state, btn) {
   }
 }
 
+function toggleLowStock() {
+  const list        = document.getElementById('lowStockList');
+  const label       = document.getElementById('lowStockExpandLabel');
+  const isExpanded  = list.style.display !== 'none';
+  list.style.display  = isExpanded ? 'none' : 'block';
+  label.textContent   = isExpanded ? 'Expand ▼' : 'Collapse ▲';
+  try { localStorage.setItem('pmt_lowstock_expanded', !isExpanded); } catch(e) {}
+}
+
 function renderLowStock(lowStock) {
   const card = document.getElementById('lowStockCard');
   const el   = document.getElementById('lowStockList');
   if (lowStock.length === 0) { card.style.display = 'none'; return; }
   card.style.display = 'block';
-  el.innerHTML = lowStock.map(p => {
-    const cls  = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
-    const text = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
+
+  // Counts for summary bar
+  const oosCount  = lowStock.filter(p => p.stock_qty === 0).length;
+  const lowCount  = lowStock.length - oosCount;
+
+  // Update summary badges
+  const oosBadge = document.getElementById('lowStockOosBadge');
+  const lowBadge = document.getElementById('lowStockLowBadge');
+  if (oosCount > 0) {
+    oosBadge.textContent = oosCount + ' out of stock';
+    oosBadge.style.display = 'inline-block';
+  } else {
+    oosBadge.style.display = 'none';
+  }
+  if (lowCount > 0) {
+    lowBadge.textContent = lowCount + ' low stock';
+    lowBadge.style.display = 'inline-block';
+  } else {
+    lowBadge.style.display = 'none';
+  }
+
+  // Restore expanded state from localStorage
+  try {
+    const wasExpanded = localStorage.getItem('pmt_lowstock_expanded') === 'true';
+    el.style.display = wasExpanded ? 'block' : 'none';
+    document.getElementById('lowStockExpandLabel').textContent = wasExpanded ? 'Collapse ▲' : 'Expand ▼';
+  } catch(e) {}
+
+  // Sort — out of stock first, then by stock_qty ascending
+  const sorted = [...lowStock].sort((a,b) => a.stock_qty - b.stock_qty);
+
+  el.innerHTML = sorted.map(p => {
+    const isOos = p.stock_qty === 0;
+    const text  = isOos ? 'OUT OF STOCK' : p.stock_qty + ' left';
+    const cls   = isOos ? 'stock-zero' : 'stock-low';
     return `<div class="low-stock-row">
       <div>
         <div class="low-stock-name">${p.description}</div>
