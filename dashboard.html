@@ -3086,11 +3086,18 @@ async function confirmInvImport(rows) {
   btn.disabled = true; btn.textContent = 'Importing...';
   let success = 0, failed = 0;
 
-  // Batch into groups of 50 — much faster than one request per row
+  // Deduplicate by part_no — last row wins, prevents ON CONFLICT double-update error
+  const deduped = Object.values(
+    rows.reduce((acc, r) => { acc[r.part_no] = r; return acc; }, {})
+  );
+  const dupeCount = rows.length - deduped.length;
+  if (dupeCount > 0) console.warn('Removed ' + dupeCount + ' duplicate part_no(s) from import');
+
+  // Batch into groups of 50
   const BATCH = 50;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH).map(r => ({ ...r, updated_at: new Date().toISOString() }));
-    btn.textContent = 'Importing ' + Math.min(i + BATCH, rows.length) + ' / ' + rows.length + '...';
+  for (let i = 0; i < deduped.length; i += BATCH) {
+    const batch = deduped.slice(i, i + BATCH).map(r => ({ ...r, updated_at: new Date().toISOString() }));
+    btn.textContent = 'Importing ' + Math.min(i + BATCH, deduped.length) + ' / ' + deduped.length + '...';
     try {
       const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?on_conflict=part_no', {
         method: 'POST',
@@ -3105,20 +3112,25 @@ async function confirmInvImport(rows) {
       if (res.ok || res.status === 201) {
         success += batch.length;
       } else {
+        const errText = await res.text();
         failed += batch.length;
-        console.warn('Batch failed:', res.status, await res.text());
+        console.warn('Batch failed:', res.status, errText);
       }
     } catch(e) {
       failed += batch.length;
     }
   }
 
+  const dupeNote = dupeCount > 0
+    ? '<div style="font-size:11px;color:#8B6914;margin-top:6px;">' + dupeCount + ' duplicate part number(s) in CSV were merged</div>'
+    : '';
   document.getElementById('invImportPreview').innerHTML =
-    `<div style="text-align:center;padding:24px;background:${failed===0?'#E2EFDA':'#FFF2CC'};border-radius:10px;">
-      <div style="font-size:32px;margin-bottom:8px;">${failed===0?'✓':'⚠'}</div>
-      <div style="font-size:16px;font-weight:700;color:${failed===0?'#2D7D46':'#8B6914'};">Import ${failed===0?'complete':'partially complete'}</div>
-      <div style="font-size:13px;color:#555;margin-top:4px;">${success} parts imported${failed>0?' · '+failed+' failed':''}</div>
-    </div>`;
+    '<div style="text-align:center;padding:24px;background:' + (failed===0?'#E2EFDA':'#FFF2CC') + ';border-radius:10px;">' +
+      '<div style="font-size:32px;margin-bottom:8px;">' + (failed===0?'✓':'⚠') + '</div>' +
+      '<div style="font-size:16px;font-weight:700;color:' + (failed===0?'#2D7D46':'#8B6914') + ';">Import ' + (failed===0?'complete':'partially complete') + '</div>' +
+      '<div style="font-size:13px;color:#555;margin-top:4px;">' + success + ' parts imported' + (failed>0?' · '+failed+' failed':'') + '</div>' +
+      dupeNote +
+    '</div>';
   showToast(success + ' parts imported!', 'success');
   await loadInventoryData();
   document.getElementById('invCsvFile').value = '';
