@@ -212,7 +212,7 @@ textarea { min-height: 90px; resize: vertical; }
       </button>
       <div id="readerSup"></div>
       <div class="or-divider">— or enter manually —</div>
-      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(this.value.replace(/\s+/g, ''))">
+      <input class="manual-input" id="supAssetInput" type="text" placeholder="Enter asset number..." oninput="supSetAsset(cleanBarcode(this.value))">
       <div class="asset-confirmed" id="supAssetConfirmed">
         <div style="flex:1">
           <div class="num" id="supAssetVal"></div>
@@ -522,6 +522,12 @@ function toggleScannerSup() {
   else startScannerSup();
 }
 
+function cleanBarcode(val) {
+  // Normalise input — strip all whitespace, convert to uppercase
+  // Ensures 'prs1570', 'PRS 1570', 'Prs1570' all resolve to 'PRS1570'
+  return val.replace(/\s+/g, '').toUpperCase();
+}
+
 function isValidBarcode(val) {
   if (/^\d+$/.test(val)) return val.length >= 5;
   return val.length >= 6 && val.length <= 7;
@@ -541,7 +547,7 @@ function startScannerSup() {
   supScanner = new Html5Qrcode('readerSup');
   supScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
     (decoded) => {
-      const clean = decoded.replace(/\s+/g, '');
+      const clean = cleanBarcode(decoded);
       const now = Date.now();
 
       if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
@@ -592,7 +598,10 @@ async function supSetAsset(val) {
 
   document.getElementById('supAssetVal').textContent = val;
   document.getElementById('supMachineType').textContent = 'Looking up...';
+  document.getElementById('supMachineType').style.color = '#888';
   conf.style.display = 'flex';
+  // Disable submit until lookup completes — prevents race condition
+  document.getElementById('supSubmitBtn').disabled = true;
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(val) + '&select=asset_type', {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
@@ -601,16 +610,18 @@ async function supSetAsset(val) {
     if (data.length > 0 && data[0].asset_type) {
       currentMachineType = data[0].asset_type;
       document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+      document.getElementById('supMachineType').style.color = '#3B6D11';
     } else {
-      currentMachineType = '';
-      document.getElementById('supMachineType').textContent = 'Not found in master data — check asset number';
-      document.getElementById('supMachineType').style.color = '#C00000';
+      currentMachineType = 'Unknown';
+      document.getElementById('supMachineType').textContent = 'Not found in master data — will save as Unknown';
+      document.getElementById('supMachineType').style.color = '#888';
     }
   } catch(e) {
-    currentMachineType = '';
-    document.getElementById('supMachineType').textContent = 'Lookup failed — check connection';
+    currentMachineType = 'Unknown';
+    document.getElementById('supMachineType').textContent = 'Lookup failed — will save as Unknown';
     document.getElementById('supMachineType').style.color = '#C00000';
   }
+  // Lookup complete — now evaluate if form is ready to submit
   checkSupReady();
 }
 
