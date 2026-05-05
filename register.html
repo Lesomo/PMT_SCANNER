@@ -172,7 +172,7 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #1F3864; }
       </button>
       <div id="readerReg"></div>
       <div class="or-div">— or enter manually —</div>
-      <input type="text" id="manualAssetReg" placeholder="Enter asset number..." oninput="handleAssetInput(this.value.replace(/\s+/g,''))">
+      <input type="text" id="manualAssetReg" placeholder="Enter asset number..." oninput="handleAssetInput(cleanBarcode(this.value))">
       <div class="asset-found" id="assetFoundBox">
         <div class="asset-found-no" id="assetFoundNo"></div>
         <div class="asset-found-sub" id="assetFoundSub"></div>
@@ -327,6 +327,12 @@ function toggleScanner() {
   scannerActive ? stopScanner() : startScanner();
 }
 
+function cleanBarcode(val) {
+  // Normalise input — strip all whitespace, convert to uppercase
+  // Ensures 'prs1570', 'PRS 1570', 'Prs1570' all resolve to 'PRS1570'
+  return val.replace(/\s+/g, '').toUpperCase();
+}
+
 function isValidBarcode(val) {
   if (/^\d+$/.test(val)) return val.length >= 5;
   return val.length >= 6 && val.length <= 7;
@@ -346,7 +352,7 @@ function startScanner() {
   scanner = new Html5Qrcode('readerReg');
   scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 100 } },
     (decoded) => {
-      const clean = decoded.replace(/\s+/g, '');
+      const clean = cleanBarcode(decoded);
       const now = Date.now();
 
       if (clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS) {
@@ -380,16 +386,16 @@ function stopScanner() {
 // ── ASSET LOOKUP ──────────────────────────────────────────────────────
 let lookupTimer = null;
 function handleAssetInput(val) {
-  currentAsset = val;
   masterRecord = null;
   const box = document.getElementById('assetFoundBox');
   const btn = document.getElementById('addBtn');
   box.style.display = 'none';
   btn.disabled = true;
   clearTimeout(lookupTimer);
-  if (!val) return;
+  if (!val) { currentAsset = ''; return; }
   // Validate format before looking up
-  if (!isValidBarcode(val)) return;
+  if (!isValidBarcode(val)) { currentAsset = ''; return; }
+  currentAsset = val;
   lookupTimer = setTimeout(() => lookupAsset(val), 400);
 }
 
