@@ -273,7 +273,7 @@
       id="manualAsset"
       type="text"
       placeholder="Enter asset number..."
-      oninput="setAsset(this.value.replace(/\s+/g, ''))"
+      oninput="setAsset(cleanBarcode(this.value))"
     >
 
     <div class="asset-confirmed" id="assetConfirmed">
@@ -516,6 +516,12 @@ function toggleScanner() {
   }
 }
 
+function cleanBarcode(val) {
+  // Normalise input — strip all whitespace, convert to uppercase
+  // Ensures 'prs1570', 'PRS 1570', 'Prs1570' all resolve to 'PRS1570'
+  return val.replace(/\s+/g, '').toUpperCase();
+}
+
 function isValidBarcode(val) {
   // Pure numeric — minimum 5 digits
   if (/^\d+$/.test(val)) return val.length >= 5;
@@ -539,7 +545,7 @@ function startScanner() {
     { facingMode: 'environment' },
     { fps: 10, qrbox: { width: 260, height: 100 } },
     (decoded) => {
-      const clean = decoded.replace(/\s+/g, '');
+      const clean = cleanBarcode(decoded);
       const now = Date.now();
 
       // Debounce — must see same value twice within DEBOUNCE_MS
