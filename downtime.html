@@ -490,6 +490,24 @@ textarea { min-height: 90px; resize: vertical; }
 
 <div class="toast" id="toast"></div>
 
+<!-- DUPLICATE TICKET BLOCK OVERLAY -->
+<div id="dupOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;align-items:flex-end;justify-content:center;">
+  <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:#FCE4D6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🔒</div>
+      <div style="font-size:17px;font-weight:700;color:#C00000;">Asset already logged as down</div>
+    </div>
+    <div style="font-size:13px;color:#666;margin-bottom:16px;">This asset cannot be logged for downtime again until the existing incident is resolved.</div>
+    <div id="dupTicketDetails" style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:16px;border-left:4px solid #ED7D31;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="viewExistingTicket()" style="padding:13px;background:#1F3864;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">View ticket</button>
+      <button onclick="closeDupOverlay()" style="padding:13px;background:#f0f2f5;color:#555;border:1.5px solid #ddd;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- DUPLICATE INCIDENT BLOCK OVERLAY -->
+
 <script>
 const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcmx2eWJsbWNxY3RpZmNpa2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NzYwNzEsImV4cCI6MjA4OTM1MjA3MX0.pZKNtb_CzDEPYk90sx0JRhsv1MOV75S3gv2oYFqVOWw';
@@ -602,25 +620,47 @@ async function supSetAsset(val) {
   conf.style.display = 'flex';
   // Disable submit until lookup completes — prevents race condition
   document.getElementById('supSubmitBtn').disabled = true;
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(val) + '&select=asset_type', {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-    });
-    const data = await res.json();
-    if (data.length > 0 && data[0].asset_type) {
-      currentMachineType = data[0].asset_type;
-      document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
-      document.getElementById('supMachineType').style.color = '#3B6D11';
-    } else {
-      currentMachineType = 'Unknown';
-      document.getElementById('supMachineType').textContent = 'Not found in master data — will save as Unknown';
-      document.getElementById('supMachineType').style.color = '#888';
+
+  // Retry up to 3 times — handles cold start slow connections
+  const MAX_ATTEMPTS = 3;
+  let found = false;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      document.getElementById('supMachineType').textContent = 'Looking up... (attempt ' + attempt + ')';
+      await new Promise(r => setTimeout(r, 1000 * attempt)); // wait 1s, 2s between retries
     }
-  } catch(e) {
-    currentMachineType = 'Unknown';
-    document.getElementById('supMachineType').textContent = 'Lookup failed — will save as Unknown';
-    document.getElementById('supMachineType').style.color = '#C00000';
+    try {
+      const res = await fetch(SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(val) + '&select=asset_type', {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      });
+      if (!res.ok) continue; // retry on HTTP error
+      const data = await res.json();
+      if (data.length > 0 && data[0].asset_type) {
+        currentMachineType = data[0].asset_type;
+        document.getElementById('supMachineType').textContent = 'Type: ' + currentMachineType;
+        document.getElementById('supMachineType').style.color = '#3B6D11';
+        found = true;
+        break; // success — stop retrying
+      } else {
+        // Row not found — no point retrying, asset genuinely not in master data
+        currentMachineType = 'Unknown';
+        document.getElementById('supMachineType').textContent = 'Not found in master data — will save as Unknown';
+        document.getElementById('supMachineType').style.color = '#888';
+        found = true;
+        break;
+      }
+    } catch(e) {
+      if (attempt === MAX_ATTEMPTS) {
+        // All attempts failed
+        currentMachineType = 'Unknown';
+        document.getElementById('supMachineType').textContent = 'Connection issue — will save as Unknown. Check network.';
+        document.getElementById('supMachineType').style.color = '#C00000';
+      }
+      // Otherwise loop and retry
+    }
   }
+
   // Lookup complete — now evaluate if form is ready to submit
   checkSupReady();
 }
@@ -632,9 +672,88 @@ function checkSupReady() {
   document.getElementById('supSubmitBtn').disabled = !ready;
 }
 
+// ── DUPLICATE TICKET CHECK ────────────────────────────────────────────────────
+let dupExistingJob = null;
+
+async function checkExistingTicket(assetNo) {
+  if (!assetNo) return null;
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/downtime_log?asset_no=eq.' + encodeURIComponent(assetNo) +
+      '&status=in.(Open,Investigating)&select=id,asset_no,line,fault,status,mechanic,reported_time&order=reported_time.desc&limit=1',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    const data = await res.json();
+    return data.length > 0 ? data[0] : null;
+  } catch(e) { return null; } // fail open — don't block submission on network error
+}
+
+function showDupOverlay(job) {
+  dupExistingJob = job;
+  const time = job.reported_time
+    ? new Date(job.reported_time).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const date = job.reported_time
+    ? new Date(job.reported_time).toLocaleDateString('en-ZA', { day: '2-digit', month: '2-digit' })
+    : '—';
+  const mechInfo = job.mechanic
+    ? (job.status === 'Investigating' ? ' — being attended by ' + job.mechanic : '')
+    : '';
+  document.getElementById('dupTicketDetails').innerHTML = `
+    <div style="font-size:15px;font-weight:700;color:#1F3864;margin-bottom:6px;">${job.asset_no}</div>
+    <div style="font-size:13px;color:#555;margin-bottom:4px;">
+      <strong>${job.line || '—'}</strong> &nbsp;|&nbsp;
+      <span style="color:${job.status==='Investigating'?'#ED7D31':'#C00000'};font-weight:700;">${job.status}</span>${mechInfo}
+    </div>
+    <div style="font-size:13px;color:#555;margin-bottom:4px;">Fault: <strong>${job.fault || '—'}</strong></div>
+    <div style="font-size:11px;color:#888;">Reported: ${date} at ${time}</div>`;
+  document.getElementById('dupOverlay').style.display = 'flex';
+}
+
+function closeDupOverlay() {
+  document.getElementById('dupOverlay').style.display = 'none';
+  dupExistingJob = null;
+}
+
+function viewDupTicket() {
+  document.getElementById('dupOverlay').style.display = 'none';
+  if (dupExistingJob) {
+    // Switch to mechanic screen and open the existing job card directly
+    goScreen('screenMechanic');
+    loadMechanicScreen().then(() => {
+      if (dupExistingJob.id) openJobDetail(dupExistingJob.id);
+    });
+  }
+  dupExistingJob = null;
+}
+
+function viewExistingTicket() {
+  closeDupOverlay();
+  // Switch to mechanic screen and open the existing job card
+  goScreen('screenMechanic');
+  setTimeout(async () => {
+    await loadMechanicScreen();
+    if (dupExistingJob) {
+      // Small delay to let the screen render before opening detail
+      setTimeout(() => openJobDetail(dupExistingJob.id), 400);
+    }
+  }, 200);
+}
+
 async function submitDowntime() {
   const btn = document.getElementById('supSubmitBtn');
   btn.disabled = true;
+  btn.textContent = 'Checking...';
+
+  // Check for existing open or investigating ticket for this asset
+  const existing = await checkExistingTicket(currentAssetNo);
+  if (existing) {
+    btn.disabled = false;
+    btn.textContent = 'Log Machine Down';
+    showDupOverlay(existing);
+    return;
+  }
+
   btn.textContent = 'Logging...';
   const payload = {
     asset_no: currentAssetNo,
