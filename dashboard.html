@@ -877,20 +877,39 @@ tbody td {
     </div>
 
     <!-- Pending requests — clerk queue -->
-    <div class="chart-card" style="margin-bottom:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div class="chart-title">Pending part requests</div>
-        <button onclick="loadInventoryData()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:#555;">Refresh</button>
+    <div class="chart-card" style="margin-bottom:16px;" id="pendingRequestsCard">
+      <!-- Summary bar — always visible -->
+      <div onclick="togglePendingRequests()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:2px 0;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="chart-title" style="margin:0;">Pending part requests</span>
+          <span id="pendingCountBadge" style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#FCE4D6;color:#C00000;"></span>
+          <span id="pendingMechanicsBadge" style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#FFF2CC;color:#8B6914;"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onclick="event.stopPropagation();loadInventoryData()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:#555;">Refresh</button>
+          <span id="pendingExpandLabel" style="font-size:11px;color:#888;font-weight:600;white-space:nowrap;">Expand &#9660;</span>
+        </div>
       </div>
-      <div class="chart-sub">Tap Issue to confirm part has been handed to mechanic</div>
-      <div id="pendingRequestsList" style="margin-top:12px;"><div class="loading-state"><div class="spinner"></div><p>Loading...</p></div></div>
+      <!-- Expandable list -->
+      <div id="pendingRequestsList" style="display:none;margin-top:12px;border-top:1px solid #f0f2f5;padding-top:10px;">
+        <div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>
+      </div>
     </div>
 
     <!-- Low stock warnings -->
     <div class="chart-card" style="margin-bottom:16px;" id="lowStockCard">
-      <div class="chart-title" style="color:#C00000;">Low stock warnings</div>
-      <div class="chart-sub">Parts at or below minimum quantity</div>
-      <div id="lowStockList" style="margin-top:12px;"></div>
+      <!-- Summary bar — always visible -->
+      <div onclick="toggleLowStock()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:2px 0;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:700;color:#C00000;">&#9888; Low stock warnings</span>
+          <span id="lowStockOosBadge"   style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#FCE4D6;color:#C00000;"></span>
+          <span id="lowStockLowBadge"   style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#FFF2CC;color:#8B6914;"></span>
+          <span id="lowStockTotalBadge" style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:#f5f5f5;color:#555;"></span>
+        </div>
+        <span id="lowStockExpandLabel" style="font-size:11px;color:#888;font-weight:600;white-space:nowrap;">Expand &#9660;</span>
+      </div>
+      <!-- Expandable list -->
+      <div id="lowStockList" style="display:none;margin-top:12px;border-top:1px solid #f0f2f5;padding-top:10px;"></div>
     </div>
 
     <!-- Inner tabs -->
@@ -2791,11 +2810,40 @@ function getClerkName() {
 }
 
 function renderPendingRequests(pending) {
-  const el = document.getElementById('pendingRequestsList');
+  const el   = document.getElementById('pendingRequestsList');
+  const card = document.getElementById('pendingRequestsCard');
+
+  // Update summary badges
+  const countBadge     = document.getElementById('pendingCountBadge');
+  const mechBadge      = document.getElementById('pendingMechanicsBadge');
+  const expandLabel    = document.getElementById('pendingExpandLabel');
+
   if (pending.length === 0) {
+    if (countBadge)  { countBadge.style.display = 'none'; }
+    if (mechBadge)   { mechBadge.style.display  = 'none'; }
     el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No pending requests — all clear!</div>';
+    el.style.display = 'none';
+    if (expandLabel) expandLabel.textContent = 'Expand ▼';
     return;
   }
+
+  // Populate badges
+  const mechanics = [...new Set(pending.map(r => r.mechanic).filter(Boolean))];
+  if (countBadge) {
+    countBadge.textContent = pending.length + ' pending';
+    countBadge.style.display = 'inline-block';
+  }
+  if (mechBadge && mechanics.length > 0) {
+    mechBadge.textContent = mechanics.length + ' mechanic' + (mechanics.length > 1 ? 's' : '');
+    mechBadge.style.display = 'inline-block';
+  }
+
+  // Restore expanded state
+  try {
+    const wasExpanded = localStorage.getItem('pmt_pending_expanded') === 'true';
+    el.style.display = wasExpanded ? 'block' : 'none';
+    if (expandLabel) expandLabel.textContent = wasExpanded ? 'Collapse ▲' : 'Expand ▼';
+  } catch(e) { el.style.display = 'none'; }
   el.innerHTML = pending.map(r => {
     const t = r.requested_time ? new Date(r.requested_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
     return `<div class="req-card">
@@ -2952,21 +3000,61 @@ function setAvailability(state, btn) {
   }
 }
 
+function togglePendingRequests() {
+  const list  = document.getElementById('pendingRequestsList');
+  const label = document.getElementById('pendingExpandLabel');
+  const isExpanded = list.style.display !== 'none';
+  list.style.display  = isExpanded ? 'none' : 'block';
+  label.textContent   = isExpanded ? 'Expand ▼' : 'Collapse ▲';
+  try { localStorage.setItem('pmt_pending_expanded', !isExpanded); } catch(e) {}
+}
+
+function toggleLowStock() {
+  const list  = document.getElementById('lowStockList');
+  const label = document.getElementById('lowStockExpandLabel');
+  const isExpanded = list.style.display !== 'none';
+  list.style.display = isExpanded ? 'none' : 'block';
+  label.textContent  = isExpanded ? 'Expand ▼' : 'Collapse ▲';
+  try { localStorage.setItem('pmt_lowstock_expanded', !isExpanded); } catch(e) {}
+}
+
 function renderLowStock(lowStock) {
   const card = document.getElementById('lowStockCard');
   const el   = document.getElementById('lowStockList');
   if (lowStock.length === 0) { card.style.display = 'none'; return; }
   card.style.display = 'block';
-  el.innerHTML = lowStock.map(p => {
+
+  // Update summary badges
+  const oosCount  = lowStock.filter(p => p.stock_qty === 0).length;
+  const lowCount  = lowStock.length - oosCount;
+  const oosBadge  = document.getElementById('lowStockOosBadge');
+  const lowBadge  = document.getElementById('lowStockLowBadge');
+  const totBadge  = document.getElementById('lowStockTotalBadge');
+  const label     = document.getElementById('lowStockExpandLabel');
+
+  if (oosBadge) { oosBadge.textContent = oosCount + ' out of stock'; oosBadge.style.display = oosCount > 0 ? 'inline-block' : 'none'; }
+  if (lowBadge) { lowBadge.textContent = lowCount  + ' low stock';   lowBadge.style.display = lowCount  > 0 ? 'inline-block' : 'none'; }
+  if (totBadge) { totBadge.textContent = lowStock.length + ' total';  totBadge.style.display = 'inline-block'; }
+
+  // Restore expanded state
+  try {
+    const wasExpanded = localStorage.getItem('pmt_lowstock_expanded') === 'true';
+    el.style.display = wasExpanded ? 'block' : 'none';
+    if (label) label.textContent = wasExpanded ? 'Collapse ▲' : 'Expand ▼';
+  } catch(e) { el.style.display = 'none'; }
+
+  // Sort — out of stock first
+  const sorted = [...lowStock].sort((a,b) => a.stock_qty - b.stock_qty);
+  el.innerHTML = sorted.map(p => {
     const cls  = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
     const text = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
-    return `<div class="low-stock-row">
+    return \`<div class="low-stock-row">
       <div>
-        <div class="low-stock-name">${p.description}</div>
-        <div class="low-stock-part">${p.part_no} | ${p.machine_type||'—'} | ${p.supplier||'—'}</div>
+        <div class="low-stock-name">\${p.description}</div>
+        <div class="low-stock-part">\${p.part_no} | \${p.machine_type||'—'} | \${p.supplier||'—'}</div>
       </div>
-      <span class="stock-badge ${cls}">${text}</span>
-    </div>`;
+      <span class="stock-badge \${cls}">\${text}</span>
+    </div>\`;
   }).join('');
 }
 
