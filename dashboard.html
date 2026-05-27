@@ -3048,13 +3048,13 @@ function renderLowStock(lowStock) {
   el.innerHTML = sorted.map(p => {
     const cls  = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
     const text = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
-    return \`<div class="low-stock-row">
-      <div>
-        <div class="low-stock-name">\${p.description}</div>
-        <div class="low-stock-part">\${p.part_no} | \${p.machine_type||'—'} | \${p.supplier||'—'}</div>
-      </div>
-      <span class="stock-badge \${cls}">\${text}</span>
-    </div>\`;
+    return '<div class="low-stock-row">' +
+      '<div>' +
+        '<div class="low-stock-name">' + p.description + '</div>' +
+        '<div class="low-stock-part">' + p.part_no + ' | ' + (p.machine_type||'—') + ' | ' + (p.supplier||'—') + '</div>' +
+      '</div>' +
+      '<span class="stock-badge ' + cls + '">' + text + '</span>' +
+    '</div>';
   }).join('');
 }
 
