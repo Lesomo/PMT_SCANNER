@@ -920,6 +920,10 @@ tbody td {
       <div class="view-tab" onclick="switchInvTab('reorder')">Reorder List</div>
       <div class="view-tab" onclick="switchInvTab('returns')">Returns</div>
       <div class="view-tab" onclick="switchInvTab('import')">Import CSV</div>
+      <div class="view-tab" onclick="switchInvTab('adjust')">Adjust Stock</div>
+      <div class="view-tab" onclick="switchInvTab('catalogue')">Catalogue</div>
+      <div class="view-tab" onclick="switchInvTab('history')">Usage History</div>
+      <div class="view-tab" onclick="switchInvTab('orders')">Reorder Status</div>
     </div>
 
     <!-- Today's Issues -->
@@ -1040,6 +1044,70 @@ tbody td {
 
         <!-- Preview -->
         <div id="invImportPreview" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
+    <!-- ADJUST STOCK TAB -->
+    <div class="tab-view" id="invTab-adjust">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Adjust stock level</div>
+        <div class="chart-sub">Manually correct stock quantities — use when physical count differs from system</div>
+        <div style="margin-top:14px;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+            <input type="text" id="adjustSearchInput" placeholder="Search part name or number..." oninput="filterAdjustList()"
+              style="flex:1;min-width:200px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">
+          </div>
+          <div id="adjustPartList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATALOGUE MANAGEMENT TAB -->
+    <div class="tab-view" id="invTab-catalogue">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="chart-title">Parts catalogue</div>
+            <div class="chart-sub">Add, edit or remove parts without importing a CSV</div>
+          </div>
+          <button onclick="showAddPartForm()" style="padding:8px 16px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;">+ Add part</button>
+        </div>
+        <input type="text" id="catalogueSearchInput" placeholder="Search part name or number..." oninput="filterCatalogueList()"
+          style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin:12px 0;font-family:inherit;">
+        <div style="overflow-x:auto;" id="catalogueList"></div>
+      </div>
+    </div>
+
+    <!-- USAGE HISTORY TAB -->
+    <div class="tab-view" id="invTab-history">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Parts usage history</div>
+        <div class="chart-sub">Select a part to see full issue history, top assets and lines</div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+          <select id="historyPartSelect" onchange="loadPartHistory()" style="flex:1;min-width:200px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">
+            <option value="">-- Select a part --</option>
+          </select>
+          <input type="date" id="historyDateFrom" onchange="loadPartHistory()" style="padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;">
+          <input type="date" id="historyDateTo"   onchange="loadPartHistory()" style="padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;">
+          <button onclick="clearPartHistory()" class="filter-clear">Clear</button>
+        </div>
+        <div id="partHistoryContent" style="margin-top:14px;">
+          <div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above to view its usage history</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REORDER STATUS TAB -->
+    <div class="tab-view" id="invTab-orders">
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="chart-title">Reorder status</div>
+            <div class="chart-sub">Track which parts have been ordered and when</div>
+          </div>
+          <button onclick="exportReorderList()" style="padding:7px 14px;background:#70AD47;border:none;border-radius:8px;color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Export CSV</button>
+        </div>
+        <div id="reorderStatusList" style="margin-top:12px;"></div>
       </div>
     </div>
 
@@ -3229,13 +3297,17 @@ async function confirmInvImport(rows) {
 }
 
 function switchInvTab(tab) {
-  const tabs = ['today','byline','stock','reorder','returns','import'];
+  const tabs = ['today','byline','stock','reorder','returns','import','adjust','catalogue','history','orders'];
   document.querySelectorAll('#invInnerTabs .view-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   tabs.forEach(t => {
     const el = document.getElementById('invTab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
-  if (tab === 'returns') renderReturnsTable();
+  if (tab === 'returns')   renderReturnsTable();
+  if (tab === 'adjust')    renderAdjustList();
+  if (tab === 'catalogue') renderCatalogueList();
+  if (tab === 'history')   populateHistoryPartSelect();
+  if (tab === 'orders')    renderReorderStatus();
 }
 
 function searchByLine() {
@@ -3769,6 +3841,528 @@ function exportLcCsv() {
 }
 // ═══ END LINE CHANGE ══════════════════════════════════════════════════════════
 
+// ═══ INVENTORY ENHANCEMENTS ══════════════════════════════════════════════════
+
+// ── 1. ISSUES HISTORY: date filter on today's issues ─────────────────────────
+// Extend renderTodayIssues to support optional date range
+function renderTodayIssues(issued) {
+  const el = document.getElementById('todayIssuesTable');
+
+  // Build date filter controls if not already present
+  if (!document.getElementById('issuesDateFilter')) {
+    const filterHtml = `
+      <div id="issuesDateFilter" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:700;color:#555;">Date:</label>
+        <input type="date" id="issuesFrom" onchange="filterIssuesHistory()" style="padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
+        <span style="color:#aaa;font-size:12px;">to</span>
+        <input type="date" id="issuesTo" onchange="filterIssuesHistory()" style="padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
+        <button onclick="clearIssuesFilter()" class="filter-clear">Clear</button>
+        <span id="issuesFilterInfo" style="font-size:12px;color:#888;margin-left:auto;"></span>
+      </div>`;
+    el.insertAdjacentHTML('beforebegin', filterHtml);
+  }
+
+  renderIssuesTable(issued);
+}
+
+function filterIssuesHistory() {
+  const from = document.getElementById('issuesFrom').value;
+  const to   = document.getElementById('issuesTo').value;
+  let filtered;
+  if (from || to) {
+    filtered = allRequests.filter(r => {
+      if (r.status !== 'Issued' && r.status !== 'Out of Stock') return false;
+      const d = (r.issued_time || '').split('T')[0];
+      if (from && d < from) return false;
+      if (to   && d > to)   return false;
+      return true;
+    });
+    document.getElementById('issuesFilterInfo').textContent = filtered.length + ' records';
+  } else {
+    const today = new Date().toISOString().split('T')[0];
+    filtered = allRequests.filter(r =>
+      (r.status === 'Issued' || r.status === 'Out of Stock') &&
+      (r.issued_time || '').startsWith(today)
+    );
+    document.getElementById('issuesFilterInfo').textContent = '';
+  }
+  renderIssuesTable(filtered);
+}
+
+function clearIssuesFilter() {
+  document.getElementById('issuesFrom').value = '';
+  document.getElementById('issuesTo').value   = '';
+  document.getElementById('issuesFilterInfo').textContent = '';
+  const today = new Date().toISOString().split('T')[0];
+  const todayIssued = allRequests.filter(r =>
+    (r.status === 'Issued' || r.status === 'Out of Stock') &&
+    (r.issued_time || '').startsWith(today)
+  );
+  renderIssuesTable(todayIssued);
+}
+
+function renderIssuesTable(issued) {
+  const el = document.getElementById('todayIssuesTable');
+  if (issued.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No parts issued for selected period.</div>';
+    return;
+  }
+  let html = '<table class="sl-table"><thead><tr><th>Time</th><th>Part</th><th>Qty</th><th>Status</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
+  issued.forEach(r => {
+    const t = r.issued_time ? new Date(r.issued_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
+    const returned = r.quantity_returned || 0;
+    const isOOS = r.status === 'Out of Stock';
+    const badge = isOOS
+      ? '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#FCE4D6;color:#C00000;">Out of stock</span>'
+      : '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#E2EFDA;color:#2D7D46;">Issued</span>';
+    html += '<tr' + (isOOS ? ' style="background:#FFF8F8;"' : '') + '>' +
+      '<td>' + t + '</td>' +
+      '<td><strong>' + (r.part_description||r.part_no||'--') + '</strong></td>' +
+      '<td style="text-align:center;"><span style="color:' + (isOOS?'#C00000':'#2E5597') + ';font-weight:600;">x' + r.quantity + '</span>' +
+        (returned > 0 ? '<br><span style="color:#ED7D31;font-size:10px;">returned x'+returned+'</span>' : '') + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + (r.mechanic||'--') + '</td>' +
+      '<td>' + (r.asset_no||'--') + '</td>' +
+      '<td>' + (r.line||'--') + '</td>' +
+      '<td>' + (r.issued_by||'--') + '</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── 2. MANUAL STOCK ADJUSTMENT ────────────────────────────────────────────────
+function filterAdjustList() {
+  renderAdjustList(document.getElementById('adjustSearchInput').value);
+}
+
+function renderAdjustList(query) {
+  const el = document.getElementById('adjustPartList');
+  if (!allInventory || allInventory.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">Loading inventory...</div>';
+    return;
+  }
+  const q = (query || '').trim().toLowerCase();
+  const filtered = q.length < 2
+    ? allInventory.slice(0, 50)
+    : allInventory.filter(p =>
+        (p.description||'').toLowerCase().includes(q) ||
+        (p.part_no||'').toLowerCase().includes(q)
+      );
+
+  if (filtered.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">No parts found.</div>';
+    return;
+  }
+
+  let html = '<table class="sl-table"><thead><tr>' +
+    '<th>Part</th><th>Part No</th><th>Machine</th>' +
+    '<th class="num">Current stock</th><th class="num">Min qty</th>' +
+    '<th>Adjust</th></tr></thead><tbody>';
+
+  filtered.forEach(p => {
+    const isLow = p.min_qty > 0 && p.stock_qty <= p.min_qty;
+    const isOos = p.stock_qty === 0;
+    const stockColor = isOos ? '#C00000' : isLow ? '#ED7D31' : '#2D7D46';
+    html += '<tr>' +
+      '<td><strong>' + p.description + '</strong></td>' +
+      '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
+      '<td style="font-size:12px;">' + (p.machine_type||'--') + '</td>' +
+      '<td style="text-align:center;font-weight:700;color:' + stockColor + ';">' + p.stock_qty + '</td>' +
+      '<td style="text-align:center;color:#888;">' + (p.min_qty||0) + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:6px;">' +
+        '<input type="number" id="adj_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '" value="' + p.stock_qty + '" min="0" ' +
+          'style="width:70px;padding:5px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;">' +
+        '<button onclick="saveStockAdjust(\'' + p.part_no.replace(/'/g,"\\'") + '\')" ' +
+          'style="padding:5px 12px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Save</button>' +
+      '</div></td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
+  el.innerHTML = html;
+}
+
+async function saveStockAdjust(partNo) {
+  const safeId = 'adj_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
+  const input  = document.getElementById(safeId);
+  if (!input) return;
+  const newQty = parseInt(input.value);
+  if (isNaN(newQty) || newQty < 0) { showToast('Invalid quantity', 'error'); return; }
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ stock_qty: newQty, updated_at: new Date().toISOString() })
+    });
+    if (res.ok) {
+      // Update local cache
+      const part = allInventory.find(p => p.part_no === partNo);
+      if (part) part.stock_qty = newQty;
+      input.style.borderColor = '#70AD47';
+      setTimeout(() => { input.style.borderColor = '#ddd'; }, 1500);
+      showToast(partNo + ' stock updated to ' + newQty, 'success');
+      renderInventory();
+    } else { showToast('Update failed', 'error'); }
+  } catch(e) { showToast('Update failed', 'error'); }
+}
+
+// ── 3. PARTS CATALOGUE MANAGEMENT ────────────────────────────────────────────
+function filterCatalogueList() {
+  renderCatalogueList(document.getElementById('catalogueSearchInput').value);
+}
+
+function renderCatalogueList(query) {
+  const el = document.getElementById('catalogueList');
+  if (!allInventory || allInventory.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">Loading...</div>';
+    return;
+  }
+  const q = (query || '').trim().toLowerCase();
+  const filtered = q.length < 2
+    ? allInventory.slice(0, 50)
+    : allInventory.filter(p =>
+        (p.description||'').toLowerCase().includes(q) ||
+        (p.part_no||'').toLowerCase().includes(q)
+      );
+
+  if (filtered.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">No parts found.</div>';
+    return;
+  }
+
+  let html = '<table class="sl-table"><thead><tr>' +
+    '<th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th>' +
+    '<th class="num">Stock</th><th class="num">Min</th><th>Actions</th>' +
+    '</tr></thead><tbody>';
+
+  filtered.forEach(p => {
+    html += '<tr id="catrow_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '">' +
+      '<td><strong>' + p.description + '</strong></td>' +
+      '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
+      '<td style="font-size:12px;">' + (p.machine_type||'--') + '</td>' +
+      '<td style="font-size:12px;">' + (p.supplier||'--') + '</td>' +
+      '<td style="text-align:center;">' + p.stock_qty + '</td>' +
+      '<td style="text-align:center;">' + (p.min_qty||0) + '</td>' +
+      '<td style="display:flex;gap:6px;">' +
+        '<button onclick="showEditPartForm(\'' + p.part_no.replace(/'/g,"\\'") + '\')" ' +
+          'style="padding:4px 10px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Edit</button>' +
+        '<button onclick="confirmDeletePart(\'' + p.part_no.replace(/'/g,"\\'") + '\',\'' + p.description.replace(/'/g,"\\'") + '\')" ' +
+          'style="padding:4px 10px;background:#FCE4D6;border:none;border-radius:6px;color:#C00000;font-size:11px;font-weight:600;cursor:pointer;">Delete</button>' +
+      '</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
+  el.innerHTML = html;
+}
+
+function showAddPartForm() { showPartForm(null); }
+function showEditPartForm(partNo) {
+  const part = allInventory.find(p => p.part_no === partNo);
+  if (part) showPartForm(part);
+}
+
+function showPartForm(part) {
+  const isEdit = !!part;
+  const overlay = document.createElement('div');
+  overlay.id = 'partFormOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">${isEdit ? 'Edit part' : 'Add new part'}</div>
+      ${[
+        ['Part number',   'partFormNo',       'text',   isEdit ? part.part_no : '',             isEdit],
+        ['Description',   'partFormDesc',     'text',   isEdit ? part.description : '',          false],
+        ['Machine type',  'partFormMachine',  'text',   isEdit ? (part.machine_type||'') : '',   false],
+        ['Supplier',      'partFormSupplier', 'text',   isEdit ? (part.supplier||'') : '',       false],
+        ['Stock qty',     'partFormStock',    'number', isEdit ? part.stock_qty : 0,             false],
+        ['Min qty',       'partFormMin',      'number', isEdit ? (part.min_qty||0) : 0,          false],
+      ].map(([label, id, type, val, disabled]) =>
+        '<div style="margin-bottom:12px;">' +
+        '<label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">' + label + '</label>' +
+        '<input type="' + type + '" id="' + id + '" value="' + val + '"' + (disabled ? ' disabled style="background:#f5f5f5;' : ' style="') + 'width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">' +
+        '</div>'
+      ).join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+        <button onclick="document.getElementById('partFormOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
+        <button onclick="savePartForm('${isEdit ? part.part_no : ''}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">${isEdit ? 'Save changes' : 'Add part'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function savePartForm(existingPartNo) {
+  const partNo   = document.getElementById('partFormNo').value.trim();
+  const desc     = document.getElementById('partFormDesc').value.trim();
+  const machine  = document.getElementById('partFormMachine').value.trim();
+  const supplier = document.getElementById('partFormSupplier').value.trim();
+  const stock    = parseInt(document.getElementById('partFormStock').value) || 0;
+  const min      = parseInt(document.getElementById('partFormMin').value)   || 0;
+  if (!partNo || !desc) { showToast('Part number and description are required', 'error'); return; }
+  const payload = { part_no: partNo, description: desc, machine_type: machine||null, supplier: supplier||null, stock_qty: stock, min_qty: min, updated_at: new Date().toISOString() };
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?on_conflict=part_no', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      document.getElementById('partFormOverlay').remove();
+      showToast((existingPartNo ? 'Part updated' : 'Part added') + ': ' + desc, 'success');
+      await loadInventoryData();
+      renderCatalogueList(document.getElementById('catalogueSearchInput').value);
+    } else { showToast('Save failed', 'error'); }
+  } catch(e) { showToast('Save failed', 'error'); }
+}
+
+function confirmDeletePart(partNo, desc) {
+  if (!confirm('Delete "' + desc + '" (' + partNo + ') from the catalogue? This cannot be undone.')) return;
+  deletePart(partNo);
+}
+
+async function deletePart(partNo) {
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if (res.ok) {
+      showToast('Part deleted', 'success');
+      await loadInventoryData();
+      renderCatalogueList(document.getElementById('catalogueSearchInput').value);
+    } else { showToast('Delete failed', 'error'); }
+  } catch(e) { showToast('Delete failed', 'error'); }
+}
+
+// ── 4. PARTS USAGE HISTORY ────────────────────────────────────────────────────
+function populateHistoryPartSelect() {
+  const sel = document.getElementById('historyPartSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Select a part --</option>';
+  const parts = [...allInventory].sort((a,b) => a.description.localeCompare(b.description));
+  parts.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.part_no;
+    opt.textContent = p.description + ' (' + p.part_no + ')';
+    if (p.part_no === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (current) loadPartHistory();
+}
+
+function clearPartHistory() {
+  document.getElementById('historyPartSelect').value = '';
+  document.getElementById('historyDateFrom').value   = '';
+  document.getElementById('historyDateTo').value     = '';
+  document.getElementById('partHistoryContent').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above to view its usage history</div>';
+}
+
+function loadPartHistory() {
+  const partNo   = document.getElementById('historyPartSelect').value;
+  const dateFrom = document.getElementById('historyDateFrom').value;
+  const dateTo   = document.getElementById('historyDateTo').value;
+  const el       = document.getElementById('partHistoryContent');
+  if (!partNo) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above</div>'; return; }
+
+  let records = allRequests.filter(r =>
+    (r.part_no === partNo || r.part_description === allInventory.find(p => p.part_no === partNo)?.description) &&
+    (r.status === 'Issued' || r.status === 'Out of Stock')
+  );
+  if (dateFrom) records = records.filter(r => (r.issued_time||'').split('T')[0] >= dateFrom);
+  if (dateTo)   records = records.filter(r => (r.issued_time||'').split('T')[0] <= dateTo);
+
+  if (records.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No usage records found for this part.</div>';
+    return;
+  }
+
+  const totalQty   = records.reduce((s,r) => s + (r.quantity||0), 0);
+  const oosCount   = records.filter(r => r.status === 'Out of Stock').length;
+  const byLine     = {};
+  const byAsset    = {};
+  const byMechanic = {};
+  records.forEach(r => {
+    if (r.line)     byLine[r.line]         = (byLine[r.line]||0)         + (r.quantity||0);
+    if (r.asset_no) byAsset[r.asset_no]    = (byAsset[r.asset_no]||0)    + (r.quantity||0);
+    if (r.mechanic) byMechanic[r.mechanic] = (byMechanic[r.mechanic]||0) + (r.quantity||0);
+  });
+
+  const topLines    = Object.entries(byLine).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topAssets   = Object.entries(byAsset).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topMechanics= Object.entries(byMechanic).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const part = allInventory.find(p => p.part_no === partNo);
+
+  let html = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;">
+      <div class="dt-kpi" style="border-left:4px solid #2E5597;"><div class="dt-kpi-label">Total issued</div><div class="dt-kpi-value">${records.length}</div><div class="dt-kpi-sub">transactions</div></div>
+      <div class="dt-kpi" style="border-left:4px solid #70AD47;"><div class="dt-kpi-label">Total qty</div><div class="dt-kpi-value">${totalQty}</div><div class="dt-kpi-sub">units</div></div>
+      <div class="dt-kpi" style="border-left:4px solid #1F3864;"><div class="dt-kpi-label">Current stock</div><div class="dt-kpi-value">${part ? part.stock_qty : '--'}</div><div class="dt-kpi-sub">in store</div></div>
+      <div class="dt-kpi" style="border-left:4px solid #C00000;"><div class="dt-kpi-label">Out of stock</div><div class="dt-kpi-value">${oosCount}</div><div class="dt-kpi-sub">requests unmet</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;">`;
+
+  const miniTable = (title, rows) =>
+    '<div class="chart-card" style="padding:14px;">' +
+    '<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">' + title + '</div>' +
+    rows.map(([k,v]) =>
+      '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">' +
+      '<span>' + k + '</span><span style="font-weight:700;color:#2E5597;">' + v + '</span></div>'
+    ).join('') + '</div>';
+
+  html += miniTable('Top lines', topLines);
+  html += miniTable('Top assets', topAssets);
+  html += miniTable('Top mechanics', topMechanics);
+  html += '</div>';
+
+  // Full history table
+  html += '<div style="overflow-x:auto;"><table class="sl-table"><thead><tr><th>Date</th><th>Qty</th><th>Status</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
+  records.sort((a,b) => new Date(b.issued_time||0) - new Date(a.issued_time||0)).forEach(r => {
+    const d = r.issued_time ? new Date(r.issued_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
+    const isOOS = r.status === 'Out of Stock';
+    html += '<tr' + (isOOS ? ' style="background:#FFF8F8;"' : '') + '>' +
+      '<td>' + d + '</td>' +
+      '<td style="text-align:center;font-weight:600;color:' + (isOOS?'#C00000':'#2E5597') + ';">x' + r.quantity + '</td>' +
+      '<td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;background:' + (isOOS?'#FCE4D6':'#E2EFDA') + ';color:' + (isOOS?'#C00000':'#2D7D46') + ';">' + r.status + '</span></td>' +
+      '<td>' + (r.mechanic||'--') + '</td>' +
+      '<td>' + (r.asset_no||'--') + '</td>' +
+      '<td>' + (r.line||'--') + '</td>' +
+      '<td style="color:#888;">' + (r.issued_by||'--') + '</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+// ── 5. REORDER STATUS TRACKING ────────────────────────────────────────────────
+function renderReorderStatus() {
+  const el = document.getElementById('reorderStatusList');
+  const lowStock = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
+
+  if (lowStock.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">All parts above minimum stock — nothing to reorder.</div>';
+    return;
+  }
+
+  const sorted = [...lowStock].sort((a,b) => {
+    if (a.stock_qty === 0 && b.stock_qty > 0) return -1;
+    if (b.stock_qty === 0 && a.stock_qty > 0) return 1;
+    return a.stock_qty - b.stock_qty;
+  });
+
+  let html = '<table class="sl-table"><thead><tr>' +
+    '<th>Part</th><th>Part No</th><th>Supplier</th>' +
+    '<th class="num">Stock</th><th class="num">Min</th>' +
+    '<th>Order status</th><th>Ordered date</th><th>Notes</th><th></th>' +
+    '</tr></thead><tbody>';
+
+  sorted.forEach(p => {
+    const key        = 'pmt_order_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_');
+    let orderData    = {};
+    try { orderData = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+    const status     = orderData.status || 'Not ordered';
+    const orderedDate= orderData.date   || '';
+    const notes      = orderData.notes  || '';
+    const isOrdered  = status === 'Ordered';
+    const isReceived = status === 'Received';
+    const statusColor = isReceived ? '#2D7D46' : isOrdered ? '#2E5597' : '#C00000';
+    const statusBg    = isReceived ? '#E2EFDA'  : isOrdered ? '#DEEAF1' : '#FCE4D6';
+
+    html += '<tr>' +
+      '<td><strong>' + p.description + '</strong><br><span style="font-size:10px;color:#888;">' + (p.machine_type||'') + '</span></td>' +
+      '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
+      '<td style="font-size:12px;">' + (p.supplier||'--') + '</td>' +
+      '<td style="text-align:center;font-weight:700;color:' + (p.stock_qty===0?'#C00000':'#ED7D31') + ';">' + p.stock_qty + '</td>' +
+      '<td style="text-align:center;color:#888;">' + p.min_qty + '</td>' +
+      '<td><span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' + status + '</span></td>' +
+      '<td style="font-size:12px;color:#888;">' + orderedDate + '</td>' +
+      '<td style="font-size:12px;color:#555;max-width:150px;">' + notes + '</td>' +
+      '<td><button onclick="showOrderStatusForm(\'' + p.part_no.replace(/'/g,"\\'") + '\',\'' + p.description.replace(/'/g,"\\'") + '\')" ' +
+        'style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Update</button></td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function showOrderStatusForm(partNo, desc) {
+  const key = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
+  let existing = {};
+  try { existing = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+
+  const overlay = document.createElement('div');
+  overlay.id = 'orderStatusOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="font-size:15px;font-weight:700;color:#1F3864;margin-bottom:4px;">Update order status</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">${desc} &nbsp;|&nbsp; ${partNo}</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Status</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          ${['Not ordered','Ordered','Received'].map(s =>
+            '<button onclick="selectOrderStatus(this,\'' + s + '\')" ' +
+            'style="padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid ' +
+            (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#ddd') + ';' +
+            'background:' + (existing.status===s ? (s==='Received'?'#E2EFDA':s==='Ordered'?'#DEEAF1':'#FCE4D6') : 'white') + ';' +
+            'color:' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#666') + ';">' + s + '</button>'
+          ).join('')}
+        </div>
+        <input type="hidden" id="orderStatusValue" value="${existing.status||'Not ordered'}">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Order date</label>
+        <input type="date" id="orderDateInput" value="${existing.date||''}" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Notes (optional)</label>
+        <input type="text" id="orderNotesInput" value="${existing.notes||''}" placeholder="e.g. PO #1234, expected delivery..." style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="document.getElementById('orderStatusOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
+        <button onclick="saveOrderStatus('${partNo}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function selectOrderStatus(btn, status) {
+  document.getElementById('orderStatusValue').value = status;
+  const colors = { 'Not ordered': ['#C00000','#FCE4D6'], 'Ordered': ['#2E5597','#DEEAF1'], 'Received': ['#2D7D46','#E2EFDA'] };
+  btn.parentElement.querySelectorAll('button').forEach(b => {
+    b.style.borderColor = '#ddd'; b.style.background = 'white'; b.style.color = '#666';
+  });
+  const [color, bg] = colors[status] || ['#555','#f5f5f5'];
+  btn.style.borderColor = color; btn.style.background = bg; btn.style.color = color;
+}
+
+function saveOrderStatus(partNo) {
+  const key    = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
+  const status = document.getElementById('orderStatusValue').value;
+  const date   = document.getElementById('orderDateInput').value;
+  const notes  = document.getElementById('orderNotesInput').value;
+  try { localStorage.setItem(key, JSON.stringify({ status, date, notes })); } catch(e) {}
+  document.getElementById('orderStatusOverlay').remove();
+  showToast('Order status updated', 'success');
+  renderReorderStatus();
+}
+
+// ── 6. ENFORCE PART NUMBER WARNING ON ISSUE ───────────────────────────────────
+// Patch confirmIssue to warn if no part number selected
+const _origConfirmIssue = confirmIssue;
+async function confirmIssue(requestId, btn) {
+  const partNo       = document.getElementById('issuePartNo') ? document.getElementById('issuePartNo').value : '';
+  const availability = btn.dataset.availability || 'available';
+  if (availability === 'available' && !partNo) {
+    const proceed = confirm('No part number selected — stock will not be deducted from inventory.\n\nProceed anyway?');
+    if (!proceed) return;
+  }
+  return _origConfirmIssue(requestId, btn);
+}
+
+// ═══ END INVENTORY ENHANCEMENTS ═══════════════════════════════════════════════
 </script>
 </body>
 </html>
