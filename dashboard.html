@@ -1027,8 +1027,8 @@ tbody td {
 
         <!-- Format guide -->
         <div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#555;">
-          <strong>Required columns:</strong> <code>part_no, description, stock_qty, min_qty</code><br>
-          <span style="color:#888;margin-top:4px;display:block;">If a part_no already exists it will be updated. New part numbers will be added. Leave min_qty blank to default to 0.</span>
+          <strong>Required columns:</strong> <code>part_no, description, stock_qty, min_qty</code><br><strong>Optional columns:</strong> <code>machine_type, supplier, draw_number, unit_price</code><br>
+          <span style="color:#888;margin-top:4px;display:block;">Leave optional columns blank if not applicable.</span>
         </div>
 
         <!-- File drop zone -->
@@ -1070,7 +1070,7 @@ tbody td {
             <div class="chart-title">Parts catalogue</div>
             <div class="chart-sub">Add, edit or remove parts without importing a CSV</div>
           </div>
-          <button onclick="showAddPartForm()" style="padding:8px 16px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;">+ Add part</button>
+          <button onclick="requirePin('Add new part', showAddPartForm)" style="padding:8px 16px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer;">+ Add part</button>
         </div>
         <input type="text" id="catalogueSearchInput" placeholder="Search part name or number..." oninput="filterCatalogueList()"
           style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin:12px 0;font-family:inherit;">
@@ -3124,7 +3124,7 @@ function renderLowStock(lowStock) {
     return '<div class="low-stock-row">' +
       '<div>' +
         '<div class="low-stock-name">' + p.description + '</div>' +
-        '<div class="low-stock-part">' + p.part_no + ' | ' + (p.machine_type||'—') + ' | ' + (p.supplier||'—') + '</div>' +
+        '<div class="low-stock-part">' + p.part_no + ' | ' + (p.machine_type||'—') + ' | ' + (p.supplier||'—') + (p.draw_number ? ' | Draw: ' + p.draw_number : '') + '</div>' +
       '</div>' +
       '<span class="stock-badge ' + cls + '">' + text + '</span>' +
     '</div>';
@@ -3165,7 +3165,7 @@ function renderTodayIssues(issued) {
 
 // ── INVENTORY CSV IMPORT ──────────────────────────────────────────────────────
 function downloadInvTemplate() {
-  const csv = 'part_no,description,stock_qty,min_qty\nPN001,Example Part Name,10,2\nPN002,Another Part,5,1\n';
+  const csv = 'part_no,description,stock_qty,min_qty,machine_type,supplier,draw_number,unit_price\nPN001,Example Part Name,10,2,S/N LOCKST,Supplier Name,D-14,25.50\nPN002,Another Part,5,1,,,,\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -3193,10 +3193,14 @@ function parseInvCsv(file) {
     const lines  = e.target.result.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) { showToast('CSV appears empty.', 'error'); return; }
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
-    const partNoIdx  = headers.indexOf('part_no');
-    const descIdx    = headers.indexOf('description');
-    const stockIdx   = headers.indexOf('stock_qty');
-    const minIdx     = headers.indexOf('min_qty');
+    const partNoIdx      = headers.indexOf('part_no');
+    const descIdx        = headers.indexOf('description');
+    const stockIdx       = headers.indexOf('stock_qty');
+    const minIdx         = headers.indexOf('min_qty');
+    const machineTypeIdx = headers.indexOf('machine_type');
+    const supplierIdx    = headers.indexOf('supplier');
+    const drawIdx        = headers.indexOf('draw_number');
+    const priceIdx       = headers.indexOf('unit_price');
     if (partNoIdx < 0 || descIdx < 0 || stockIdx < 0) {
       showToast('Missing required columns: part_no, description, stock_qty', 'error'); return;
     }
@@ -3204,12 +3208,17 @@ function parseInvCsv(file) {
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
       if (!cols[partNoIdx]) continue;
-      rows.push({
-        part_no:   cols[partNoIdx],
+      const row = {
+        part_no:     cols[partNoIdx],
         description: cols[descIdx] || '',
-        stock_qty: parseInt(cols[stockIdx]) || 0,
-        min_qty:   minIdx >= 0 ? (parseInt(cols[minIdx]) || 0) : 0,
-      });
+        stock_qty:   parseInt(cols[stockIdx]) || 0,
+        min_qty:     minIdx >= 0 ? (parseInt(cols[minIdx]) || 0) : 0,
+      };
+      if (machineTypeIdx >= 0 && cols[machineTypeIdx]) row.machine_type = cols[machineTypeIdx];
+      if (supplierIdx    >= 0 && cols[supplierIdx])    row.supplier     = cols[supplierIdx];
+      if (drawIdx        >= 0 && cols[drawIdx])        row.draw_number  = cols[drawIdx];
+      if (priceIdx       >= 0 && cols[priceIdx])       row.unit_price   = parseFloat(cols[priceIdx]) || null;
+      rows.push(row);
     }
     if (rows.length === 0) { showToast('No valid rows found.', 'error'); return; }
     renderInvImportPreview(rows);
@@ -3266,7 +3275,7 @@ function renderInvImportPreview(rows) {
         </tbody>
       </table>
     </div>
-    <button onclick="confirmInvImport(${JSON.stringify(rows).replace(/"/g,'&quot;')})"
+    <button onclick="requirePin('Import inventory', function(){ confirmInvImport(${JSON.stringify(rows).replace(/"/g,'&quot;')}) })"
       style="width:100%;padding:13px;background:#1F3864;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
       Import ${rows.length} parts to inventory
     </button>`;
@@ -3347,7 +3356,7 @@ function searchStock() {
     (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q)
   ).slice(0, 20);
   if (results.length === 0) { el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0;">No parts found.</div>'; return; }
-  let html = '<table class="sl-table"><thead><tr><th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th><th>Stock</th><th>Min qty</th></tr></thead><tbody>';
+  let html = '<table class="sl-table"><thead><tr><th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th><th>Draw</th><th>Unit price</th><th>Stock</th><th>Min qty</th></tr></thead><tbody>';
   results.forEach(p => {
     const low = p.min_qty > 0 && p.stock_qty <= p.min_qty;
     html += `<tr>
@@ -3355,6 +3364,8 @@ function searchStock() {
       <td style="font-size:11px;color:#888;">${p.part_no}</td>
       <td>${p.machine_type||'—'}</td>
       <td>${p.supplier||'—'}</td>
+      <td style="font-size:12px;color:#555;">${p.draw_number||'—'}</td>
+      <td style="font-size:12px;">${p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '—'}</td>
       <td style="text-align:center;"><span class="stock-badge ${p.stock_qty===0?'stock-zero':low?'stock-low':''}" style="${!low&&p.stock_qty>0?'background:#E2EFDA;color:#3B6D11;':''}">${p.stock_qty}</span></td>
       <td style="text-align:center;color:#888;">${p.min_qty||'—'}</td>
     </tr>`;
@@ -3375,13 +3386,15 @@ function renderReorderList(lowStock) {
     if (b.stock_qty === 0 && a.stock_qty > 0) return 1;
     return (a.stock_qty/Math.max(a.min_qty,1)) - (b.stock_qty/Math.max(b.min_qty,1));
   });
-  let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Supplier</th><th>Stock</th><th>Min qty</th><th>Status</th></tr></thead><tbody>';
+  let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Supplier</th><th>Draw</th><th>Unit price</th><th>Stock</th><th>Min qty</th><th>Status</th></tr></thead><tbody>';
   sorted.forEach(p => {
     const urgency = p.stock_qty === 0 ? '<span class="stock-badge stock-zero">Order now</span>' : '<span class="stock-badge stock-low">Running low</span>';
     html += `<tr>
       <td><strong>${p.description}</strong><br><span style="font-size:11px;color:#888;">${p.machine_type||'—'}</span></td>
       <td style="font-size:12px;">${p.part_no}</td>
       <td>${p.supplier||'—'}</td>
+      <td style="font-size:12px;color:#555;">${p.draw_number||'—'}</td>
+      <td style="font-size:12px;">${p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '—'}</td>
       <td style="text-align:center;font-weight:700;color:#C00000;">${p.stock_qty}</td>
       <td style="text-align:center;color:#888;">${p.min_qty}</td>
       <td>${urgency}</td>
@@ -3394,12 +3407,14 @@ function renderReorderList(lowStock) {
 function exportReorderList() {
   const lowStock = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
   if (lowStock.length === 0) { showToast('Nothing to reorder.', 'error'); return; }
-  const headers = ['Description','Part No','Machine Type','Supplier','Current Stock','Min Qty','Status'];
+  const headers = ['Description','Part No','Machine Type','Supplier','Draw Number','Unit Price (R)','Current Stock','Min Qty','Status'];
   const rows = lowStock.map(p => [
     '"' + (p.description||'').replace(/"/g,'""') + '"',
     '"' + (p.part_no||'') + '"',
     '"' + (p.machine_type||'') + '"',
     '"' + (p.supplier||'') + '"',
+    '"' + (p.draw_number||'') + '"',
+    p.unit_price != null ? p.unit_price : '',
     p.stock_qty, p.min_qty,
     '"' + (p.stock_qty===0?'Out of stock':'Running low') + '"'
   ].join(','));
@@ -3965,7 +3980,8 @@ function renderAdjustList(query) {
     '<th class="num">Current stock</th><th class="num">Min qty</th>' +
     '<th>Adjust</th></tr></thead><tbody>';
 
-  filtered.forEach(p => {
+  window._adjParts = filtered;
+  filtered.forEach((p, i) => {
     const isLow = p.min_qty > 0 && p.stock_qty <= p.min_qty;
     const isOos = p.stock_qty === 0;
     const stockColor = isOos ? '#C00000' : isLow ? '#ED7D31' : '#2D7D46';
@@ -3978,7 +3994,7 @@ function renderAdjustList(query) {
       '<td><div style="display:flex;align-items:center;gap:6px;">' +
         '<input type="number" id="adj_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '" value="' + p.stock_qty + '" min="0" ' +
           'style="width:70px;padding:5px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;">' +
-        '<button onclick="saveStockAdjust(\'' + p.part_no.replace(/'/g,"\\'") + '\')" ' +
+        '<button class="pin-adj" data-idx="' + i + '" ' +
           'style="padding:5px 12px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Save</button>' +
       '</div></td>' +
     '</tr>';
@@ -3986,6 +4002,12 @@ function renderAdjustList(query) {
   html += '</tbody></table>';
   if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
   el.innerHTML = html;
+  el.querySelectorAll('.pin-adj').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const i = parseInt(this.dataset.idx);
+      requirePin('Adjust stock', function() { saveStockAdjust(window._adjParts[i].part_no); });
+    });
+  });
 }
 
 async function saveStockAdjust(partNo) {
@@ -4038,21 +4060,25 @@ function renderCatalogueList(query) {
 
   let html = '<table class="sl-table"><thead><tr>' +
     '<th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th>' +
+    '<th>Draw</th><th>Unit price</th>' +
     '<th class="num">Stock</th><th class="num">Min</th><th>Actions</th>' +
     '</tr></thead><tbody>';
 
-  filtered.forEach(p => {
+  window._catParts = filtered;
+  filtered.forEach((p, i) => {
     html += '<tr id="catrow_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '">' +
       '<td><strong>' + p.description + '</strong></td>' +
       '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
       '<td style="font-size:12px;">' + (p.machine_type||'--') + '</td>' +
       '<td style="font-size:12px;">' + (p.supplier||'--') + '</td>' +
+      '<td style="font-size:12px;color:#555;">' + (p.draw_number||'--') + '</td>' +
+      '<td style="font-size:12px;">' + (p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '--') + '</td>' +
       '<td style="text-align:center;">' + p.stock_qty + '</td>' +
       '<td style="text-align:center;">' + (p.min_qty||0) + '</td>' +
       '<td style="display:flex;gap:6px;">' +
-        '<button onclick="showEditPartForm(\'' + p.part_no.replace(/'/g,"\\'") + '\')" ' +
+        '<button class="pin-edit" data-idx="' + i + '" ' +
           'style="padding:4px 10px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Edit</button>' +
-        '<button onclick="confirmDeletePart(\'' + p.part_no.replace(/'/g,"\\'") + '\',\'' + p.description.replace(/'/g,"\\'") + '\')" ' +
+        '<button class="pin-del" data-idx="' + i + '" ' +
           'style="padding:4px 10px;background:#FCE4D6;border:none;border-radius:6px;color:#C00000;font-size:11px;font-weight:600;cursor:pointer;">Delete</button>' +
       '</td>' +
     '</tr>';
@@ -4060,6 +4086,18 @@ function renderCatalogueList(query) {
   html += '</tbody></table>';
   if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
   el.innerHTML = html;
+  el.querySelectorAll('.pin-edit').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const i = parseInt(this.dataset.idx);
+      requirePin('Edit part', function() { showEditPartForm(window._catParts[i].part_no); });
+    });
+  });
+  el.querySelectorAll('.pin-del').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const i = parseInt(this.dataset.idx);
+      requirePin('Delete part', function() { confirmDeletePart(window._catParts[i].part_no, window._catParts[i].description); });
+    });
+  });
 }
 
 function showAddPartForm() { showPartForm(null); }
@@ -4081,6 +4119,8 @@ function showPartForm(part) {
         ['Description',   'partFormDesc',     'text',   isEdit ? part.description : '',          false],
         ['Machine type',  'partFormMachine',  'text',   isEdit ? (part.machine_type||'') : '',   false],
         ['Supplier',      'partFormSupplier', 'text',   isEdit ? (part.supplier||'') : '',       false],
+        ['Draw number',   'partFormDraw',     'text',   isEdit ? (part.draw_number||'') : '',     false],
+        ['Unit price (R)', 'partFormPrice',    'number', isEdit ? (part.unit_price != null ? part.unit_price : '') : '', false],
         ['Stock qty',     'partFormStock',    'number', isEdit ? part.stock_qty : 0,             false],
         ['Min qty',       'partFormMin',      'number', isEdit ? (part.min_qty||0) : 0,          false],
       ].map(([label, id, type, val, disabled]) =>
@@ -4105,7 +4145,9 @@ async function savePartForm(existingPartNo) {
   const stock    = parseInt(document.getElementById('partFormStock').value) || 0;
   const min      = parseInt(document.getElementById('partFormMin').value)   || 0;
   if (!partNo || !desc) { showToast('Part number and description are required', 'error'); return; }
-  const payload = { part_no: partNo, description: desc, machine_type: machine||null, supplier: supplier||null, stock_qty: stock, min_qty: min, updated_at: new Date().toISOString() };
+  const draw  = document.getElementById('partFormDraw').value.trim();
+  const price = document.getElementById('partFormPrice').value;
+  const payload = { part_no: partNo, description: desc, machine_type: machine||null, supplier: supplier||null, draw_number: draw||null, unit_price: price !== '' ? parseFloat(price) : null, stock_qty: stock, min_qty: min, updated_at: new Date().toISOString() };
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?on_conflict=part_no', {
       method: 'POST',
@@ -4357,6 +4399,107 @@ function saveOrderStatus(partNo) {
 // ── 6. PART NUMBER WARNING — inlined into confirmIssue below ────────────────────────────────────
 
 // ═══ END INVENTORY ENHANCEMENTS ═══════════════════════════════════════════════
+
+// ═══ STOCK PIN PROTECTION ════════════════════════════════════════════════════
+const PIN_HASH     = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_SECS = 30;
+let _pinCallback  = null;
+let _pinAttempts  = 0;
+let _pinLockUntil = 0;
+
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function requirePin(actionLabel, callback) {
+  const now = Date.now();
+  if (_pinLockUntil > now) {
+    const secs = Math.ceil((_pinLockUntil - now) / 1000);
+    showToast('Too many attempts. Try again in ' + secs + 's.', 'error');
+    return;
+  }
+  _pinCallback = callback;
+  _pinAttempts = 0;
+  document.getElementById('pinActionLabel').textContent  = actionLabel;
+  document.getElementById('pinInput').value              = '';
+  document.getElementById('pinInput').style.borderColor  = '#ddd';
+  document.getElementById('pinInput').disabled           = false;
+  document.getElementById('pinSubmitBtn').disabled       = false;
+  document.getElementById('pinError').textContent        = '';
+  document.getElementById('pinAttemptInfo').textContent  = '';
+  document.getElementById('pinOverlay').style.display    = 'flex';
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
+}
+
+function closePinOverlay() {
+  document.getElementById('pinOverlay').style.display = 'none';
+  document.getElementById('pinInput').value = '';
+  _pinCallback = null;
+}
+
+async function submitPin() {
+  const pin     = document.getElementById('pinInput').value.trim();
+  const input   = document.getElementById('pinInput');
+  const errorEl = document.getElementById('pinError');
+  const infoEl  = document.getElementById('pinAttemptInfo');
+  if (!pin) { errorEl.textContent = 'Please enter the PIN.'; return; }
+  const entered = await hashPin(pin);
+  if (entered === PIN_HASH) {
+    closePinOverlay();
+    _pinAttempts = 0;
+    if (_pinCallback) _pinCallback();
+  } else {
+    _pinAttempts++;
+    input.value = '';
+    input.style.borderColor = '#C00000';
+    const remaining = MAX_ATTEMPTS - _pinAttempts;
+    if (_pinAttempts >= MAX_ATTEMPTS) {
+      _pinLockUntil = Date.now() + (LOCKOUT_SECS * 1000);
+      errorEl.textContent = 'Incorrect PIN. Locked for ' + LOCKOUT_SECS + ' seconds.';
+      infoEl.textContent  = '';
+      input.disabled = true;
+      document.getElementById('pinSubmitBtn').disabled = true;
+      setTimeout(() => {
+        input.disabled = false;
+        document.getElementById('pinSubmitBtn').disabled = false;
+        input.style.borderColor = '#ddd';
+        errorEl.textContent = '';
+        infoEl.textContent  = 'Lockout expired — try again.';
+        _pinAttempts = 0;
+      }, LOCKOUT_SECS * 1000);
+    } else {
+      errorEl.textContent = 'Incorrect PIN.';
+      infoEl.textContent  = remaining + ' attempt' + (remaining > 1 ? 's' : '') + ' remaining.';
+    }
+  }
+}
+// ═══ END STOCK PIN PROTECTION ════════════════════════════════════════════════
+
 </script>
+
+<!-- STOCK PIN OVERLAY -->
+<div id="pinOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:10000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:16px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,0.25);text-align:center;">
+    <div style="width:44px;height:44px;border-radius:50%;background:#EBF3FB;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2E5597" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    </div>
+    <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Stock management</div>
+    <div style="font-size:13px;color:#888;margin-bottom:20px;" id="pinActionLabel">Enter PIN to continue</div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
+      <input type="password" id="pinInput" maxlength="4" inputmode="numeric" placeholder="----"
+        style="width:120px;text-align:center;letter-spacing:8px;font-size:24px;font-weight:700;padding:12px;border:2px solid #ddd;border-radius:10px;font-family:inherit;outline:none;"
+        onkeydown="if(event.key==='Enter') submitPin()"
+        oninput="this.style.borderColor='#ddd';document.getElementById('pinError').textContent='';">
+    </div>
+    <div id="pinError" style="font-size:12px;color:#C00000;min-height:18px;margin-bottom:12px;font-weight:600;"></div>
+    <div id="pinAttemptInfo" style="font-size:11px;color:#aaa;margin-bottom:16px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="closePinOverlay()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;color:#555;">Cancel</button>
+      <button id="pinSubmitBtn" onclick="submitPin()" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Confirm</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
