@@ -4447,9 +4447,10 @@ async function submitPin() {
   if (!pin) { errorEl.textContent = 'Please enter the PIN.'; return; }
   const entered = await hashPin(pin);
   if (entered === PIN_HASH) {
+    const cb = _pinCallback;  // save before closePinOverlay nulls it
     closePinOverlay();
     _pinAttempts = 0;
-    if (_pinCallback) _pinCallback();
+    if (cb) cb();
   } else {
     _pinAttempts++;
     input.value = '';
