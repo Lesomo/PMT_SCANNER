@@ -3009,6 +3009,11 @@ async function confirmIssue(requestId, btn) {
   const clerkName    = document.getElementById('issueClerkName').value;
   const partNo       = document.getElementById('issuePartNo') ? document.getElementById('issuePartNo').value : '';
   const availability = btn.dataset.availability || 'available';
+  // Warn if no part number matched — stock won't be deducted
+  if (availability === 'available' && !partNo) {
+    const proceed = confirm('No part number selected — stock will not be deducted from inventory.\n\nProceed anyway?');
+    if (!proceed) return;
+  }
   if (!clerkName) { showToast('Please select your name.', 'error'); return; }
   btn.disabled = true; btn.textContent = availability === 'out' ? 'Marking...' : 'Issuing...';
   const req = allRequests.find(r => r.id === requestId);
@@ -4349,18 +4354,7 @@ function saveOrderStatus(partNo) {
   renderReorderStatus();
 }
 
-// ── 6. ENFORCE PART NUMBER WARNING ON ISSUE ───────────────────────────────────
-// Patch confirmIssue to warn if no part number selected
-const _origConfirmIssue = confirmIssue;
-async function confirmIssue(requestId, btn) {
-  const partNo       = document.getElementById('issuePartNo') ? document.getElementById('issuePartNo').value : '';
-  const availability = btn.dataset.availability || 'available';
-  if (availability === 'available' && !partNo) {
-    const proceed = confirm('No part number selected — stock will not be deducted from inventory.\n\nProceed anyway?');
-    if (!proceed) return;
-  }
-  return _origConfirmIssue(requestId, btn);
-}
+// ── 6. PART NUMBER WARNING — inlined into confirmIssue below ────────────────────────────────────
 
 // ═══ END INVENTORY ENHANCEMENTS ═══════════════════════════════════════════════
 </script>
