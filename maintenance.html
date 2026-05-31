@@ -6,123 +6,169 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMT Maintenance">
-<meta name="theme-color" content="#6c2c84">
+<meta name="theme-color" content="#1F3864">
 <title>PMT — Preventative Maintenance</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
-  :root{
-    --purple:#6c2c84; --blue:#7b92ac; --lime:#8dc63f;
-    --ink:#1f1733; --paper:#f4f1f7; --card:#ffffff;
-    --line:#e3dded; --muted:#6b6478;
-    --ok:#2e9e5b; --attn:#e0892a; --na:#8c8c8c;
-    --red:#c0392b; --amber:#e0892a; --green:#2e9e5b;
+  :root {
+    --purple: #1F3864;
+    --blue:   #2E5597;
+    --lime:   #70AD47;
+    --ink:    #1a1a1a;
+    --paper:  #f0f2f5;
+    --card:   #ffffff;
+    --line:   #e8e8e8;
+    --muted:  #666;
+    --ok:     #3B6D11;
+    --attn:   #ED7D31;
+    --na:     #888;
+    --red:    #C00000;
+    --amber:  #ED7D31;
+    --green:  #70AD47;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   body{
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:var(--paper); color:var(--ink);
-    line-height:1.5; padding-bottom:40px;
+    background:var(--paper);color:var(--ink);
+    line-height:1.5;padding-bottom:40px;
   }
+
+  /* ── HEADER — matches suite style ── */
   header{
-    background:linear-gradient(135deg,var(--purple),#4e2061);
-    color:#fff; padding:18px 16px; position:sticky; top:0; z-index:20;
-    box-shadow:0 2px 12px rgba(0,0,0,.18);
+    background:#1F3864;
+    color:#fff;
+    padding:0 16px;
+    height:60px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    position:sticky;top:0;z-index:20;
+    box-shadow:0 2px 8px rgba(0,0,0,0.18);
   }
-  header h1{font-size:1.1rem;font-weight:700;letter-spacing:.3px;}
-  header .sub{font-size:.72rem;opacity:.8;margin-top:2px;}
+  .header-back{
+    display:flex;align-items:center;justify-content:center;
+    width:32px;height:32px;border-radius:8px;
+    background:rgba(255,255,255,0.12);
+    text-decoration:none;flex-shrink:0;
+  }
+  .header-back svg{width:16px;height:16px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+  header h1{font-size:17px;font-weight:600;letter-spacing:.3px;}
+  header .sub{font-size:11px;opacity:.65;margin-top:1px;}
+
   .wrap{max-width:560px;margin:0 auto;padding:16px;}
+
+  /* ── CARDS ── */
   .card{
     background:var(--card);border:1px solid var(--line);
     border-radius:14px;padding:18px;margin-bottom:14px;
-    box-shadow:0 1px 3px rgba(31,23,51,.05);
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
   }
-  .card h2{font-size:.95rem;color:var(--purple);margin-bottom:12px;
-    display:flex;align-items:center;gap:8px;}
-  label{display:block;font-size:.78rem;font-weight:600;
-    color:var(--muted);margin:10px 0 4px;}
+  .card h2{
+    font-size:.95rem;color:var(--purple);margin-bottom:12px;
+    display:flex;align-items:center;gap:8px;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin:10px 0 4px;}
   input,select,textarea{
-    width:100%;padding:11px 12px;border:1px solid var(--line);
+    width:100%;padding:11px 12px;border:1.5px solid var(--line);
     border-radius:9px;font-size:.92rem;font-family:inherit;
-    background:#fcfbfd;color:var(--ink);
+    background:#fcfcfc;color:var(--ink);transition:border-color 0.2s;
   }
-  input:focus,select:focus,textarea:focus{
-    outline:none;border-color:var(--purple);background:#fff;
-  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   textarea{resize:vertical;min-height:54px;}
-  button{
-    font-family:inherit;cursor:pointer;border:none;
-    border-radius:9px;font-weight:600;transition:transform .08s,filter .15s;
+  select{
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer;
   }
+
+  /* ── BUTTONS ── */
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:9px;font-weight:600;transition:transform .08s,filter .15s;}
   button:active{transform:scale(.98);}
   .btn-primary{
     background:var(--purple);color:#fff;padding:13px;
     width:100%;font-size:.95rem;margin-top:14px;
   }
-  .btn-primary:disabled{background:#c9c2d1;cursor:not-allowed;}
+  .btn-primary:hover{background:#162B4D;}
+  .btn-primary:disabled{background:#ccc;cursor:not-allowed;}
   .btn-lime{background:var(--lime);color:#1f3300;}
-  .btn-ghost{background:#efeaf3;color:var(--purple);padding:10px;}
-  .tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .btn-lime:hover{background:#5A9438;}
+  .btn-ghost{background:#EBF3FB;color:var(--blue);padding:10px;}
+  .btn-ghost:hover{background:#d8e9f6;}
+
+  /* ── TABS ── */
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
   .tabs button{
-    flex:1;padding:11px 6px;background:#e7e1ee;color:var(--muted);
-    font-size:.82rem;border-radius:9px;
+    flex:1;padding:11px 6px;background:#f0f2f5;color:var(--muted);
+    font-size:.82rem;border-radius:9px;border:1.5px solid #ddd;
   }
-  .tabs button.active{background:var(--purple);color:#fff;}
+  .tabs button.active{background:var(--purple);color:#fff;border-color:var(--purple);}
+
   .hidden{display:none !important;}
+
+  /* ── MESSAGES ── */
   .msg{padding:10px 12px;border-radius:9px;font-size:.82rem;margin-top:10px;}
-  .msg.info{background:#eef3f8;color:#3a567a;}
-  .msg.warn{background:#fdf3e6;color:#8a5414;}
-  .msg.err{background:#fbeaea;color:#902c22;}
-  .msg.good{background:#e9f6ee;color:#1d6b3c;}
-  .pill{display:inline-block;padding:3px 9px;border-radius:20px;
-    font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
-  .pill.red{background:#fbeaea;color:var(--red);}
-  .pill.amber{background:#fdf3e6;color:var(--amber);}
-  .pill.green{background:#e9f6ee;color:var(--green);}
-  .assetline{display:flex;justify-content:space-between;align-items:center;
-    padding:9px 0;border-bottom:1px solid var(--line);font-size:.85rem;}
+  .msg.info{background:#EBF3FB;color:#2E5597;}
+  .msg.warn{background:#FFF2CC;color:#8B6914;}
+  .msg.err{background:#FCEBEB;color:#902c22;}
+  .msg.good{background:#E2EFDA;color:#1d6b3c;}
+
+  /* ── PILLS ── */
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  .pill.red{background:#FCEBEB;color:var(--red);}
+  .pill.amber{background:#FFF2CC;color:var(--amber);}
+  .pill.green{background:#E2EFDA;color:var(--green);}
+
+  /* ── ASSET LINE ── */
+  .assetline{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:.85rem;}
   .assetline:last-child{border-bottom:none;}
-  /* scanner */
+
+  /* ── SCANNER ── */
   .scan-btn{
-    width:100%;padding:16px;border:2px dashed var(--purple);
-    border-radius:11px;background:#f3ecf6;color:var(--purple);
+    width:100%;padding:14px;border:2px dashed var(--blue);
+    border-radius:12px;background:#EBF3FB;color:var(--blue);
     font-size:.95rem;font-weight:700;display:flex;
     align-items:center;justify-content:center;gap:9px;
   }
-  .scan-btn.scanning{background:#fdf3e6;border-color:var(--amber);color:var(--amber);}
+  .scan-btn.scanning{background:#FFF2CC;border-color:var(--amber);color:var(--amber);}
   #reader{border-radius:10px;overflow:hidden;margin-top:12px;}
   #reader video{border-radius:10px;width:100% !important;}
   .divider{text-align:center;font-size:.72rem;color:#aaa;margin:10px 0;}
-  /* checklist */
-  .ckitem{border:1px solid var(--line);border-radius:11px;
-    padding:12px;margin-bottom:10px;background:#fcfbfd;}
+
+  /* ── CHECKLIST ── */
+  .ckitem{border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px;background:#fcfcfc;}
   .ckitem .txt{font-size:.85rem;font-weight:600;margin-bottom:9px;}
   .seg{display:flex;gap:6px;}
-  .seg button{
-    flex:1;padding:9px 4px;font-size:.78rem;
-    background:#fff;border:1.5px solid var(--line);color:var(--muted);
-  }
+  .seg button{flex:1;padding:9px 4px;font-size:.78rem;background:#fff;border:1.5px solid var(--line);color:var(--muted);}
   .seg button.sel-ok{background:var(--ok);border-color:var(--ok);color:#fff;}
   .seg button.sel-attn{background:var(--attn);border-color:var(--attn);color:#fff;}
   .seg button.sel-na{background:var(--na);border-color:var(--na);color:#fff;}
   .ckitem textarea{margin-top:9px;}
-  .areatag{font-size:.62rem;color:var(--muted);text-transform:uppercase;
-    letter-spacing:.5px;font-weight:700;}
+  .areatag{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
+
+  /* ── MISC ── */
   .meta{font-size:.78rem;color:var(--muted);}
   .big{font-size:1.05rem;font-weight:700;}
   .row2{display:flex;gap:10px;}
   .row2>div{flex:1;}
-  .overlay{position:fixed;inset:0;background:rgba(31,23,51,.55);
-    display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;}
+  .footnote{font-size:.7rem;color:var(--muted);margin-top:6px;}
+
+  /* ── MODAL ── */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;}
   .modal{background:#fff;border-radius:14px;padding:20px;max-width:380px;width:100%;}
   .modal h3{color:var(--purple);font-size:1rem;margin-bottom:8px;}
   .modal p{font-size:.86rem;color:var(--muted);margin-bottom:16px;}
   .modal .row2 button{padding:11px;}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;
-    border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;
-    vertical-align:-2px;}
+
+  /* ── SPINNER ── */
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;}
   @keyframes sp{to{transform:rotate(360deg);}}
+
+  /* ── EMPTY / LOADING ── */
   .empty{text-align:center;color:var(--muted);font-size:.83rem;padding:18px 0;}
-  .footnote{font-size:.7rem;color:var(--muted);margin-top:6px;}
+
+  /* ── TOAST ── */
   .toast{
     position:fixed;bottom:30px;left:50%;
     transform:translateX(-50%) translateY(20px);
@@ -134,13 +180,21 @@
   .toast.success{background:#1d6b3c;}
   .toast.error{background:#902c22;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* ── PIN CARD ── */
+  #sPinCard input[type="password"]{letter-spacing:6px;font-size:1.2rem;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>PMT · Preventative Maintenance</h1>
-  <div class="sub">Prestige Clothing — routine machine servicing</div>
+  <a class="header-back" href="home.html">
+    <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+  </a>
+  <div>
+    <h1>Preventative Maintenance</h1>
+    <div class="sub">Prestige Clothing — routine machine servicing</div>
+  </div>
 </header>
 
 <div class="wrap">
@@ -153,7 +207,6 @@
   <!-- ================= MECHANIC ================= -->
   <div id="tabMech">
 
-    <!-- step 1: scan / enter asset -->
     <div class="card" id="mScanCard">
       <h2>1 · Scan or enter asset</h2>
 
@@ -186,7 +239,6 @@
       <div id="mScanMsg"></div>
     </div>
 
-    <!-- step 2: asset found + due status -->
     <div class="card hidden" id="mAssetCard">
       <h2>2 · Asset details</h2>
       <div class="big" id="mAssetNo">—</div>
@@ -196,7 +248,6 @@
       <button class="btn-primary hidden" id="mStartBtn" onclick="startPM()">Start PM checklist</button>
     </div>
 
-    <!-- step 3: checklist -->
     <div class="card hidden" id="mCheckCard">
       <h2>3 · PM checklist</h2>
       <div class="meta" id="mCheckHead"></div>
@@ -218,7 +269,6 @@
   <!-- ================= SUPERVISOR ================= -->
   <div id="tabSup" class="hidden">
 
-    <!-- PIN gate -->
     <div class="card" id="sPinCard">
       <h2>Supervisor access</h2>
       <label>Enter PIN</label>
@@ -228,7 +278,6 @@
       <div id="sPinMsg"></div>
     </div>
 
-    <!-- supervisor panel -->
     <div id="sPanel" class="hidden">
 
       <div class="card">
@@ -259,8 +308,7 @@
             <option>Line 22</option><option>Line 23</option><option>Line 24</option>
             <option>Pool A</option><option>Pool B</option>
           </select>
-          <div class="footnote">Resolves to machines whose <b>latest scan</b> was on this line.
-            Coverage depends on recent scanning.</div>
+          <div class="footnote">Resolves to machines whose <b>latest scan</b> was on this line.</div>
         </div>
 
         <div id="sScopeAsset" class="hidden">
@@ -301,26 +349,21 @@
           </div>
         </div>
 
-        <button class="btn-primary" id="sResolveBtn" onclick="resolveScope()">
-          Find machines</button>
+        <button class="btn-primary" id="sResolveBtn" onclick="resolveScope()">Find machines</button>
         <div id="sResolveMsg"></div>
       </div>
 
-      <!-- resolved list + confirm -->
       <div class="card hidden" id="sConfirmCard">
         <h2>Confirm machines</h2>
         <div class="meta" id="sConfirmHead"></div>
         <div id="sResolvedList" style="margin:10px 0"></div>
-        <button class="btn-primary" id="sCreateBtn" onclick="createSchedules()">
-          Create schedules</button>
+        <button class="btn-primary" id="sCreateBtn" onclick="createSchedules()">Create schedules</button>
         <div id="sCreateMsg"></div>
       </div>
 
-      <!-- existing schedules -->
       <div class="card">
         <h2>Existing schedules</h2>
-        <button class="btn-ghost" style="width:100%;margin-bottom:10px"
-                onclick="loadSchedules()">Refresh list</button>
+        <button class="btn-ghost" style="width:100%;margin-bottom:10px" onclick="loadSchedules()">Refresh list</button>
         <div id="sSchedList"><div class="empty">Tap refresh to load.</div></div>
       </div>
 
@@ -355,15 +398,11 @@ const H = {
   'Authorization': 'Bearer ' + SB_KEY,
   'Content-Type': 'application/json'
 };
-/* sb(): thin REST helper for Supabase PostgREST */
 async function sb(path, opts={}){
   const res = await fetch(SB_URL + '/rest/v1/' + path, {
     ...opts, headers: { ...H, ...(opts.headers||{}) }
   });
-  if(!res.ok){
-    const t = await res.text();
-    throw new Error('Supabase ' + res.status + ': ' + t);
-  }
+  if(!res.ok){ const t = await res.text(); throw new Error('Supabase ' + res.status + ': ' + t); }
   if(res.status === 204) return null;
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;
@@ -391,17 +430,16 @@ function showToast(text, type){
   setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-/* ============ BARCODE — shared logic with scan app ============ */
+/* ============ BARCODE ============ */
 function cleanBarcode(val){
-  // strip whitespace, uppercase — 'prs1570','PRS 1570' -> 'PRS1570'
   return val.replace(/\s+/g,'').toUpperCase();
 }
 function isValidBarcode(val){
-  if(/^\d+$/.test(val)) return val.length >= 5;        // numeric, min 5 digits
-  return val.length >= 6 && val.length <= 7;           // alphanumeric, 6-7 chars
+  if(/^\d+$/.test(val)) return val.length >= 5;
+  return val.length >= 6 && val.length <= 7;
 }
 
-/* ============ MECHANIC NAME — shared localStorage key ============ */
+/* ============ MECHANIC NAME ============ */
 function saveMechanicName(){
   const v = document.getElementById('mMechanic').value;
   if(v) try{ localStorage.setItem('pmt_mechanic', v); }catch(e){}
@@ -413,21 +451,17 @@ function loadMechanicName(){
   }catch(e){}
 }
 
-/* ============ CAMERA SCANNER — same mechanism as scan app ============ */
+/* ============ CAMERA SCANNER ============ */
 let scanner = null, scannerActive = false;
 function toggleScanner(){ scannerActive ? stopScanner() : startScanner(); }
 
 function startScanner(){
   const btn = document.getElementById('scanBtn');
   btn.classList.add('scanning');
-  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" '+
-    'stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/>'+
-    '<line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera';
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera';
   scannerActive = true;
-
   let lastRead = '', lastReadTime = 0;
   const DEBOUNCE_MS = 300;
-
   document.getElementById('reader').style.display = 'block';
   scanner = new Html5Qrcode('reader');
   scanner.start(
@@ -436,7 +470,6 @@ function startScanner(){
     (decoded) => {
       const clean = cleanBarcode(decoded);
       const now = Date.now();
-      // debounce — must see same value twice within 300ms
       if(clean === lastRead && (now - lastReadTime) < DEBOUNCE_MS){
         if(!isValidBarcode(clean)){
           showToast('Invalid barcode: '+clean,'error');
@@ -449,12 +482,8 @@ function startScanner(){
       } else {
         lastRead = clean; lastReadTime = now;
       }
-    },
-    () => {}
-  ).catch(() => {
-    showToast('Camera blocked. Use manual entry.','error');
-    stopScanner();
-  });
+    }, () => {}
+  ).catch(() => { showToast('Camera blocked. Use manual entry.','error'); stopScanner(); });
 }
 
 function stopScanner(){
@@ -462,11 +491,7 @@ function stopScanner(){
   document.getElementById('reader').style.display = 'none';
   const btn = document.getElementById('scanBtn');
   btn.classList.remove('scanning');
-  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" '+
-    'stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 '+
-    '2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="10" '+
-    'width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/><line x1="7" '+
-    'y1="12" x2="17" y2="12" stroke-width="2"/></svg> Tap to Scan Barcode';
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.3"/><line x1="7" y1="12" x2="17" y2="12" stroke-width="2"/></svg> Tap to Scan Barcode';
   scannerActive = false;
 }
 
@@ -501,31 +526,17 @@ async function lookupAsset(){
     msg('mScanMsg','Asset number <b>'+asset+'</b> doesn\'t look valid — check it.','warn');
     return;
   }
-
   const btn = document.getElementById('mLookupBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Looking up…';
   msg('mScanMsg','','');
-
   try {
-    // 1. validate asset against master_data
     const md = await sb('master_data?asset_no=eq.'+encodeURIComponent(asset)+'&select=asset_no,asset_type,description');
-    if(!md.length){
-      msg('mScanMsg','Asset <b>'+asset+'</b> not found in master data — check the number.','err');
-      return;
-    }
+    if(!md.length){ msg('mScanMsg','Asset <b>'+asset+'</b> not found in master data — check the number.','err'); return; }
     const a = md[0];
-
-    // 2. current line = location of the latest scan for this asset
-    const scan = await sb('scan_log?asset_no=eq.'+encodeURIComponent(asset)+
-                          '&select=location,scan_timestamp&order=scan_timestamp.desc&limit=1');
+    const scan = await sb('scan_log?asset_no=eq.'+encodeURIComponent(asset)+'&select=location,scan_timestamp&order=scan_timestamp.desc&limit=1');
     const line = scan.length ? scan[0].location : null;
-
-    // 3. active schedules for this asset
-    const scheds = await sb('pm_schedules?asset_no=eq.'+encodeURIComponent(asset)+
-                            '&active=eq.true&select=*&order=next_due_date.asc');
-
-    mState = { mech, asset:a.asset_no, type:a.asset_type||'Unknown',
-               desc:a.description||'', line, scheds };
+    const scheds = await sb('pm_schedules?asset_no=eq.'+encodeURIComponent(asset)+'&active=eq.true&select=*&order=next_due_date.asc');
+    mState = { mech, asset:a.asset_no, type:a.asset_type||'Unknown', desc:a.description||'', line, scheds };
     renderAssetCard();
   } catch(e){
     msg('mScanMsg','Lookup failed — check connection. '+e.message,'err');
@@ -549,7 +560,7 @@ function renderAssetCard(){
   if(!mState.scheds.length){
     dueBox.innerHTML = '<div class="msg warn">No PM schedule exists for this asset.</div>';
     const b = document.createElement('button');
-    b.className = 'btn-lime'; b.style.cssText='width:100%;padding:12px;margin-top:6px;';
+    b.className = 'btn-ghost'; b.style.cssText='width:100%;padding:12px;margin-top:6px;';
     b.textContent = 'Not due for PM — continue anyway';
     b.onclick = () => openModal('noSchedule');
     pick.appendChild(b);
@@ -578,7 +589,7 @@ function renderAssetCard(){
 
 function selectSchedule(i, el){
   document.querySelectorAll('#mSchedPick .assetline').forEach(n=>n.style.background='');
-  el.style.background = '#f4eef8';
+  el.style.background = '#EBF3FB';
   mState.chosen = mState.scheds[i];
   const st = dueState(mState.chosen.next_due_date);
   const startBtn = document.getElementById('mStartBtn');
@@ -592,7 +603,7 @@ function selectSchedule(i, el){
   }
 }
 
-/* ----- continue-anyway modal ----- */
+/* ----- modal ----- */
 let modalMode = null;
 function openModal(mode){
   modalMode = mode;
@@ -604,8 +615,7 @@ function openModal(mode){
   } else if(mode==='early'){
     document.getElementById('modalTitle').textContent = 'Not due yet';
     body.innerHTML = 'This '+cap(mState.chosen.service_type)+
-      ' service is not due until <b>'+mState.chosen.next_due_date+'</b>. '+
-      'Continue with an early PM?';
+      ' service is not due until <b>'+mState.chosen.next_due_date+'</b>. Continue with an early PM?';
   }
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
@@ -631,9 +641,7 @@ async function confirmContinue(){
       mState.chosen = created[0];
       mState.chosen.autoCreated = true;
       startPM();
-    }catch(e){
-      msg('mScanMsg','Could not auto-create schedule: '+e.message,'err');
-    }
+    }catch(e){ msg('mScanMsg','Could not auto-create schedule: '+e.message,'err'); }
   } else if(mode==='early'){
     startPM();
   }
@@ -643,8 +651,7 @@ async function startPM(){
   await loadChecklist();
   document.getElementById('mCheckCard').classList.remove('hidden');
   document.getElementById('mCheckHead').textContent =
-    mState.asset + ' · ' + mState.type + ' · ' +
-    cap(mState.chosen.service_type) + ' service';
+    mState.asset + ' · ' + mState.type + ' · ' + cap(mState.chosen.service_type) + ' service';
 
   const wrap = document.getElementById('mItems');
   wrap.innerHTML = '';
@@ -683,10 +690,8 @@ async function completePM(){
   const cond = document.getElementById('mCondition').value;
   if(!cond){ msg('mCompleteMsg','Select the overall machine condition.','warn'); return; }
   const missing = CHECKLIST.filter(i => !mState.outcomes[i.id].outcome);
-  if(missing.length){
-    msg('mCompleteMsg', missing.length+' checklist item(s) still need an outcome.','warn');
-    return;
-  }
+  if(missing.length){ msg('mCompleteMsg', missing.length+' checklist item(s) still need an outcome.','warn'); return; }
+
   const btn = document.getElementById('mCompleteBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Saving…';
 
@@ -751,7 +756,6 @@ function checkPin(){
 
 async function initSupervisor(){
   document.getElementById('sFirstDue').value = today();
-  // asset-type dropdown from master_data (distinct types)
   try{
     const rows = await sb('master_data?select=asset_type');
     const types = [...new Set(rows.map(r=>r.asset_type).filter(Boolean))].sort();
@@ -771,8 +775,7 @@ function onScopeChange(){
   document.getElementById('sConfirmCard').classList.add('hidden');
 }
 function onTierChange(){
-  document.getElementById('sFreq').value =
-    TIER_DEFAULTS[document.getElementById('sTier').value];
+  document.getElementById('sFreq').value = TIER_DEFAULTS[document.getElementById('sTier').value];
 }
 
 let RESOLVED = [];
@@ -783,42 +786,32 @@ async function resolveScope(){
   btn.disabled = true; btn.innerHTML='<span class="spin"></span> Finding…';
   msg('sResolveMsg','','');
   RESOLVED = [];
-
   try {
     if(scope==='type'){
       const t = document.getElementById('sTypeSel').value;
       if(!t){ msg('sResolveMsg','Select an asset type.','warn'); return; }
-      const rows = await sb('master_data?asset_type=eq.'+encodeURIComponent(t)+
-                            '&select=asset_no,asset_type');
+      const rows = await sb('master_data?asset_type=eq.'+encodeURIComponent(t)+'&select=asset_no,asset_type');
       RESOLVED = rows.map(r=>({asset_no:r.asset_no, asset_type:r.asset_type}));
-
     } else if(scope==='asset'){
       const a = cleanBarcode(document.getElementById('sAssetInput').value.trim());
       if(!a){ msg('sResolveMsg','Enter an asset number.','warn'); return; }
-      const md = await sb('master_data?asset_no=eq.'+encodeURIComponent(a)+
-                          '&select=asset_no,asset_type');
+      const md = await sb('master_data?asset_no=eq.'+encodeURIComponent(a)+'&select=asset_no,asset_type');
       if(!md.length){ msg('sResolveMsg','Asset not found in master data.','err'); return; }
       RESOLVED = [{asset_no:md[0].asset_no, asset_type:md[0].asset_type}];
-
-    } else { // line — latest scan per asset == this line
+    } else {
       const line = document.getElementById('sLineSel').value;
       if(!line){ msg('sResolveMsg','Select a line.','warn'); return; }
-      const scans = await sb('scan_log?select=asset_no,location,scan_timestamp'+
-                             '&order=scan_timestamp.desc&limit=5000');
+      const scans = await sb('scan_log?select=asset_no,location,scan_timestamp&order=scan_timestamp.desc&limit=5000');
       const latest = {};
       scans.forEach(s => { if(!latest[s.asset_no]) latest[s.asset_no] = s.location; });
       const assetNos = Object.keys(latest).filter(a => latest[a]===line);
-      if(!assetNos.length){
-        msg('sResolveMsg','No machines have a latest scan on '+line+'.','warn'); return;
-      }
+      if(!assetNos.length){ msg('sResolveMsg','No machines have a latest scan on '+line+'.','warn'); return; }
       const inList = assetNos.map(encodeURIComponent).join(',');
       const md = await sb('master_data?asset_no=in.('+inList+')&select=asset_no,asset_type');
       RESOLVED = md.map(r=>({asset_no:r.asset_no, asset_type:r.asset_type}));
     }
-
     if(!RESOLVED.length){ msg('sResolveMsg','No machines found.','warn'); return; }
     renderResolved(scope);
-
   } catch(e){
     msg('sResolveMsg','Resolve failed: '+e.message,'err');
   } finally {
@@ -833,8 +826,7 @@ function renderResolved(scope){
     '<b>'+RESOLVED.length+'</b> machine(s) found · '+cap(tier)+
     ' service · every '+document.getElementById('sFreq').value+' days.'+
     (scope==='line'
-      ? '<br><span class="footnote">By latest scan location. '+
-        'Machines not scanned recently may be missed — the mechanic catches those on the floor.</span>'
+      ? '<br><span class="footnote">By latest scan location — machines not scanned recently may be missed.</span>'
       : '');
   const list = document.getElementById('sResolvedList');
   list.innerHTML = '';
@@ -854,14 +846,14 @@ async function createSchedules(){
                   .map(c => RESOLVED[+c.dataset.i]);
   if(!checked.length){ msg('sCreateMsg','Select at least one machine.','warn'); return; }
 
-  const tier   = document.getElementById('sTier').value;
-  const freq   = parseInt(document.getElementById('sFreq').value,10);
+  const tier     = document.getElementById('sTier').value;
+  const freq     = parseInt(document.getElementById('sFreq').value,10);
   const assignee = document.getElementById('sAssignee').value.trim() || null;
   const firstDue = document.getElementById('sFirstDue').value || today();
-  const scope  = document.getElementById('sScope').value;
-  const origin = scope==='line'  ? 'line:'+document.getElementById('sLineSel').value
-               : scope==='type'  ? 'type:'+document.getElementById('sTypeSel').value
-               : 'asset';
+  const scope    = document.getElementById('sScope').value;
+  const origin   = scope==='line'  ? 'line:'+document.getElementById('sLineSel').value
+                 : scope==='type'  ? 'type:'+document.getElementById('sTypeSel').value
+                 : 'asset';
 
   if(!freq || freq<1){ msg('sCreateMsg','Frequency must be at least 1 day.','warn'); return; }
 
@@ -870,8 +862,7 @@ async function createSchedules(){
 
   try {
     const inList = checked.map(c=>encodeURIComponent(c.asset_no)).join(',');
-    const existing = await sb('pm_schedules?asset_no=in.('+inList+')'+
-                              '&service_type=eq.'+tier+'&active=eq.true&select=asset_no');
+    const existing = await sb('pm_schedules?asset_no=in.('+inList+')&service_type=eq.'+tier+'&active=eq.true&select=asset_no');
     const have = new Set(existing.map(e=>e.asset_no));
     const toCreate = checked.filter(c => !have.has(c.asset_no));
 
