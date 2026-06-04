@@ -428,6 +428,164 @@ tbody td {
 .toast.success { background: #3B6D11; }
 .toast.error { background: #A32D2D; }
 .toast.show { opacity: 1; transform: translateY(0); }
+
+/* ── ASSET PROFILE: STATUS BADGE ───────────────────────────── */
+.lc-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.lc-status-active      { background: #E2EFDA; color: #27500A; }
+.lc-status-maintenance { background: #FCE4D6; color: #843C0C; }
+.lc-status-stored      { background: #DEEAF1; color: #1F497D; }
+.lc-status-unknown     { background: #f5f5f5; color: #888; }
+
+/* ── ASSET PROFILE: COLLAPSIBLE SECTIONS ──────────────────── */
+.lc-collapse-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.lc-collapse-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.lc-collapse-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lc-collapse-badge {
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.lc-badge-grey { background: #f5f5f5; color: #666; }
+.lc-collapse-body {
+  display: none;
+  margin-top: 14px;
+  border-top: 1px solid #f0f2f5;
+  padding-top: 14px;
+  overflow-x: auto;
+}
+.lc-collapse-body.lc-open { display: block; }
+.lc-expand-lbl {
+  font-size: 11px;
+  color: #888;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── ASSET PROFILE: KPI 2×4 GRID ──────────────────────────── */
+.lc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+@media (max-width: 1100px) {
+  .lc-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.lc-kpi {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-left: 4px solid #ddd;
+}
+.lc-kpi.blue   { border-left-color: #2E5597; }
+.lc-kpi.green  { border-left-color: #70AD47; }
+.lc-kpi.orange { border-left-color: #ED7D31; }
+.lc-kpi.red    { border-left-color: #C00000; }
+.lc-kpi.purple { border-left-color: #6B3FA0; }
+.lc-kpi.teal   { border-left-color: #1B7D8A; }
+.lc-kpi.grey   { border-left-color: #888; }
+.lc-kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 6px;
+}
+.lc-kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
+}
+.lc-kpi-value.lc-status-val {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #1a1a1a;
+}
+.lc-kpi-sub {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+/* ── ASSET PROFILE: TABLES ────────────────────────────────── */
+.lc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 500px;
+}
+.lc-table thead tr { border-bottom: 2px solid #f0f2f5; }
+.lc-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 6px 10px;
+}
+.lc-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #f5f5f5;
+  color: #333;
+  vertical-align: middle;
+}
+.lc-table tr:last-child td { border-bottom: none; }
+.lc-table tr:hover td { background: #fafafa; }
+
+/* PM tier badges */
+.pm-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pm-minor  { background: #EBF3FB; color: #2E5597; }
+.pm-normal { background: #E2EFDA; color: #27500A; }
+.pm-major  { background: #FCE4D6; color: #843C0C; }
+
+/* Condition badges */
+.cond-excellent { color: #27500A; font-weight: 700; }
+.cond-good      { color: #3B6D11; font-weight: 600; }
+.cond-average   { color: #8B6914; font-weight: 600; }
+.cond-poor      { color: #C00000; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -471,7 +629,7 @@ tbody td {
   <div class="dash-tabs">
     <div class="dash-tab active" onclick="switchDashTab('assets')">Asset Tracking</div>
     <div class="dash-tab" onclick="switchDashTab('downtime')">Downtime</div>
-    <div class="dash-tab" onclick="switchDashTab('lifecycle')">Asset Lifecycle</div>
+    <div class="dash-tab" onclick="switchDashTab('profile')">Asset Profile</div>
     <div class="dash-tab" onclick="switchDashTab('inventory')">Inventory</div>
     <div class="dash-tab" onclick="switchDashTab('linechange')">Line Change</div>
   </div>
@@ -751,11 +909,12 @@ tbody td {
       </div>
       <div class="tab-view active" id="faultView-heatmap">
         <div class="hm-legend">
-          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#f5f5f5;border:1px solid #ddd;"></div> None</div>
-          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#FAEEDA;"></div> Low</div>
-          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F5C4B3;"></div> Medium</div>
-          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F0997B;"></div> High</div>
-          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#D85A30;"></div> Very high</div>
+          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#f5f5f5;border:1px solid #e8e8e8;"></div> None</div>
+          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#C0DD97;"></div> Low</div>
+          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#FAEEDA;"></div> Moderate</div>
+          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F5C4B3;"></div> High</div>
+          <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F0997B;"></div> Very high</div>
+          <div class="hm-leg-item" style="margin-left:auto;color:#aaa;font-style:italic;">scale relative to selected period</div>
         </div>
         <div class="hm-wrap" id="faultHeatmapContainer">
           <div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">Loading...</div>
@@ -771,12 +930,12 @@ tbody td {
 
   </div><!-- end panel-downtime -->
 
-  <!-- ═══ ASSET LIFECYCLE PANEL ═══ -->
-  <div class="dash-panel" id="panel-lifecycle">
+  <!-- ═══ ASSET PROFILE PANEL ═══ -->
+  <div class="dash-panel" id="panel-profile">
 
     <div class="chart-card" style="margin-bottom:16px;">
-      <div class="chart-title">Asset lifecycle search</div>
-      <div class="chart-sub">Type an asset number to see its complete history — scans and downtime incidents combined</div>
+      <div class="chart-title">Asset profile search</div>
+      <div class="chart-sub">Type an asset number to see its full intelligence card — status, downtime, parts, PM history and timeline</div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap;">
         <input type="text" id="lcAssetInput" placeholder="Type asset number e.g. 71270..."
           oninput="lcSearchDebounce()"
@@ -792,46 +951,183 @@ tbody td {
       <div id="lcSuggestions" style="display:none;border:1px solid #ddd;border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
     </div>
 
-    <!-- Lifecycle summary KPIs -->
+    <!-- Asset Profile summary KPIs -->
     <div id="lcKpiRow" style="display:none">
-      <div class="dt-kpi-grid" style="margin-bottom:16px;">
-        <div class="dt-kpi blue">
-          <div class="dt-kpi-label">Total scans</div>
-          <div class="dt-kpi-value" id="lcKpiScans">—</div>
-          <div class="dt-kpi-sub">all time</div>
+      <!-- Row 1: Core asset metrics -->
+      <div class="lc-kpi-grid" style="margin-bottom:10px;">
+        <div class="lc-kpi blue">
+          <div class="lc-kpi-label">Total Scans</div>
+          <div class="lc-kpi-value" id="lcKpiScans">—</div>
+          <div class="lc-kpi-sub">all time</div>
         </div>
-        <div class="dt-kpi orange">
-          <div class="dt-kpi-label">Downtime incidents</div>
-          <div class="dt-kpi-value" id="lcKpiIncidents">—</div>
-          <div class="dt-kpi-sub">all time</div>
+        <div class="lc-kpi" id="lcKpiStatusCard" style="border-left-color:#888;">
+          <div class="lc-kpi-label">Current Status</div>
+          <div class="lc-kpi-value lc-status-val" id="lcKpiStatusVal">—</div>
+          <div class="lc-kpi-sub" id="lcKpiStatusSub">checking downtime log…</div>
         </div>
-        <div class="dt-kpi red">
-          <div class="dt-kpi-label">Total downtime</div>
-          <div class="dt-kpi-value" id="lcKpiDowntime">—</div>
-          <div class="dt-kpi-sub">minutes</div>
+        <div class="lc-kpi orange">
+          <div class="lc-kpi-label">Downtime Incidents</div>
+          <div class="lc-kpi-value" id="lcKpiIncidents">—</div>
+          <div class="lc-kpi-sub">all time</div>
         </div>
-        <div class="dt-kpi green">
-          <div class="dt-kpi-label">Last seen</div>
-          <div class="dt-kpi-value" id="lcKpiLastSeen" style="font-size:16px;">—</div>
-          <div class="dt-kpi-sub" id="lcKpiLastLine"></div>
+        <div class="lc-kpi red">
+          <div class="lc-kpi-label">Total Downtime</div>
+          <div class="lc-kpi-value" id="lcKpiDowntime">—</div>
+          <div class="lc-kpi-sub">production minutes lost</div>
+        </div>
+      </div>
+      <!-- Row 2: Parts + PM + Last seen -->
+      <div class="lc-kpi-grid" style="margin-bottom:14px;">
+        <div class="lc-kpi teal">
+          <div class="lc-kpi-label">Parts Issued</div>
+          <div class="lc-kpi-value" id="lcKpiPartsReq">—</div>
+          <div class="lc-kpi-sub">transactions</div>
+        </div>
+        <div class="lc-kpi green" id="lcKpiMTBFCard">
+          <div class="lc-kpi-label">MTBF</div>
+          <div class="lc-kpi-value" id="lcKpiMTBF" style="font-size:20px;">—</div>
+          <div class="lc-kpi-sub" id="lcKpiMTBFSub">mean time between failures</div>
+        </div>
+        <div class="lc-kpi purple">
+          <div class="lc-kpi-label">PM Activities</div>
+          <div class="lc-kpi-value" id="lcKpiPM">—</div>
+          <div class="lc-kpi-sub" id="lcKpiPMSub">all time</div>
+        </div>
+        <div class="lc-kpi grey">
+          <div class="lc-kpi-label">Last Seen</div>
+          <div class="lc-kpi-value" style="font-size:18px;" id="lcKpiLastSeen">—</div>
+          <div class="lc-kpi-sub" id="lcKpiLastLine"></div>
         </div>
       </div>
     </div>
 
-    <!-- Timeline -->
-    <div id="lcTimeline" style="display:none">
-      <div class="chart-card">
-        <div class="chart-title">Full history timeline</div>
-        <div class="chart-sub" id="lcTimelineSub"></div>
-        <div id="lcTimelineContent" style="margin-top:14px;"></div>
+    <!-- Recurrence alert — only shown when same fault repeats ≥3 times in 7 days -->
+    <div id="lcRecurrenceAlert" style="display:none;background:#FFF5F5;border:1.5px solid #F7C1C1;border-left:5px solid #C00000;border-radius:10px;padding:14px 18px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#C00000;margin-bottom:8px;">
+        <span style="font-size:18px;">&#9888;</span>
+        <span id="lcRecurrenceTitle">Recurring fault detected</span>
+      </div>
+      <div id="lcRecurrenceList" style="margin-bottom:6px;"></div>
+      <div style="font-size:11px;color:#888;font-style:italic;margin-top:8px;border-top:1px solid #F7C1C1;padding-top:8px;">
+        Three or more of the same fault within seven days &mdash; possible incomplete fix worth investigating.
+      </div>
+    </div>
+
+    <!-- Parts issued section -->
+    <div id="lcPartsSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('lcPartsBody','lcPartsExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Parts Issued</span>
+            <span id="lcPartsBadge" class="lc-collapse-badge" style="background:#DEEAF1;color:#1B7D8A;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="lcPartsExpandLbl">Expand ▼</span>
+        </div>
+        <div class="lc-collapse-body" id="lcPartsBody">
+          <div id="lcPartsTable"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PM activities section -->
+    <div id="lcPMSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('lcPMBody','lcPMExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Preventative Maintenance History</span>
+            <span id="lcPMBadge" class="lc-collapse-badge lc-badge-grey"></span>
+          </div>
+          <span class="lc-expand-lbl" id="lcPMExpandLbl">Expand ▼</span>
+        </div>
+        <div class="lc-collapse-body" id="lcPMBody">
+          <div id="lcPMTable"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fault × Line heatmap section (asset-scoped) -->
+    <div id="lcFaultSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('lcFaultBody','lcFaultExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Fault history by line</span>
+            <span id="lcFaultBadge" class="lc-collapse-badge" style="background:#FCE4D6;color:#843C0C;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="lcFaultExpandLbl">Expand ▼</span>
+        </div>
+        <div class="lc-collapse-body" id="lcFaultBody">
+          <!-- View toggle (heatmap / table) -->
+          <div class="view-tabs" style="margin-bottom:12px;">
+            <div class="view-tab active" onclick="switchLcFaultView('heatmap')">Heatmap</div>
+            <div class="view-tab" onclick="switchLcFaultView('table')">Table</div>
+          </div>
+
+          <!-- Heatmap legend (inline colors so they render even without .hm-cell context) -->
+          <div class="hm-legend">
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#f5f5f5;border:1px solid #e8e8e8;"></div>None</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#C0DD97;"></div>Low</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#FAEEDA;"></div>Moderate</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F5C4B3;"></div>High</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F0997B;"></div>Very high</div>
+            <div class="hm-leg-item" style="margin-left:auto;color:#aaa;font-style:italic;">scale relative to this asset</div>
+          </div>
+
+          <div id="lcFaultView-heatmap" class="tab-view active">
+            <div class="hm-wrap" id="lcFaultHeatmapContainer"></div>
+          </div>
+          <div id="lcFaultView-table" class="tab-view">
+            <div id="lcFaultTableContainer" style="overflow-x:auto;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline (collapsible, with year/month filter) -->
+    <div id="lcTimelineSection" style="display:none">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('lcTimelineBody','lcTimelineExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Full history timeline</span>
+            <span id="lcTimelineBadge" class="lc-collapse-badge lc-badge-grey"></span>
+          </div>
+          <span class="lc-expand-lbl" id="lcTimelineExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="lcTimelineBody">
+          <!-- Filter row -->
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f0f2f5;">
+            <label style="font-size:12px;font-weight:700;color:#555;">Filter:</label>
+            <select id="lcTimelineYear" onchange="renderLcTimeline()" style="padding:7px 11px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;min-width:110px;">
+              <option value="">All years</option>
+            </select>
+            <select id="lcTimelineMonth" onchange="renderLcTimeline()" style="padding:7px 11px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;min-width:130px;">
+              <option value="">All months</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <button onclick="clearLcTimelineFilter()" class="filter-clear">Clear</button>
+            <span id="lcTimelineFilterInfo" style="font-size:12px;color:#888;margin-left:auto;"></span>
+          </div>
+          <div class="chart-sub" id="lcTimelineSub" style="margin-bottom:14px;"></div>
+          <div id="lcTimelineContent"></div>
+        </div>
       </div>
     </div>
 
     <div id="lcEmpty" style="text-align:center;padding:60px;color:#aaa;font-size:14px;">
-      Select an asset above to view its complete history
+      Select an asset above to view its full profile
     </div>
 
-  </div><!-- end panel-lifecycle -->
+  </div><!-- end panel-profile -->
 
   <!-- ═══ INVENTORY PANEL ═══ -->
   <div class="dash-panel" id="panel-inventory">
@@ -1112,6 +1408,7 @@ tbody td {
     </div>
 
   </div><!-- end panel-inventory -->
+
   <!-- LINE CHANGE PANEL -->
   <div class="dash-panel" id="panel-linechange">
 
@@ -1310,7 +1607,6 @@ function clearFilter() {
 
 // ── RENDER ALL ───────────────────────────────────────────────────────────────
 function getLatestData(data) {
-  // Reduce to most recent scan per asset — one record per asset_no
   const map = {};
   data.forEach(r => {
     if (!r.asset_no) return;
@@ -1405,7 +1701,6 @@ function renderStatusChart() {
   const stored = latest.filter(r => r.location === 'Pool A' || r.location === 'Pool B').length;
   const ctx = document.getElementById('statusChart').getContext('2d');
 
-  // Build dynamic labels — only show segments with data
   const labels = ['Active / In Use'];
   const data   = [active];
   const colors = ['#70AD47'];
@@ -1507,7 +1802,6 @@ function renderStatusTable() {
     const minor = recs.filter(r => (r.status||'') === 'Under Maintenance — Minor').length;
     const major = recs.filter(r => (r.status||'') === 'Under Maintenance — Major').length;
     const m     = minor + major;
-    const other = recs.length - a - m; // catch any legacy status values
     const total = recs.length;
     const aW    = Math.round((a / total) * 100);
     const mW    = Math.round((m / total) * 100);
@@ -1783,7 +2077,6 @@ async function fetchStorageUsage() {
   const pctEl   = document.getElementById('storagePct');
 
   try {
-    // Query Supabase pg_database_size via the rpc endpoint
     const res = await fetch(
       SUPABASE_URL + '/rest/v1/rpc/get_db_size',
       {
@@ -1804,7 +2097,6 @@ async function fetchStorageUsage() {
     }
   } catch(e) {}
 
-  // Fallback: estimate from scan count (each row ~500 bytes avg)
   try {
     const res = await fetch(
       SUPABASE_URL + '/rest/v1/scan_log?select=id',
@@ -1820,7 +2112,6 @@ async function fetchStorageUsage() {
     const countHeader = res.headers.get('content-range');
     if (countHeader) {
       const total = parseInt(countHeader.split('/')[1]) || 0;
-      // master_data ~11000 rows * 100 bytes + scan rows * 500 bytes
       const estimatedBytes = (11000 * 100) + (total * 500);
       renderStorage(estimatedBytes, true);
       return;
@@ -1836,7 +2127,7 @@ function renderStorage(bytes, estimated = false) {
   const textEl = document.getElementById('storageText');
   const pctEl  = document.getElementById('storagePct');
 
-  const LIMIT_BYTES = 500 * 1024 * 1024; // 500 MB
+  const LIMIT_BYTES = 500 * 1024 * 1024;
   const usedMB  = (bytes / (1024 * 1024)).toFixed(1);
   const limitMB = 500;
   const pct     = Math.min(100, Math.round((bytes / LIMIT_BYTES) * 100));
@@ -1865,7 +2156,7 @@ let dtLineChart = null;
 let dtTrendChart = null;
 let dtEfficiencyChart = null;
 let activeDtSection = 'all';
-let EFFICIENCY_TARGET = 90; // default 90% — editable
+let EFFICIENCY_TARGET = 90;
 
 const SECTIONS = {
   all:    null,
@@ -1883,7 +2174,6 @@ const SECTION_LABELS = {
 
 function setSectionFilter(section) {
   activeDtSection = section;
-  // Update button styles
   ['all','green','yellow','purple','blue'].forEach(s => {
     const btn = document.getElementById('section' + s.charAt(0).toUpperCase() + s.slice(1));
     if (btn) btn.classList.toggle('active', s === section);
@@ -1930,7 +2220,6 @@ function applyDtFilter() {
 
   let base = allDowntime;
 
-  // Apply date filter
   if (from || to) {
     base = base.filter(r => {
       const d = (r.reported_time || '').split('T')[0];
@@ -1940,14 +2229,12 @@ function applyDtFilter() {
     });
   }
 
-  // Apply section filter
   if (sectionLines) {
     base = base.filter(r => sectionLines.includes(r.line));
   }
 
   filteredDowntime = base;
 
-  // Update filter info
   const parts = [];
   if (from || to) parts.push((from || '…') + ' to ' + (to || '…'));
   if (activeDtSection !== 'all') parts.push(SECTION_LABELS[activeDtSection]);
@@ -1989,15 +2276,14 @@ function fmtMins(mins) {
   return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
 }
 
-// Shift operating minutes for a given date
 function getShiftMinutes(dateStr) {
   if (!dateStr) return 540;
   const d = new Date(dateStr);
-  const dow = d.getDay(); // 0=Sun, 1=Mon, 5=Fri, 6=Sat
-  if (dow === 0) return null;   // Sunday — no shift ever
-  if (dow === 6) return null;   // Saturday — standard is no shift (overtime possible but not default)
-  if (dow === 5) return 465;    // Friday: 07:45-15:30 = 465 min
-  return 540;                   // Mon-Thu: 07:45-16:45 = 540 min
+  const dow = d.getDay();
+  if (dow === 0) return null;
+  if (dow === 6) return null;
+  if (dow === 5) return 465;
+  return 540;
 }
 
 function getShiftForDate(date) {
@@ -2058,7 +2344,6 @@ function getTodayStr() {
 }
 
 function renderDtKPIs() {
-  // Apply section filter to allDowntime for section-aware KPIs
   const sectionLines = SECTIONS[activeDtSection];
   const sectionAll = sectionLines
     ? allDowntime.filter(r => sectionLines.includes(r.line))
@@ -2071,17 +2356,14 @@ function renderDtKPIs() {
   const avgResponse = responseTimes.length ? Math.round(responseTimes.reduce((a,b)=>a+b,0)/responseTimes.length) : null;
   const avgRepair   = repairTimes.length   ? Math.round(repairTimes.reduce((a,b)=>a+b,0)/repairTimes.length)   : null;
 
-  // MTBF & efficiency — today's incidents scoped to active section
   const today = getTodayStr();
   const todayResolved = sectionAll.filter(r => r.status === 'Resolved' && (r.reported_time||'').startsWith(today));
   const todayOpen     = sectionAll.filter(r => (r.status === 'Open' || r.status === 'Investigating') && (r.reported_time||'').startsWith(today));
   const shiftMins = getShiftMinutes(today);
   const noShift = shiftMins === null;
 
-  // Improvement 1 — include open incidents using shift-aware elapsed time
   const resolvedDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
   const openDowntimeToday     = todayOpen.reduce((s,r) => {
-    // Estimate open incident downtime using shift-aware elapsed from reported_time
     if (!r.reported_time) return s;
     const reported = new Date(r.reported_time).toISOString();
     const nowISO   = new Date().toISOString();
@@ -2093,13 +2375,10 @@ function renderDtKPIs() {
   const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
   const efficiency = noShift ? null : shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
 
-  // Improvement 2 — count zero-incident working days as 100% in avg efficiency
-  // Get date range from filtered data or use last 30 days
   const allDates = filteredDowntime.map(r => (r.reported_time||'').split('T')[0]).filter(Boolean);
   const minDate  = allDates.length ? allDates.reduce((a,b) => a<b?a:b) : today;
   const maxDate  = today;
 
-  // Walk all working days in range, default to 100% if no incidents
   const dayMap = {};
   filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
     const d = r.reported_time.split('T')[0];
@@ -2107,7 +2386,6 @@ function renderDtKPIs() {
     dayMap[d] += r.total_downtime_minutes || 0;
   });
 
-  // Build list of all working days in the range
   const workingDays = [];
   const cursor = new Date(minDate);
   const endDay = new Date(maxDate);
@@ -2120,7 +2398,7 @@ function renderDtKPIs() {
   const dayEfficiencies = workingDays.map(d => {
     const sm     = getShiftMinutes(d);
     if (!sm) return null;
-    const dtMins = dayMap[d] || 0; // 0 = no incidents = 100% efficient
+    const dtMins = dayMap[d] || 0;
     return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
   }).filter(v => v !== null);
 
@@ -2128,7 +2406,6 @@ function renderDtKPIs() {
     ? Math.round(dayEfficiencies.reduce((a,b) => a+b, 0) / dayEfficiencies.length)
     : null;
 
-  // Update KPI sub-labels to show section context
   const sectionLabel = activeDtSection === 'all' ? 'factory-wide' : SECTION_LABELS[activeDtSection];
   document.getElementById('dtKpiOpen').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = sectionLabel;
   document.getElementById('dtKpiTotal').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent    = sectionLabel;
@@ -2146,11 +2423,9 @@ function renderDtKPIs() {
   document.getElementById('dtKpiEfficiency').textContent     = noShift ? 'No shift' : efficiency + '%';
   document.getElementById('dtKpiAvgEfficiency').textContent  = avgEfficiency != null ? avgEfficiency + '%' : '—';
 
-  // Colour today's efficiency KPI — vs target
   const effEl = document.getElementById('dtKpiEfficiency').closest('.dt-kpi');
   effEl.style.borderLeftColor = noShift ? '#888' : efficiency >= EFFICIENCY_TARGET ? '#70AD47' : efficiency >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000';
 
-  // Colour period avg efficiency KPI — vs target
   const avgEl = document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi');
   avgEl.style.borderLeftColor = avgEfficiency == null ? '#888' : avgEfficiency >= EFFICIENCY_TARGET ? '#70AD47' : avgEfficiency >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000';
 
@@ -2168,9 +2443,6 @@ function switchOffenderView(name) {
 }
 
 function renderTopOffenders() {
-  const resolved = filteredDowntime.filter(r => r.status === 'Resolved');
-
-  // Group by asset
   const byAsset = {};
   filteredDowntime.forEach(r => {
     if (!r.asset_no) return;
@@ -2196,9 +2468,7 @@ function renderTopOffenders() {
     return;
   }
 
-  // Sort by incidents
   const byInc = [...assets].sort((a,b) => b.incidents - a.incidents).slice(0, 10);
-  // Sort by downtime
   const byDt  = [...assets].sort((a,b) => b.total_downtime - a.total_downtime).slice(0, 10);
 
   document.getElementById('offenderByIncidents').innerHTML = offenderTable(byInc, 'incidents');
@@ -2261,7 +2531,6 @@ function renderRepeatAlerts() {
     (!sectionLines || sectionLines.includes(r.line))
   );
 
-  // Group by asset
   const byAsset = {};
   todayAll.forEach(r => {
     if (!r.asset_no) return;
@@ -2269,7 +2538,6 @@ function renderRepeatAlerts() {
     byAsset[r.asset_no].push(r);
   });
 
-  // Find assets with 2+ incidents today
   const repeats = Object.entries(byAsset)
     .filter(([_, recs]) => recs.length >= 2)
     .sort((a, b) => b[1].length - a[1].length);
@@ -2284,7 +2552,6 @@ function renderRepeatAlerts() {
 
   section.style.display = 'block';
   list.innerHTML = repeats.map(([assetNo, recs]) => {
-    // Sort by reported time
     const sorted = [...recs].sort((a,b) => new Date(a.reported_time) - new Date(b.reported_time));
     const totalDt = sorted.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
 
@@ -2352,7 +2619,6 @@ function renderOpenIncidents() {
 }
 
 function renderDtLineChart() {
-  // Show only lines relevant to active section
   const sectionLines = SECTIONS[activeDtSection];
   const ALL_LINES = sectionLines || Array.from({length:24},(_,i)=>'Line '+(i+1));
   const resolved = filteredDowntime.filter(r => r.status === 'Resolved');
@@ -2362,7 +2628,6 @@ function renderDtLineChart() {
     return recs.reduce((sum, r) => sum + (r.total_downtime_minutes || 0), 0);
   });
 
-  // Colour bars by section
   const sectionColor = {
     green: '#2D7D46', yellow: '#C9A84C', purple: '#6B3FA0', blue: '#1B4F8A', all: '#ED7D31'
   };
@@ -2371,7 +2636,7 @@ function renderDtLineChart() {
     if (SECTIONS.yellow && SECTIONS.yellow.includes(l)) return '#C9A84C';
     if (SECTIONS.purple && SECTIONS.purple.includes(l)) return '#6B3FA0';
     if (SECTIONS.blue   && SECTIONS.blue.includes(l))   return '#1B4F8A';
-    return '#888'; // Lines 12, 13 — not in any section
+    return '#888';
   });
 
   const ctx = document.getElementById('dtLineChart').getContext('2d');
@@ -2412,7 +2677,6 @@ const FAULT_TYPES = [
   'Unusual noise / vibration', 'Machine stopped — error light'
 ];
 const DT_LINES_ALL = Array.from({length:24}, (_,i) => 'Line '+(i+1));
-// DT_LINES is computed dynamically in render functions based on active section
 
 function faultCellClass(count, max) {
   if (count === 0) return 'c-empty';
@@ -2424,7 +2688,6 @@ function faultCellClass(count, max) {
 }
 
 function renderDtEfficiencyChart() {
-  // Build daily downtime map from resolved incidents
   const dayMap = {};
   filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
     const d = r.reported_time.split('T')[0];
@@ -2432,7 +2695,6 @@ function renderDtEfficiencyChart() {
     dayMap[d] += r.total_downtime_minutes || 0;
   });
 
-  // Get date range — walk all working days, include zero-incident days as 100%
   const allDates = filteredDowntime.map(r => (r.reported_time||'').split('T')[0]).filter(Boolean);
   if (allDates.length === 0) {
     if (dtEfficiencyChart) { dtEfficiencyChart.destroy(); dtEfficiencyChart = null; }
@@ -2457,7 +2719,7 @@ function renderDtEfficiencyChart() {
 
   const efficiencies = days.map(d => {
     const sm     = getShiftMinutes(d);
-    const dtMins = dayMap[d] || 0; // zero = 100% efficient day
+    const dtMins = dayMap[d] || 0;
     return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
   });
 
@@ -2540,7 +2802,6 @@ function renderFaultHeatmap() {
     return;
   }
 
-  // Find max count for colour scaling
   let maxCount = 0;
   FAULT_TYPES.forEach(ft => {
     DT_LINES.forEach(line => {
@@ -2573,7 +2834,6 @@ function renderFaultTable() {
     return;
   }
 
-  // Build table: rows = lines, cols = faults + total
   const DT_LINES = SECTIONS[activeDtSection] || DT_LINES_ALL;
   const lines = DT_LINES.filter(l => filteredDowntime.some(r => r.line === l));
   if (lines.length === 0) {
@@ -2608,9 +2868,10 @@ function switchFaultView(name) {
   document.getElementById('faultView-table').classList.toggle('active', name === 'table');
 }
 
-// ── ASSET LIFECYCLE ───────────────────────────────────────────────────────────
+// ── ASSET PROFILE ─────────────────────────────────────────────────────────────
 let lcDebounceTimer = null;
-let lcAssets = []; // cached unique asset numbers from scan data
+let lcAssets = [];
+let lcAllTimelineEvents = [];
 
 function lcSearchDebounce() {
   clearTimeout(lcDebounceTimer);
@@ -2622,7 +2883,6 @@ function showLcSuggestions() {
   const box = document.getElementById('lcSuggestions');
   if (q.length < 2) { box.style.display = 'none'; return; }
 
-  // Build asset list from scan data if not cached
   if (lcAssets.length === 0) {
     lcAssets = [...new Set(allData.map(r => r.asset_no).filter(Boolean))].sort((a,b) => {
       const na = parseFloat(a), nb = parseFloat(b);
@@ -2649,7 +2909,6 @@ function selectLcAsset(assetNo) {
   loadLifecycle();
 }
 
-// Hide suggestions when clicking outside
 document.addEventListener('click', e => {
   if (!e.target.closest('#lcAssetInput') && !e.target.closest('#lcSuggestions')) {
     const box = document.getElementById('lcSuggestions');
@@ -2660,10 +2919,16 @@ document.addEventListener('click', e => {
 async function loadLifecycle() {
   const assetNo = document.getElementById('lcAssetInput').value.trim();
   document.getElementById('lcSuggestions').style.display = 'none';
-  document.getElementById('lcKpiRow').style.display = 'none';
-  document.getElementById('lcTimeline').style.display = 'none';
-  document.getElementById('lcEmpty').style.display = 'block';
-  document.getElementById('lcAssetType').textContent = '';
+
+  // Hide everything
+  document.getElementById('lcKpiRow').style.display          = 'none';
+  document.getElementById('lcRecurrenceAlert').style.display = 'none';
+  document.getElementById('lcPartsSection').style.display    = 'none';
+  document.getElementById('lcPMSection').style.display       = 'none';
+  document.getElementById('lcFaultSection').style.display    = 'none';
+  document.getElementById('lcTimelineSection').style.display = 'none';
+  document.getElementById('lcEmpty').style.display           = 'block';
+  document.getElementById('lcAssetType').textContent         = '';
 
   if (!assetNo) return;
 
@@ -2679,84 +2944,666 @@ async function loadLifecycle() {
     }
   } catch(e) {}
 
-  // Fetch all scans for this asset
-  const [scanRes, dtRes] = await Promise.all([
-    fetch(SUPABASE_URL + '/rest/v1/scan_log?asset_no=eq.' + encodeURIComponent(assetNo) + '&select=*&order=scan_timestamp.asc',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
-    fetch(SUPABASE_URL + '/rest/v1/downtime_log?asset_no=eq.' + encodeURIComponent(assetNo) + '&select=*&order=reported_time.asc',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } })
+  // Four parallel fetches
+  const [scanRes, dtRes, partsRes, pmRes] = await Promise.all([
+    fetch(
+      SUPABASE_URL + '/rest/v1/scan_log?asset_no=eq.' + encodeURIComponent(assetNo) +
+      '&select=*&order=scan_timestamp.asc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    ),
+    fetch(
+      SUPABASE_URL + '/rest/v1/downtime_log?asset_no=eq.' + encodeURIComponent(assetNo) +
+      '&select=*&order=reported_time.asc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    ),
+    fetch(
+      SUPABASE_URL + '/rest/v1/parts_requests?asset_no=eq.' + encodeURIComponent(assetNo) +
+      '&status=in.(Issued)&select=*&order=requested_time.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    ),
+    fetch(
+      SUPABASE_URL + '/rest/v1/pm_log?asset_no=eq.' + encodeURIComponent(assetNo) +
+      '&select=*&order=completed_date.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    )
   ]);
 
-  const scans    = await scanRes.json();
+  const scans     = await scanRes.json();
   const incidents = await dtRes.json();
+  const parts     = await partsRes.json();
+  const pmLogs    = await pmRes.json();
 
   if (scans.length === 0 && incidents.length === 0) {
-    document.getElementById('lcEmpty').innerHTML = '<div style="text-align:center;padding:60px;color:#aaa;font-size:14px;">No records found for asset ' + assetNo + '</div>';
+    document.getElementById('lcEmpty').innerHTML =
+      '<div style="text-align:center;padding:60px;color:#aaa;font-size:14px;">No records found for asset ' + assetNo + '</div>';
     return;
   }
 
-  // Render KPIs
-  const totalDowntime = incidents.filter(i => i.status === 'Resolved').reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
+  // Compute status — open downtime overrides scan status
+  const openIncident = incidents.find(i => i.status === 'Open' || i.status === 'Investigating');
+  const lastScan     = scans.length > 0 ? scans[scans.length - 1] : null;
+  renderLcStatus(openIncident, lastScan);
 
-  // Last seen — whichever is more recent: last scan or last incident
-  const lastScan     = scans.length > 0     ? scans[scans.length - 1]         : null;
-  const lastIncident = incidents.length > 0  ? incidents[incidents.length - 1] : null;
+  // KPI calculations
+  const totalDowntime  = incidents
+    .filter(i => i.status === 'Resolved')
+    .reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
 
-  let lastActivity = null;
-  let lastActivityType = '';
+  // Last activity — most recent of scan or incident
   let lastActivityDate = null;
-  let lastActivityLocation = '—';
+  let lastActivityLoc  = '—';
+  let lastActivityType = '';
 
-  if (lastScan && lastIncident) {
-    const scanTime     = new Date(lastScan.scan_timestamp);
-    const incidentTime = new Date(lastIncident.reported_time);
-    if (scanTime >= incidentTime) {
-      lastActivity = lastScan;
-      lastActivityType = 'Scan';
+  const lastScanTime     = lastScan     ? new Date(lastScan.scan_timestamp) : null;
+  const lastIncident     = incidents.length > 0 ? incidents[incidents.length - 1] : null;
+  const lastIncidentTime = lastIncident ? new Date(lastIncident.reported_time) : null;
+
+  if (lastScanTime && lastIncidentTime) {
+    if (lastScanTime >= lastIncidentTime) {
       lastActivityDate = lastScan.scan_timestamp;
-      lastActivityLocation = lastScan.location || '—';
+      lastActivityLoc  = (lastScan.location || '—') + ' · ' + (lastScan.status || '—');
+      lastActivityType = 'Scan';
     } else {
-      lastActivity = lastIncident;
-      lastActivityType = 'Downtime';
       lastActivityDate = lastIncident.reported_time;
-      lastActivityLocation = lastIncident.line || '—';
+      lastActivityLoc  = (lastIncident.line || '—') + ' · ' + lastIncident.status;
+      lastActivityType = 'Downtime';
     }
-  } else if (lastScan) {
-    lastActivity = lastScan;
-    lastActivityType = 'Scan';
+  } else if (lastScanTime) {
     lastActivityDate = lastScan.scan_timestamp;
-    lastActivityLocation = lastScan.location || '—';
-  } else if (lastIncident) {
-    lastActivity = lastIncident;
-    lastActivityType = 'Downtime';
+    lastActivityLoc  = (lastScan.location || '—') + ' · ' + (lastScan.status || '—');
+    lastActivityType = 'Scan';
+  } else if (lastIncidentTime) {
     lastActivityDate = lastIncident.reported_time;
-    lastActivityLocation = lastIncident.line || '—';
+    lastActivityLoc  = (lastIncident.line || '—') + ' · ' + lastIncident.status;
+    lastActivityType = 'Downtime';
   }
 
-  document.getElementById('lcKpiScans').textContent     = scans.length;
-  document.getElementById('lcKpiIncidents').textContent = incidents.length;
-  document.getElementById('lcKpiDowntime').textContent  = totalDowntime + ' min';
-  document.getElementById('lcKpiLastSeen').textContent  = lastActivityDate ? formatShortDate(lastActivityDate) : '—';
-  document.getElementById('lcKpiLastLine').textContent  = lastActivity
-    ? lastActivityLocation + ' (' + lastActivityType + ')'
-    : '—';
+  const lastPM = pmLogs.length > 0 ? pmLogs[0] : null;
+
+  // Populate KPIs
+  document.getElementById('lcKpiScans').textContent      = scans.length;
+  document.getElementById('lcKpiIncidents').textContent  = incidents.length;
+
+  // Downtime — show hours if >= 60 mins
+  if (totalDowntime >= 60) {
+    const h = Math.floor(totalDowntime / 60);
+    const m = totalDowntime % 60;
+    document.getElementById('lcKpiDowntime').textContent = h + 'h ' + m + 'm';
+    document.getElementById('lcKpiDowntime').closest('.lc-kpi').querySelector('.lc-kpi-sub').textContent =
+      totalDowntime + ' minutes total';
+  } else {
+    document.getElementById('lcKpiDowntime').textContent = totalDowntime + 'm';
+    document.getElementById('lcKpiDowntime').closest('.lc-kpi').querySelector('.lc-kpi-sub').textContent =
+      'production minutes lost';
+  }
+
+  document.getElementById('lcKpiPartsReq').textContent   = parts.length;
+
+  // MTBF — Mean Time Between Failures
+  // Formula: span between first and last incident / (count − 1)
+  // Needs ≥ 2 incidents to compute. Color-code the card border by value.
+  const mtbfCard  = document.getElementById('lcKpiMTBFCard');
+  const mtbfValEl = document.getElementById('lcKpiMTBF');
+  const mtbfSubEl = document.getElementById('lcKpiMTBFSub');
+  mtbfCard.classList.remove('green', 'orange', 'red', 'teal');
+  if (incidents.length >= 2) {
+    const sortedInc = [...incidents]
+      .filter(i => i.reported_time)
+      .sort((a, b) => new Date(a.reported_time) - new Date(b.reported_time));
+    if (sortedInc.length >= 2) {
+      const spanMs   = new Date(sortedInc[sortedInc.length - 1].reported_time) - new Date(sortedInc[0].reported_time);
+      const gapMs    = spanMs / (sortedInc.length - 1);
+      const gapDays  = gapMs / (1000 * 60 * 60 * 24);
+      const gapHours = gapMs / (1000 * 60 * 60);
+      if (gapDays >= 1) {
+        mtbfValEl.textContent = gapDays >= 10 ? Math.round(gapDays) + ' days' : gapDays.toFixed(1) + ' days';
+      } else if (gapHours >= 1) {
+        mtbfValEl.textContent = gapHours.toFixed(1) + ' hrs';
+      } else {
+        mtbfValEl.textContent = '< 1 hr';
+      }
+      mtbfSubEl.textContent = 'avg across ' + sortedInc.length + ' incidents';
+      // Color thresholds: red <7d, orange 7–30d, green ≥30d
+      if      (gapDays < 7)  mtbfCard.classList.add('red');
+      else if (gapDays < 30) mtbfCard.classList.add('orange');
+      else                   mtbfCard.classList.add('green');
+    } else {
+      mtbfValEl.textContent = '—';
+      mtbfSubEl.textContent = 'needs ≥ 2 incidents';
+      mtbfCard.classList.add('green');
+    }
+  } else {
+    mtbfValEl.textContent = '—';
+    mtbfSubEl.textContent = incidents.length === 1 ? 'needs ≥ 2 incidents' : 'no failures recorded';
+    mtbfCard.classList.add('green');
+  }
+
+  document.getElementById('lcKpiPM').textContent         = pmLogs.length;
+  document.getElementById('lcKpiPMSub').textContent      = lastPM
+    ? 'last: ' + lastPM.completed_date + ' (' + (lastPM.service_type || '—') + ')'
+    : 'no PM recorded';
+
+  document.getElementById('lcKpiLastSeen').textContent   = lastActivityDate
+    ? formatShortDate(lastActivityDate) : '—';
+  document.getElementById('lcKpiLastLine').innerHTML     = lastActivityLoc +
+    (lastActivityType ? '<br><span style="font-size:10px;color:#bbb;">via ' + lastActivityType + '</span>' : '');
+
   document.getElementById('lcKpiRow').style.display = 'block';
 
-  // Build merged timeline
-  const events = [];
-  scans.forEach(s => events.push({ type: 'scan', time: s.scan_timestamp, data: s }));
-  incidents.forEach(i => events.push({ type: 'incident', time: i.reported_time, data: i }));
-  events.sort((a, b) => new Date(b.time) - new Date(a.time)); // newest first
+  // Recurrence alert — top-level banner, only shown if patterns are detected
+  renderLcRecurrenceAlert(incidents);
 
-  document.getElementById('lcTimelineSub').textContent =
-    scans.length + ' scan' + (scans.length !== 1 ? 's' : '') + ' and ' +
-    incidents.length + ' incident' + (incidents.length !== 1 ? 's' : '') + ' — newest first';
+  // Parts section
+  renderLcParts(parts);
 
-  document.getElementById('lcTimelineContent').innerHTML =
-    '<div class="timeline">' + events.map(e => renderTimelineItem(e)).join('') + '</div>';
+  // PM section
+  renderLcPM(pmLogs);
 
-  document.getElementById('lcTimeline').style.display = 'block';
-  document.getElementById('lcEmpty').style.display = 'none';
+  // Fault × Line heatmap (asset-scoped, mirrors downtime tab logic)
+  renderLcFaultSection(incidents);
+
+  // Timeline
+  // Timeline — store events in module scope so filters can re-render without re-fetching
+  lcAllTimelineEvents = [];
+  scans.forEach(s     => lcAllTimelineEvents.push({ type: 'scan',     time: s.scan_timestamp,  data: s }));
+  incidents.forEach(i => lcAllTimelineEvents.push({ type: 'incident', time: i.reported_time,   data: i }));
+  lcAllTimelineEvents.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+  // Populate year dropdown with years actually present (descending)
+  const years = [...new Set(lcAllTimelineEvents
+    .map(e => e.time ? String(e.time).substring(0, 4) : null)
+    .filter(Boolean)
+  )].sort().reverse();
+  const yearSel = document.getElementById('lcTimelineYear');
+  yearSel.innerHTML = '<option value="">All years</option>' +
+    years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+  document.getElementById('lcTimelineMonth').value = '';
+  document.getElementById('lcTimelineFilterInfo').textContent = '';
+
+  // Badge in the collapse header shows total event count
+  document.getElementById('lcTimelineBadge').textContent =
+    lcAllTimelineEvents.length + ' event' + (lcAllTimelineEvents.length !== 1 ? 's' : '');
+
+  // Render (default = no filter)
+  renderLcTimeline();
+
+  document.getElementById('lcTimelineSection').style.display = 'block';
+  document.getElementById('lcEmpty').style.display           = 'none';
+}
+
+// ── STATUS RENDERER ──────────────────────────────────────────────
+function renderLcStatus(openIncident, lastScan) {
+  const card  = document.getElementById('lcKpiStatusCard');
+  const valEl = document.getElementById('lcKpiStatusVal');
+  const subEl = document.getElementById('lcKpiStatusSub');
+
+  if (openIncident) {
+    // Active downtime overrides scan status
+    const mechInfo = openIncident.mechanic
+      ? (openIncident.status === 'Investigating' ? openIncident.mechanic + ' investigating' : 'open — no mechanic')
+      : 'open — no mechanic';
+    valEl.innerHTML = '<span class="lc-status-badge lc-status-maintenance">&#9888; Under Maintenance</span>';
+    subEl.innerHTML = openIncident.line + ' · ' + mechInfo +
+      '<br><span style="font-size:10px;color:#bbb;">overrides scan status — open incident exists</span>';
+    card.style.borderLeftColor = '#C00000';
+  } else if (lastScan) {
+    const s   = lastScan.status || 'Unknown';
+    const cls = s === 'Active / In Use'            ? 'lc-status-active'
+              : (s || '').startsWith('Under Maint') ? 'lc-status-maintenance'
+              : s === 'Stored'                       ? 'lc-status-stored'
+              :                                        'lc-status-unknown';
+    const borderColor = s === 'Active / In Use'            ? '#70AD47'
+                      : (s || '').startsWith('Under Maint') ? '#ED7D31'
+                      :                                        '#888';
+    valEl.innerHTML = '<span class="lc-status-badge ' + cls + '">' + s + '</span>';
+    subEl.innerHTML = 'from last scan · ' + formatShortDate(lastScan.scan_timestamp) +
+      '<br><span style="font-size:10px;color:#bbb;">no open downtime incidents</span>';
+    card.style.borderLeftColor = borderColor;
+  } else {
+    valEl.innerHTML  = '<span class="lc-status-badge lc-status-unknown">Unknown</span>';
+    subEl.textContent = 'no scan records found';
+    card.style.borderLeftColor = '#888';
+  }
+}
+
+// ── PARTS RENDERER ───────────────────────────────────────────────
+function renderLcParts(parts) {
+  const section = document.getElementById('lcPartsSection');
+  const badge   = document.getElementById('lcPartsBadge');
+  const tableEl = document.getElementById('lcPartsTable');
+
+  if (parts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  badge.textContent      = parts.length + ' issued';
+
+  const totalQty = parts.reduce((s, p) => s + (p.quantity || 0), 0);
+
+  let html = '<div style="font-size:12px;color:#888;margin-bottom:10px;">' +
+    parts.length + ' transaction(s) · ' + totalQty + ' total units issued</div>';
+
+  html += '<table class="lc-table"><thead><tr>' +
+    '<th>Date</th>' +
+    '<th>Part</th>' +
+    '<th style="text-align:center;">Qty</th>' +
+    '<th>Mechanic</th>' +
+    '<th>Clerk</th>' +
+    '<th>Line</th>' +
+    '<th>Reason</th>' +
+    '</tr></thead><tbody>';
+
+  parts.forEach(p => {
+    const d = p.issued_time
+      ? new Date(p.issued_time).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+      : (p.requested_time
+        ? new Date(p.requested_time).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—');
+    const returned = p.quantity_returned || 0;
+    html += '<tr>' +
+      '<td style="font-size:12px;color:#888;white-space:nowrap;">' + d + '</td>' +
+      '<td><strong style="font-size:13px;">' + (p.part_description || p.part_no || '—') + '</strong>' +
+        (p.part_no ? '<br><span style="font-size:10px;color:#aaa;">' + p.part_no + '</span>' : '') + '</td>' +
+      '<td style="text-align:center;">' +
+        '<span style="font-weight:700;color:#2E5597;">x' + p.quantity + '</span>' +
+        (returned > 0 ? '<br><span style="font-size:10px;color:#ED7D31;">&#8617; x' + returned + '</span>' : '') +
+      '</td>' +
+      '<td style="font-size:12px;">' + (p.mechanic || '—') + '</td>' +
+      '<td style="font-size:12px;color:#888;">' + (p.issued_by || '—') + '</td>' +
+      '<td style="font-size:12px;">' + (p.line || '—') + '</td>' +
+      '<td style="font-size:11px;color:#aaa;">' + (p.request_reason || '—') + '</td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table>';
+  tableEl.innerHTML = html;
+}
+
+// ── PM RENDERER ──────────────────────────────────────────────────
+function renderLcPM(pmLogs) {
+  const section = document.getElementById('lcPMSection');
+  const badge   = document.getElementById('lcPMBadge');
+  const tableEl = document.getElementById('lcPMTable');
+
+  if (pmLogs.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  badge.textContent      = pmLogs.length + ' service' + (pmLogs.length !== 1 ? 's' : '');
+
+  const minor  = pmLogs.filter(p => p.service_type === 'minor').length;
+  const normal = pmLogs.filter(p => p.service_type === 'normal').length;
+  const major  = pmLogs.filter(p => p.service_type === 'major').length;
+
+  let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">';
+  if (minor)  html += '<span style="font-size:12px;"><span class="pm-badge pm-minor">Minor</span> <strong>' + minor + '</strong></span>';
+  if (normal) html += '<span style="font-size:12px;"><span class="pm-badge pm-normal">Normal</span> <strong>' + normal + '</strong></span>';
+  if (major)  html += '<span style="font-size:12px;"><span class="pm-badge pm-major">Major</span> <strong>' + major + '</strong></span>';
+  html += '</div>';
+
+  html += '<table class="lc-table"><thead><tr>' +
+    '<th>Date</th>' +
+    '<th>Service type</th>' +
+    '<th>Completed by</th>' +
+    '<th>Condition</th>' +
+    '<th>Next due</th>' +
+    '<th>Notes</th>' +
+    '</tr></thead><tbody>';
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  pmLogs.forEach(p => {
+    const tier     = p.service_type || '—';
+    const tierCls  = tier === 'minor' ? 'pm-minor' : tier === 'major' ? 'pm-major' : 'pm-normal';
+    const condCls  = p.machine_condition === 'Excellent' ? 'cond-excellent'
+                   : p.machine_condition === 'Good'      ? 'cond-good'
+                   : p.machine_condition === 'Average'   ? 'cond-average'
+                   : p.machine_condition === 'Poor'      ? 'cond-poor'
+                   : '';
+    html += '<tr>' +
+      '<td style="font-size:12px;color:#888;white-space:nowrap;">' + (p.completed_date || '—') + '</td>' +
+      '<td><span class="pm-badge ' + tierCls + '">' + tier.charAt(0).toUpperCase() + tier.slice(1) + '</span></td>' +
+      '<td style="font-size:12px;">' + (p.completed_by || '—') + '</td>' +
+      '<td class="' + condCls + '" style="font-size:12px;">' + (p.machine_condition || '—') + '</td>' +
+      '<td style="font-size:12px;">' +
+        (p.next_due_date
+          ? '<span style="color:' + (p.next_due_date < todayStr ? '#C00000' : '#555') + ';">' +
+            p.next_due_date + '</span>'
+          : '—') +
+      '</td>' +
+      '<td style="font-size:11px;color:#888;max-width:200px;">' + (p.overall_note || '—') + '</td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table>';
+  tableEl.innerHTML = html;
+}
+
+// ── RECURRENCE DETECTION ─────────────────────────────────────────
+// Flags when the same fault recurs ≥ RECURRENCE_MIN times within
+// RECURRENCE_DAYS days. The point is to catch incomplete fixes —
+// if "thread breaking" hits 3× in a week, the underlying issue
+// probably wasn't actually resolved.
+const RECURRENCE_MIN  = 3;
+const RECURRENCE_DAYS = 7;
+
+function findRecurrencePatterns(incidents) {
+  const WINDOW_MS = RECURRENCE_DAYS * 24 * 60 * 60 * 1000;
+
+  // Group timestamps by fault (skip records missing either)
+  const byFault = {};
+  incidents.forEach(i => {
+    if (!i.fault || !i.reported_time) return;
+    const t = new Date(i.reported_time).getTime();
+    if (isNaN(t)) return;
+    if (!byFault[i.fault]) byFault[i.fault] = [];
+    byFault[i.fault].push(t);
+  });
+
+  const patterns = [];
+  Object.entries(byFault).forEach(([fault, times]) => {
+    times.sort((a, b) => a - b);
+    let i = 0;
+    while (i < times.length) {
+      // Find longest run starting at i where (times[j] - times[i]) <= WINDOW_MS
+      let j = i;
+      while (j + 1 < times.length && (times[j + 1] - times[i]) <= WINDOW_MS) j++;
+      const count = j - i + 1;
+      if (count >= RECURRENCE_MIN) {
+        const spanDays = (times[j] - times[i]) / (1000 * 60 * 60 * 24);
+        patterns.push({
+          fault,
+          count,
+          first: new Date(times[i]),
+          last:  new Date(times[j]),
+          spanDays: spanDays
+        });
+        i = j + 1; // skip past this cluster (avoid overlapping reports)
+      } else {
+        i++;
+      }
+    }
+  });
+
+  // Sort: most severe first (highest count, then most recent)
+  patterns.sort((a, b) => b.count - a.count || b.last - a.last);
+  return patterns;
+}
+
+function renderLcRecurrenceAlert(incidents) {
+  const banner = document.getElementById('lcRecurrenceAlert');
+  const patterns = findRecurrencePatterns(incidents);
+
+  if (patterns.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  // Title with pattern count
+  const total = patterns.length;
+  document.getElementById('lcRecurrenceTitle').textContent =
+    total === 1
+      ? 'Recurring fault detected'
+      : total + ' recurring fault patterns detected';
+
+  // Detail rows
+  document.getElementById('lcRecurrenceList').innerHTML = patterns.map(p => {
+    const spanLbl = p.spanDays < 1
+      ? 'within ' + Math.round(p.spanDays * 24) + ' hours'
+      : 'within ' + (p.spanDays < 1.5 ? '1' : Math.round(p.spanDays)) + ' day' + (p.spanDays < 1.5 ? '' : 's');
+    return '<div style="font-size:13px;color:#555;padding:5px 0;display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;">' +
+           '<div><strong style="color:#1a1a1a;">' + p.fault + '</strong> &mdash; ' +
+           '<span style="color:#C00000;font-weight:600;">' + p.count + ' occurrences</span> ' + spanLbl + '</div>' +
+           '<div style="font-size:11px;color:#888;white-space:nowrap;">' +
+           formatShortDate(p.first.toISOString()) + ' &rarr; ' + formatShortDate(p.last.toISOString()) +
+           '</div>' +
+           '</div>';
+  }).join('');
+
+  banner.style.display = 'block';
+}
+
+// ── FAULT × LINE HEATMAP (asset-scoped) ──────────────────────────
+// Mirrors renderFaultHeatmap / renderFaultTable on the downtime tab,
+// but uses only this asset's incidents and only lines where this
+// asset has actually been down. Reuses FAULT_TYPES, hm-* CSS, and
+// faultCellClass() from the downtime tab so the look is identical.
+function renderLcFaultSection(incidents) {
+  const section = document.getElementById('lcFaultSection');
+  const badge   = document.getElementById('lcFaultBadge');
+
+  if (!incidents || incidents.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  // Distinct lines this asset has been down on
+  const assetLines = [...new Set(incidents.map(i => i.line).filter(Boolean))].sort((a, b) => {
+    const na = parseInt(String(a).replace(/\D/g, ''), 10);
+    const nb = parseInt(String(b).replace(/\D/g, ''), 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(a).localeCompare(String(b));
+  });
+
+  if (assetLines.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  badge.textContent = incidents.length + ' incident' + (incidents.length !== 1 ? 's' : '') +
+                      ' across ' + assetLines.length + ' line' + (assetLines.length !== 1 ? 's' : '');
+
+  renderLcFaultHeatmap(incidents, assetLines);
+  renderLcFaultTable(incidents, assetLines);
+
+  // Default to closed (consistent with Parts and PM sections)
+  document.getElementById('lcFaultBody').classList.remove('lc-open');
+  document.getElementById('lcFaultExpandLbl').textContent = 'Expand \u25BC';
+  section.style.display = 'block';
+}
+
+function renderLcFaultHeatmap(incidents, assetLines) {
+  const container = document.getElementById('lcFaultHeatmapContainer');
+
+  // Build counts per (fault, line), and also capture any faults this asset
+  // has that aren't in the canonical FAULT_TYPES list (e.g. "Other", legacy)
+  const knownFaults  = FAULT_TYPES;
+  const customFaults = [...new Set(
+    incidents.map(i => i.fault).filter(f => f && !knownFaults.includes(f))
+  )];
+  const rows = [...knownFaults, ...customFaults];
+
+  let maxCount = 0;
+  rows.forEach(ft => {
+    assetLines.forEach(line => {
+      const cnt = incidents.filter(r => r.fault === ft && r.line === line).length;
+      if (cnt > maxCount) maxCount = cnt;
+    });
+  });
+
+  let html = '<table class="hm-table"><thead><tr><th class="row-hdr">Fault</th>';
+  assetLines.forEach(l => { html += `<th>${String(l).replace('Line ', 'L')}</th>`; });
+  html += '<th style="font-size:10px;color:#555;">Total</th>';
+  html += '<th style="font-size:10px;color:#555;padding-left:10px;border-left:1px solid #eee;">Downtime</th>';
+  html += '</tr></thead><tbody>';
+
+  // Helper: sum total_downtime_minutes for resolved incidents matching a predicate
+  // (matches the KPI logic — open/investigating incidents have no final duration yet)
+  const sumDt = pred => incidents
+    .filter(i => i.status === 'Resolved' && pred(i))
+    .reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
+
+  rows.forEach(ft => {
+    const rowTotal = incidents.filter(r => r.fault === ft).length;
+    if (rowTotal === 0) return; // skip fault types this asset has never had
+    const rowDt    = sumDt(r => r.fault === ft);
+    const dtLabel  = rowDt > 0 ? fmtMins(rowDt) : '\u2014';
+    const dtTitle  = rowDt > 0
+      ? rowDt + ' min total across resolved incidents'
+      : 'No resolved downtime recorded';
+    html += `<tr><td class="hm-row-label" style="font-size:11px;">${ft}</td>`;
+    assetLines.forEach(line => {
+      const cnt = incidents.filter(r => r.fault === ft && r.line === line).length;
+      const cls = faultCellClass(cnt, maxCount);
+      html += `<td class="hm-cell ${cls}" title="${line} \u2014 ${ft}: ${cnt} incident${cnt !== 1 ? 's' : ''}">${cnt > 0 ? cnt : ''}</td>`;
+    });
+    html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#555;">${rowTotal}</td>`;
+    html += `<td style="text-align:center;font-size:11px;color:${rowDt>0?'#843C0C':'#bbb'};padding-left:10px;border-left:1px solid #eee;white-space:nowrap;" title="${dtTitle}">${dtLabel}</td>`;
+    html += `</tr>`;
+  });
+
+  // Column totals row
+  const grandDt = sumDt(() => true);
+  html += '<tr><td class="hm-row-label" style="font-size:11px;font-weight:700;">Total</td>';
+  assetLines.forEach(line => {
+    const lt = incidents.filter(r => r.line === line).length;
+    html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#555;">${lt || ''}</td>`;
+  });
+  html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#1a1a1a;">${incidents.length}</td>`;
+  html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#843C0C;padding-left:10px;border-left:1px solid #eee;white-space:nowrap;">${grandDt > 0 ? fmtMins(grandDt) : '\u2014'}</td>`;
+  html += `</tr>`;
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderLcFaultTable(incidents, assetLines) {
+  const container = document.getElementById('lcFaultTableContainer');
+
+  const knownFaults  = FAULT_TYPES;
+  const customFaults = [...new Set(
+    incidents.map(i => i.fault).filter(f => f && !knownFaults.includes(f))
+  )];
+  const cols = [...knownFaults, ...customFaults].filter(ft =>
+    incidents.some(r => r.fault === ft)
+  );
+
+  if (cols.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No fault data</div>';
+    return;
+  }
+
+  let html = '<table class="sl-table"><thead><tr><th>Line</th>';
+  cols.forEach(ft => { html += `<th class="num" style="font-size:10px;">${ft.length > 20 ? ft.substring(0, 18) + '\u2026' : ft}</th>`; });
+  html += '<th class="num">Total</th>';
+  html += '<th class="num" style="border-left:1px solid #eee;">Downtime</th>';
+  html += '</tr></thead><tbody>';
+
+  // Helper — same logic as the heatmap: only resolved incidents contribute downtime
+  const sumDt = pred => incidents
+    .filter(i => i.status === 'Resolved' && pred(i))
+    .reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
+
+  assetLines.forEach(line => {
+    const lineRecs = incidents.filter(r => r.line === line);
+    const lineDt   = sumDt(r => r.line === line);
+    html += `<tr><td style="font-weight:600;white-space:nowrap;">${line}</td>`;
+    cols.forEach(ft => {
+      const cnt = lineRecs.filter(r => r.fault === ft).length;
+      html += `<td style="text-align:center;">${cnt > 0 ? `<span class="count-pill" style="background:#F5C4B3;color:#712B13;">${cnt}</span>` : '<span style="color:#ccc;">\u2014</span>'}</td>`;
+    });
+    html += `<td style="text-align:center;font-weight:700;">${lineRecs.length}</td>`;
+    html += `<td style="text-align:center;font-weight:600;color:${lineDt>0?'#843C0C':'#bbb'};white-space:nowrap;border-left:1px solid #eee;">${lineDt > 0 ? fmtMins(lineDt) : '\u2014'}</td>`;
+    html += `</tr>`;
+  });
+
+  // Column-total row
+  const grandDt = sumDt(() => true);
+  html += '<tr style="border-top:2px solid #eee;"><td style="font-weight:700;">Total</td>';
+  cols.forEach(ft => {
+    const total   = incidents.filter(r => r.fault === ft).length;
+    const totalDt = sumDt(r => r.fault === ft);
+    html += `<td style="text-align:center;font-weight:700;">${total || '\u2014'}${totalDt > 0 ? '<br><span style="font-size:10px;font-weight:600;color:#843C0C;">' + fmtMins(totalDt) + '</span>' : ''}</td>`;
+  });
+  html += `<td style="text-align:center;font-weight:700;color:#1a1a1a;">${incidents.length}</td>`;
+  html += `<td style="text-align:center;font-weight:700;color:#843C0C;white-space:nowrap;border-left:1px solid #eee;">${grandDt > 0 ? fmtMins(grandDt) : '\u2014'}</td>`;
+  html += `</tr>`;
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function switchLcFaultView(name) {
+  document.querySelectorAll('.view-tab').forEach(t => {
+    const onclick = t.getAttribute('onclick') || '';
+    if (onclick.includes('switchLcFaultView')) {
+      t.classList.toggle('active', onclick.includes("'" + name + "'"));
+    }
+  });
+  document.getElementById('lcFaultView-heatmap').classList.toggle('active', name === 'heatmap');
+  document.getElementById('lcFaultView-table').classList.toggle('active', name === 'table');
+}
+
+// ── TIMELINE FILTER & RENDER ─────────────────────────────────────
+// Reads the Year/Month dropdowns and renders only matching events.
+// Events are kept in lcAllTimelineEvents so filter changes are instant
+// and don't trigger another Supabase fetch.
+function renderLcTimeline() {
+  const year  = document.getElementById('lcTimelineYear').value;   // "" or "2025"
+  const month = document.getElementById('lcTimelineMonth').value;  // "" or "03"
+
+  let filtered = lcAllTimelineEvents;
+  if (year || month) {
+    filtered = lcAllTimelineEvents.filter(e => {
+      if (!e.time) return false;
+      const ts = String(e.time);
+      if (year  && ts.substring(0, 4) !== year)   return false;
+      if (month && ts.substring(5, 7) !== month)  return false;
+      return true;
+    });
+  }
+
+  const total = lcAllTimelineEvents.length;
+  const shown = filtered.length;
+  const scanCount = filtered.filter(e => e.type === 'scan').length;
+  const incCount  = filtered.filter(e => e.type === 'incident').length;
+
+  // Sub-label
+  if (shown === 0) {
+    document.getElementById('lcTimelineSub').textContent = 'No events match the selected period.';
+  } else {
+    document.getElementById('lcTimelineSub').textContent =
+      scanCount + ' scan' + (scanCount !== 1 ? 's' : '') + ' and ' +
+      incCount  + ' incident' + (incCount  !== 1 ? 's' : '') + ' — newest first';
+  }
+
+  // Filter info — only show count when a filter is active
+  const infoEl = document.getElementById('lcTimelineFilterInfo');
+  if (year || month) {
+    infoEl.textContent = 'Showing ' + shown + ' of ' + total + ' event' + (total !== 1 ? 's' : '');
+    infoEl.style.color = shown === 0 ? '#C00000' : '#888';
+  } else {
+    infoEl.textContent = '';
+  }
+
+  // Render
+  const contentEl = document.getElementById('lcTimelineContent');
+  if (shown === 0) {
+    contentEl.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:13px;">' +
+      (total === 0 ? 'No events recorded.' : 'Try a different year or month, or clear the filter.') +
+      '</div>';
+  } else {
+    contentEl.innerHTML = '<div class="timeline">' +
+      filtered.map(e => renderTimelineItem(e)).join('') + '</div>';
+  }
+}
+
+function clearLcTimelineFilter() {
+  document.getElementById('lcTimelineYear').value  = '';
+  document.getElementById('lcTimelineMonth').value = '';
+  renderLcTimeline();
+}
+
+// ── COLLAPSIBLE TOGGLE ───────────────────────────────────────────
+function toggleLcSection(bodyId, labelId) {
+  const body  = document.getElementById(bodyId);
+  const label = document.getElementById(labelId);
+  const isOpen = body.classList.contains('lc-open');
+  body.classList.toggle('lc-open', !isOpen);
+  label.textContent = isOpen ? 'Expand \u25BC' : 'Collapse \u25B2';
 }
 
 function formatShortDate(ts) {
@@ -2880,33 +3727,23 @@ function getClerkName() {
 function renderPendingRequests(pending) {
   const el   = document.getElementById('pendingRequestsList');
   const card = document.getElementById('pendingRequestsCard');
-
-  // Update summary badges
-  const countBadge     = document.getElementById('pendingCountBadge');
-  const mechBadge      = document.getElementById('pendingMechanicsBadge');
-  const expandLabel    = document.getElementById('pendingExpandLabel');
+  const countBadge  = document.getElementById('pendingCountBadge');
+  const mechBadge   = document.getElementById('pendingMechanicsBadge');
+  const expandLabel = document.getElementById('pendingExpandLabel');
 
   if (pending.length === 0) {
-    if (countBadge)  { countBadge.style.display = 'none'; }
-    if (mechBadge)   { mechBadge.style.display  = 'none'; }
+    if (countBadge)  countBadge.style.display = 'none';
+    if (mechBadge)   mechBadge.style.display  = 'none';
     el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No pending requests — all clear!</div>';
     el.style.display = 'none';
     if (expandLabel) expandLabel.textContent = 'Expand ▼';
     return;
   }
 
-  // Populate badges
   const mechanics = [...new Set(pending.map(r => r.mechanic).filter(Boolean))];
-  if (countBadge) {
-    countBadge.textContent = pending.length + ' pending';
-    countBadge.style.display = 'inline-block';
-  }
-  if (mechBadge && mechanics.length > 0) {
-    mechBadge.textContent = mechanics.length + ' mechanic' + (mechanics.length > 1 ? 's' : '');
-    mechBadge.style.display = 'inline-block';
-  }
+  if (countBadge) { countBadge.textContent = pending.length + ' pending'; countBadge.style.display = 'inline-block'; }
+  if (mechBadge && mechanics.length > 0) { mechBadge.textContent = mechanics.length + ' mechanic' + (mechanics.length > 1 ? 's' : ''); mechBadge.style.display = 'inline-block'; }
 
-  // Restore expanded state
   try {
     const wasExpanded = localStorage.getItem('pmt_pending_expanded') === 'true';
     el.style.display = wasExpanded ? 'block' : 'none';
@@ -2944,34 +3781,23 @@ async function issuePart(requestId) {
       <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Issue Part</div>
       <div style="font-size:13px;color:#666;margin-bottom:4px;">Requested: <strong>${req.part_description||req.part_no||'—'}</strong> x${req.quantity}</div>
       <div style="font-size:11px;color:#888;margin-bottom:16px;">Asset: ${req.asset_no||'—'} | ${req.machine_type||'—'} | ${req.line||'—'}</div>
-
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Part availability</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <button id="availBtn" onclick="setAvailability('available', this)"
-            style="padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:#E2EFDA;color:#2D7D46;border:2px solid #2D7D46;">
-            ✓ Available
-          </button>
-          <button id="outStockBtn" onclick="setAvailability('out', this)"
-            style="padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:white;color:#888;border:2px solid #ddd;">
-            ✗ Out of stock
-          </button>
+          <button id="availBtn" onclick="setAvailability('available', this)" style="padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:#E2EFDA;color:#2D7D46;border:2px solid #2D7D46;">✓ Available</button>
+          <button id="outStockBtn" onclick="setAvailability('out', this)" style="padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:white;color:#888;border:2px solid #ddd;">✗ Out of stock</button>
         </div>
       </div>
-
       <div id="issuePartFields">
         <div style="margin-bottom:12px;">
           <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Search &amp; match part number (optional)</label>
-          <input type="text" id="issuePartSearch" placeholder="Type part name or number to search..."
-            oninput="filterIssuePartList()"
-            style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:6px;">
+          <input type="text" id="issuePartSearch" placeholder="Type part name or number to search..." oninput="filterIssuePartList()" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:6px;">
           <select id="issuePartNo" size="5" style="width:100%;padding:6px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;height:120px;">
             <option value="">— No part number match —</option>
             ${allInventory.map(p => `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`).join('')}
           </select>
         </div>
       </div>
-
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Issuing clerk</label>
         <select id="issueClerkName" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;">
@@ -2981,10 +3807,8 @@ async function issuePart(requestId) {
         </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button onclick="document.getElementById('issueOverlay').remove()"
-          style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
-        <button id="confirmIssueBtn" onclick="confirmIssue(${requestId}, this)"
-          style="padding:12px;background:#70AD47;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Issue</button>
+        <button onclick="document.getElementById('issueOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
+        <button id="confirmIssueBtn" onclick="confirmIssue(${requestId}, this)" style="padding:12px;background:#70AD47;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Issue</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -2993,23 +3817,14 @@ async function issuePart(requestId) {
 function filterIssuePartList() {
   const q   = (document.getElementById('issuePartSearch').value || '').trim().toLowerCase();
   const sel = document.getElementById('issuePartNo');
-  const filtered = q.length < 2
-    ? allInventory
-    : allInventory.filter(p =>
-        (p.description||'').toLowerCase().includes(q) ||
-        (p.part_no||'').toLowerCase().includes(q)
-      );
-  sel.innerHTML = '<option value="">— No part number match —</option>' +
-    filtered.map(p =>
-      `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`
-    ).join('');
+  const filtered = q.length < 2 ? allInventory : allInventory.filter(p => (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q));
+  sel.innerHTML = '<option value="">— No part number match —</option>' + filtered.map(p => `<option value="${p.part_no}">${p.description} (${p.part_no}) — Stock: ${p.stock_qty}</option>`).join('');
 }
 
 async function confirmIssue(requestId, btn) {
   const clerkName    = document.getElementById('issueClerkName').value;
   const partNo       = document.getElementById('issuePartNo') ? document.getElementById('issuePartNo').value : '';
   const availability = btn.dataset.availability || 'available';
-  // Warn if no part number matched — stock won't be deducted
   if (availability === 'available' && !partNo) {
     const proceed = confirm('No part number selected — stock will not be deducted from inventory.\n\nProceed anyway?');
     if (!proceed) return;
@@ -3020,7 +3835,6 @@ async function confirmIssue(requestId, btn) {
   try {
     let payload;
     if (availability === 'out') {
-      // Mark as out of stock — no stock deduction
       payload = { status: 'Out of Stock', issued_time: new Date().toISOString(), issued_by: clerkName };
     } else {
       payload = { status: 'Issued', issued_time: new Date().toISOString(), issued_by: clerkName };
@@ -3031,7 +3845,6 @@ async function confirmIssue(requestId, btn) {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
       body: JSON.stringify(payload)
     });
-    // Deduct stock only if issued and part matched
     if (availability === 'available' && partNo && req) {
       const part = allInventory.find(p => p.part_no === partNo);
       if (part && part.stock_qty > 0) {
@@ -3051,25 +3864,22 @@ async function confirmIssue(requestId, btn) {
 }
 
 function setAvailability(state, btn) {
-  const availBtn    = document.getElementById('availBtn');
-  const outBtn      = document.getElementById('outStockBtn');
-  const partFields  = document.getElementById('issuePartFields');
-  const confirmBtn  = document.getElementById('confirmIssueBtn');
-
+  const availBtn   = document.getElementById('availBtn');
+  const outBtn     = document.getElementById('outStockBtn');
+  const partFields = document.getElementById('issuePartFields');
+  const confirmBtn = document.getElementById('confirmIssueBtn');
   if (state === 'available') {
-    availBtn.style.background   = '#E2EFDA'; availBtn.style.color   = '#2D7D46'; availBtn.style.borderColor   = '#2D7D46';
-    outBtn.style.background     = 'white';   outBtn.style.color     = '#888';    outBtn.style.borderColor     = '#ddd';
-    if (partFields) partFields.style.display = 'block';
-    confirmBtn.textContent = 'Confirm Issue';
-    confirmBtn.style.background = '#70AD47';
-    confirmBtn.dataset.availability = 'available';
+    availBtn.style.background='#E2EFDA'; availBtn.style.color='#2D7D46'; availBtn.style.borderColor='#2D7D46';
+    outBtn.style.background='white'; outBtn.style.color='#888'; outBtn.style.borderColor='#ddd';
+    if (partFields) partFields.style.display='block';
+    confirmBtn.textContent='Confirm Issue'; confirmBtn.style.background='#70AD47';
+    confirmBtn.dataset.availability='available';
   } else {
-    outBtn.style.background     = '#FCE4D6'; outBtn.style.color     = '#C00000'; outBtn.style.borderColor     = '#C00000';
-    availBtn.style.background   = 'white';   availBtn.style.color   = '#888';    availBtn.style.borderColor   = '#ddd';
-    if (partFields) partFields.style.display = 'none';
-    confirmBtn.textContent = 'Mark Out of Stock';
-    confirmBtn.style.background = '#C00000';
-    confirmBtn.dataset.availability = 'out';
+    outBtn.style.background='#FCE4D6'; outBtn.style.color='#C00000'; outBtn.style.borderColor='#C00000';
+    availBtn.style.background='white'; availBtn.style.color='#888'; availBtn.style.borderColor='#ddd';
+    if (partFields) partFields.style.display='none';
+    confirmBtn.textContent='Mark Out of Stock'; confirmBtn.style.background='#C00000';
+    confirmBtn.dataset.availability='out';
   }
 }
 
@@ -3077,8 +3887,8 @@ function togglePendingRequests() {
   const list  = document.getElementById('pendingRequestsList');
   const label = document.getElementById('pendingExpandLabel');
   const isExpanded = list.style.display !== 'none';
-  list.style.display  = isExpanded ? 'none' : 'block';
-  label.textContent   = isExpanded ? 'Expand ▼' : 'Collapse ▲';
+  list.style.display = isExpanded ? 'none' : 'block';
+  label.textContent  = isExpanded ? 'Expand ▼' : 'Collapse ▲';
   try { localStorage.setItem('pmt_pending_expanded', !isExpanded); } catch(e) {}
 }
 
@@ -3096,218 +3906,85 @@ function renderLowStock(lowStock) {
   const el   = document.getElementById('lowStockList');
   if (lowStock.length === 0) { card.style.display = 'none'; return; }
   card.style.display = 'block';
-
-  // Update summary badges
-  const oosCount  = lowStock.filter(p => p.stock_qty === 0).length;
-  const lowCount  = lowStock.length - oosCount;
-  const oosBadge  = document.getElementById('lowStockOosBadge');
-  const lowBadge  = document.getElementById('lowStockLowBadge');
-  const totBadge  = document.getElementById('lowStockTotalBadge');
-  const label     = document.getElementById('lowStockExpandLabel');
-
+  const oosCount = lowStock.filter(p => p.stock_qty === 0).length;
+  const lowCount = lowStock.length - oosCount;
+  const oosBadge = document.getElementById('lowStockOosBadge');
+  const lowBadge = document.getElementById('lowStockLowBadge');
+  const totBadge = document.getElementById('lowStockTotalBadge');
+  const label    = document.getElementById('lowStockExpandLabel');
   if (oosBadge) { oosBadge.textContent = oosCount + ' out of stock'; oosBadge.style.display = oosCount > 0 ? 'inline-block' : 'none'; }
-  if (lowBadge) { lowBadge.textContent = lowCount  + ' low stock';   lowBadge.style.display = lowCount  > 0 ? 'inline-block' : 'none'; }
-  if (totBadge) { totBadge.textContent = lowStock.length + ' total';  totBadge.style.display = 'inline-block'; }
-
-  // Restore expanded state
+  if (lowBadge) { lowBadge.textContent = lowCount + ' low stock'; lowBadge.style.display = lowCount > 0 ? 'inline-block' : 'none'; }
+  if (totBadge) { totBadge.textContent = lowStock.length + ' total'; totBadge.style.display = 'inline-block'; }
   try {
     const wasExpanded = localStorage.getItem('pmt_lowstock_expanded') === 'true';
     el.style.display = wasExpanded ? 'block' : 'none';
     if (label) label.textContent = wasExpanded ? 'Collapse ▲' : 'Expand ▼';
   } catch(e) { el.style.display = 'none'; }
-
-  // Sort — out of stock first
   const sorted = [...lowStock].sort((a,b) => a.stock_qty - b.stock_qty);
   el.innerHTML = sorted.map(p => {
     const cls  = p.stock_qty === 0 ? 'stock-zero' : 'stock-low';
     const text = p.stock_qty === 0 ? 'OUT OF STOCK' : p.stock_qty + ' left';
-    return '<div class="low-stock-row">' +
-      '<div>' +
-        '<div class="low-stock-name">' + p.description + '</div>' +
-        '<div class="low-stock-part">' + p.part_no + ' | ' + (p.machine_type||'—') + ' | ' + (p.supplier||'—') + (p.draw_number ? ' | Draw: ' + p.draw_number : '') + '</div>' +
-      '</div>' +
-      '<span class="stock-badge ' + cls + '">' + text + '</span>' +
-    '</div>';
+    return '<div class="low-stock-row"><div><div class="low-stock-name">' + p.description + '</div><div class="low-stock-part">' + p.part_no + ' | ' + (p.machine_type||'—') + ' | ' + (p.supplier||'—') + (p.draw_number ? ' | Draw: ' + p.draw_number : '') + '</div></div><span class="stock-badge ' + cls + '">' + text + '</span></div>';
   }).join('');
 }
 
 function renderTodayIssues(issued) {
   const el = document.getElementById('todayIssuesTable');
+  if (!document.getElementById('issuesDateFilter')) {
+    const filterHtml = `<div id="issuesDateFilter" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:#555;">Date:</label><input type="date" id="issuesFrom" onchange="filterIssuesHistory()" style="padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;"><span style="color:#aaa;font-size:12px;">to</span><input type="date" id="issuesTo" onchange="filterIssuesHistory()" style="padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;"><button onclick="clearIssuesFilter()" class="filter-clear">Clear</button><span id="issuesFilterInfo" style="font-size:12px;color:#888;margin-left:auto;"></span></div>`;
+    el.insertAdjacentHTML('beforebegin', filterHtml);
+  }
+  renderIssuesTable(issued);
+}
+
+function filterIssuesHistory() {
+  const from = document.getElementById('issuesFrom').value;
+  const to   = document.getElementById('issuesTo').value;
+  let filtered;
+  if (from || to) {
+    filtered = allRequests.filter(r => {
+      if (r.status !== 'Issued' && r.status !== 'Out of Stock') return false;
+      const d = (r.issued_time || '').split('T')[0];
+      if (from && d < from) return false;
+      if (to   && d > to)   return false;
+      return true;
+    });
+    document.getElementById('issuesFilterInfo').textContent = filtered.length + ' records';
+  } else {
+    const today = new Date().toISOString().split('T')[0];
+    filtered = allRequests.filter(r => (r.status === 'Issued' || r.status === 'Out of Stock') && (r.issued_time || '').startsWith(today));
+    document.getElementById('issuesFilterInfo').textContent = '';
+  }
+  renderIssuesTable(filtered);
+}
+
+function clearIssuesFilter() {
+  document.getElementById('issuesFrom').value = '';
+  document.getElementById('issuesTo').value   = '';
+  document.getElementById('issuesFilterInfo').textContent = '';
+  const today = new Date().toISOString().split('T')[0];
+  const todayIssued = allRequests.filter(r => (r.status === 'Issued' || r.status === 'Out of Stock') && (r.issued_time || '').startsWith(today));
+  renderIssuesTable(todayIssued);
+}
+
+function renderIssuesTable(issued) {
+  const el = document.getElementById('todayIssuesTable');
   if (issued.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No parts issued today yet.</div>';
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No parts issued for selected period.</div>';
     return;
   }
   let html = '<table class="sl-table"><thead><tr><th>Time</th><th>Part</th><th>Qty</th><th>Status</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
   issued.forEach(r => {
-    const t        = r.issued_time ? new Date(r.issued_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '—';
+    const t = r.issued_time ? new Date(r.issued_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
     const returned = r.quantity_returned || 0;
-    const isOOS    = r.status === 'Out of Stock';
-    const statusBadge = isOOS
+    const isOOS = r.status === 'Out of Stock';
+    const badge = isOOS
       ? '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#FCE4D6;color:#C00000;">Out of stock</span>'
       : '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#E2EFDA;color:#2D7D46;">Issued</span>';
-    html += `<tr${isOOS?' style="background:#FFF8F8;"':''}>
-      <td>${t}</td>
-      <td><strong>${r.part_description||r.part_no||'—'}</strong></td>
-      <td style="text-align:center;">
-        <span style="color:${isOOS?'#C00000':'#2E5597'};font-weight:600;">x${r.quantity}</span>
-        ${returned > 0 ? '<br><span style="color:#ED7D31;font-size:10px;">returned x'+returned+'</span>' : ''}
-      </td>
-      <td>${statusBadge}</td>
-      <td>${r.mechanic||'—'}</td>
-      <td>${r.asset_no||'—'}</td>
-      <td>${r.line||'—'}</td>
-      <td>${r.issued_by||'—'}</td>
-    </tr>`;
+    html += '<tr' + (isOOS ? ' style="background:#FFF8F8;"' : '') + '><td>' + t + '</td><td><strong>' + (r.part_description||r.part_no||'--') + '</strong></td><td style="text-align:center;"><span style="color:' + (isOOS?'#C00000':'#2E5597') + ';font-weight:600;">x' + r.quantity + '</span>' + (returned > 0 ? '<br><span style="color:#ED7D31;font-size:10px;">returned x'+returned+'</span>' : '') + '</td><td>' + badge + '</td><td>' + (r.mechanic||'--') + '</td><td>' + (r.asset_no||'--') + '</td><td>' + (r.line||'--') + '</td><td>' + (r.issued_by||'--') + '</td></tr>';
   });
   html += '</tbody></table>';
   el.innerHTML = html;
-}
-
-// ── INVENTORY CSV IMPORT ──────────────────────────────────────────────────────
-function downloadInvTemplate() {
-  const csv = 'part_no,description,stock_qty,min_qty,machine_type,supplier,draw_number,unit_price\nPN001,Example Part Name,10,2,S/N LOCKST,Supplier Name,D-14,25.50\nPN002,Another Part,5,1,,,,\n';
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'PMT_Inventory_Template.csv';
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-}
-
-function handleInvCsvDrop(e) {
-  e.preventDefault();
-  document.getElementById('csvDropZone').style.borderColor = '#ddd';
-  const file = e.dataTransfer.files[0];
-  if (file && file.name.endsWith('.csv')) parseInvCsv(file);
-  else showToast('Please drop a .csv file.', 'error');
-}
-
-function handleInvCsvFile(input) {
-  const file = input.files[0];
-  if (file) parseInvCsv(file);
-}
-
-function parseInvCsv(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const lines  = e.target.result.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) { showToast('CSV appears empty.', 'error'); return; }
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
-    const partNoIdx      = headers.indexOf('part_no');
-    const descIdx        = headers.indexOf('description');
-    const stockIdx       = headers.indexOf('stock_qty');
-    const minIdx         = headers.indexOf('min_qty');
-    const machineTypeIdx = headers.indexOf('machine_type');
-    const supplierIdx    = headers.indexOf('supplier');
-    const drawIdx        = headers.indexOf('draw_number');
-    const priceIdx       = headers.indexOf('unit_price');
-    if (partNoIdx < 0 || descIdx < 0 || stockIdx < 0) {
-      showToast('Missing required columns: part_no, description, stock_qty', 'error'); return;
-    }
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
-      if (!cols[partNoIdx]) continue;
-      const row = {
-        part_no:     cols[partNoIdx],
-        description: cols[descIdx] || '',
-        stock_qty:   parseInt(cols[stockIdx]) || 0,
-        min_qty:     minIdx >= 0 ? (parseInt(cols[minIdx]) || 0) : 0,
-      };
-      if (machineTypeIdx >= 0 && cols[machineTypeIdx]) row.machine_type = cols[machineTypeIdx];
-      if (supplierIdx    >= 0 && cols[supplierIdx])    row.supplier     = cols[supplierIdx];
-      if (drawIdx        >= 0 && cols[drawIdx])        row.draw_number  = cols[drawIdx];
-      if (priceIdx       >= 0 && cols[priceIdx])       row.unit_price   = parseFloat(cols[priceIdx]) || null;
-      rows.push(row);
-    }
-    if (rows.length === 0) { showToast('No valid rows found.', 'error'); return; }
-    renderInvImportPreview(rows);
-  };
-  reader.readAsText(file);
-}
-
-function renderInvImportPreview(rows) {
-  const preview = document.getElementById('invImportPreview');
-  const updates = rows.filter(r => allInventory.some(p => p.part_no === r.part_no));
-  const inserts = rows.filter(r => !allInventory.some(p => p.part_no === r.part_no));
-
-  preview.innerHTML = `
-    <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-      <div style="background:#E2EFDA;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:10px;font-weight:700;color:#3B6D11;text-transform:uppercase;letter-spacing:0.06em;">New parts</div>
-        <div style="font-size:22px;font-weight:700;color:#27500A;">${inserts.length}</div>
-      </div>
-      <div style="background:#EBF3FB;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:10px;font-weight:700;color:#2E5597;text-transform:uppercase;letter-spacing:0.06em;">Updates</div>
-        <div style="font-size:22px;font-weight:700;color:#1F3864;">${updates.length}</div>
-      </div>
-      <div style="background:#f5f5f5;border-radius:8px;padding:10px 16px;font-size:13px;">
-        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Total rows</div>
-        <div style="font-size:22px;font-weight:700;color:#333;">${rows.length}</div>
-      </div>
-    </div>
-    <div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #f0f2f5;border-radius:8px;margin-bottom:14px;">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead style="position:sticky;top:0;background:#f8f9fa;">
-          <tr>
-            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Part No</th>
-            <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Description</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Stock</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Min</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => {
-            const isUpdate = allInventory.some(p => p.part_no === r.part_no);
-            return `<tr style="border-bottom:1px solid #f5f5f5;">
-              <td style="padding:7px 10px;font-weight:600;">${r.part_no}</td>
-              <td style="padding:7px 10px;color:#555;">${r.description}</td>
-              <td style="padding:7px 10px;text-align:center;">${r.stock_qty}</td>
-              <td style="padding:7px 10px;text-align:center;">${r.min_qty}</td>
-              <td style="padding:7px 10px;text-align:center;">
-                <span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;${isUpdate?'background:#EBF3FB;color:#2E5597;':'background:#E2EFDA;color:#3B6D11;'}">
-                  ${isUpdate ? 'UPDATE' : 'NEW'}
-                </span>
-              </td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-    <button onclick="requirePin('Import inventory', function(){ confirmInvImport(${JSON.stringify(rows).replace(/"/g,'&quot;')}) })"
-      style="width:100%;padding:13px;background:#1F3864;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
-      Import ${rows.length} parts to inventory
-    </button>`;
-}
-
-async function confirmInvImport(rows) {
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = 'Importing...';
-  let success = 0, failed = 0;
-  for (const row of rows) {
-    try {
-      await fetch(SUPABASE_URL + '/rest/v1/parts_inventory', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Prefer': 'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify({ ...row, updated_at: new Date().toISOString() })
-      });
-      success++;
-    } catch(e) { failed++; }
-  }
-  document.getElementById('invImportPreview').innerHTML =
-    `<div style="text-align:center;padding:24px;background:#E2EFDA;border-radius:10px;">
-      <div style="font-size:32px;margin-bottom:8px;">✓</div>
-      <div style="font-size:16px;font-weight:700;color:#2D7D46;">Import complete</div>
-      <div style="font-size:13px;color:#555;margin-top:4px;">${success} parts imported${failed>0?' · '+failed+' failed':''}</div>
-    </div>`;
-  showToast(success + ' parts imported successfully!', 'success');
-  await loadInventoryData();
-  document.getElementById('invCsvFile').value = '';
 }
 
 function switchInvTab(tab) {
@@ -3333,42 +4010,22 @@ function searchByLine() {
   let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Part</th><th>Part No</th><th>Qty</th><th>Used</th><th>Returned</th><th>Mechanic</th><th>Asset</th></tr></thead><tbody>';
   lineReqs.forEach(r => {
     const d = r.issued_time ? new Date(r.issued_time).toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-    html += `<tr>
-      <td>${d}</td>
-      <td>${r.part_description||'—'}</td>
-      <td style="font-size:11px;color:#888;">${r.part_no||'—'}</td>
-      <td style="text-align:center;font-weight:600;">${r.quantity}</td>
-      <td style="text-align:center;color:#3B6D11;">${r.quantity_consumed!=null?r.quantity_consumed:'—'}</td>
-      <td style="text-align:center;color:#ED7D31;">${r.quantity_returned||0}</td>
-      <td>${r.mechanic||'—'}</td>
-      <td>${r.asset_no||'—'}</td>
-    </tr>`;
+    html += `<tr><td>${d}</td><td>${r.part_description||'—'}</td><td style="font-size:11px;color:#888;">${r.part_no||'—'}</td><td style="text-align:center;font-weight:600;">${r.quantity}</td><td style="text-align:center;color:#3B6D11;">${r.quantity_consumed!=null?r.quantity_consumed:'—'}</td><td style="text-align:center;color:#ED7D31;">${r.quantity_returned||0}</td><td>${r.mechanic||'—'}</td><td>${r.asset_no||'—'}</td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
 }
 
 function searchStock() {
-  const q   = document.getElementById('stockSearchInput').value.trim().toLowerCase();
-  const el  = document.getElementById('stockSearchResults');
+  const q  = document.getElementById('stockSearchInput').value.trim().toLowerCase();
+  const el = document.getElementById('stockSearchResults');
   if (q.length < 2) { el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0;">Type at least 2 characters...</div>'; return; }
-  const results = allInventory.filter(p =>
-    (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q)
-  ).slice(0, 20);
+  const results = allInventory.filter(p => (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q)).slice(0, 20);
   if (results.length === 0) { el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0;">No parts found.</div>'; return; }
   let html = '<table class="sl-table"><thead><tr><th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th><th>Draw</th><th>Unit price</th><th>Stock</th><th>Min qty</th></tr></thead><tbody>';
   results.forEach(p => {
     const low = p.min_qty > 0 && p.stock_qty <= p.min_qty;
-    html += `<tr>
-      <td><strong>${p.description}</strong></td>
-      <td style="font-size:11px;color:#888;">${p.part_no}</td>
-      <td>${p.machine_type||'—'}</td>
-      <td>${p.supplier||'—'}</td>
-      <td style="font-size:12px;color:#555;">${p.draw_number||'—'}</td>
-      <td style="font-size:12px;">${p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '—'}</td>
-      <td style="text-align:center;"><span class="stock-badge ${p.stock_qty===0?'stock-zero':low?'stock-low':''}" style="${!low&&p.stock_qty>0?'background:#E2EFDA;color:#3B6D11;':''}">${p.stock_qty}</span></td>
-      <td style="text-align:center;color:#888;">${p.min_qty||'—'}</td>
-    </tr>`;
+    html += `<tr><td><strong>${p.description}</strong></td><td style="font-size:11px;color:#888;">${p.part_no}</td><td>${p.machine_type||'—'}</td><td>${p.supplier||'—'}</td><td style="font-size:12px;color:#555;">${p.draw_number||'—'}</td><td style="font-size:12px;">${p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '—'}</td><td style="text-align:center;"><span class="stock-badge ${p.stock_qty===0?'stock-zero':low?'stock-low':''}" style="${!low&&p.stock_qty>0?'background:#E2EFDA;color:#3B6D11;':''}">${p.stock_qty}</span></td><td style="text-align:center;color:#888;">${p.min_qty||'—'}</td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -3376,11 +4033,7 @@ function searchStock() {
 
 function renderReorderList(lowStock) {
   const el = document.getElementById('reorderList');
-  if (lowStock.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">All parts above minimum stock — nothing to reorder.</div>';
-    return;
-  }
-  // Sort by urgency: out of stock first, then by how far below minimum
+  if (lowStock.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">All parts above minimum stock — nothing to reorder.</div>'; return; }
   const sorted = [...lowStock].sort((a,b) => {
     if (a.stock_qty === 0 && b.stock_qty > 0) return -1;
     if (b.stock_qty === 0 && a.stock_qty > 0) return 1;
@@ -3389,16 +4042,7 @@ function renderReorderList(lowStock) {
   let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Supplier</th><th>Draw</th><th>Unit price</th><th>Stock</th><th>Min qty</th><th>Status</th></tr></thead><tbody>';
   sorted.forEach(p => {
     const urgency = p.stock_qty === 0 ? '<span class="stock-badge stock-zero">Order now</span>' : '<span class="stock-badge stock-low">Running low</span>';
-    html += `<tr>
-      <td><strong>${p.description}</strong><br><span style="font-size:11px;color:#888;">${p.machine_type||'—'}</span></td>
-      <td style="font-size:12px;">${p.part_no}</td>
-      <td>${p.supplier||'—'}</td>
-      <td style="font-size:12px;color:#555;">${p.draw_number||'—'}</td>
-      <td style="font-size:12px;">${p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '—'}</td>
-      <td style="text-align:center;font-weight:700;color:#C00000;">${p.stock_qty}</td>
-      <td style="text-align:center;color:#888;">${p.min_qty}</td>
-      <td>${urgency}</td>
-    </tr>`;
+    html += `<tr><td><strong>${p.description}</strong><br><span style="font-size:11px;color:#888;">${p.machine_type||'—'}</span></td><td style="font-size:12px;">${p.part_no}</td><td>${p.supplier||'—'}</td><td style="font-size:12px;color:#555;">${p.draw_number||'—'}</td><td style="font-size:12px;">${p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '—'}</td><td style="text-align:center;font-weight:700;color:#C00000;">${p.stock_qty}</td><td style="text-align:center;color:#888;">${p.min_qty}</td><td>${urgency}</td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -3423,31 +4067,18 @@ function exportReorderList() {
   const url  = URL.createObjectURL(blob);
   const now  = new Date();
   const fname = 'PMT_Reorder_List_' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + '.csv';
-  const a = document.createElement('a');
-  a.href = url; a.download = fname;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+  const a = document.createElement('a'); a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   showToast('Reorder list exported!', 'success');
 }
 
 function renderReturnsTable() {
   const el = document.getElementById('returnsTable');
-  if (allReturns.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No returns recorded yet.</div>';
-    return;
-  }
+  if (allReturns.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No returns recorded yet.</div>'; return; }
   let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Part</th><th>Qty returned</th><th>Consumed</th><th>Reason</th><th>Returned by</th><th>Stock restored</th></tr></thead><tbody>';
   allReturns.filter(r => r.supplier_return_status !== 'Awaiting supplier return').forEach(r => {
     const d = r.return_time ? new Date(r.return_time).toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-    html += `<tr>
-      <td>${d}</td>
-      <td><strong>${r.part_description||r.part_no||'—'}</strong></td>
-      <td style="text-align:center;color:#ED7D31;font-weight:600;">${r.quantity_returned}</td>
-      <td style="text-align:center;color:#3B6D11;">${r.quantity_consumed||0}</td>
-      <td>${r.return_reason||'—'}</td>
-      <td>${r.returned_by||'—'}</td>
-      <td style="text-align:center;">${r.stock_restored?'<span style="color:#3B6D11;">Yes</span>':'<span style="color:#C00000;">No</span>'}</td>
-    </tr>`;
+    html += `<tr><td>${d}</td><td><strong>${r.part_description||r.part_no||'—'}</strong></td><td style="text-align:center;color:#ED7D31;font-weight:600;">${r.quantity_returned}</td><td style="text-align:center;color:#3B6D11;">${r.quantity_consumed||0}</td><td>${r.return_reason||'—'}</td><td>${r.returned_by||'—'}</td><td style="text-align:center;">${r.stock_restored?'<span style="color:#3B6D11;">Yes</span>':'<span style="color:#C00000;">No</span>'}</td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -3461,15 +4092,7 @@ function renderSupplierReturns(awaitSupplier) {
   let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Qty</th><th>Asset</th><th>Line</th><th>Date</th><th>Action</th></tr></thead><tbody>';
   awaitSupplier.forEach(r => {
     const d = r.return_time ? new Date(r.return_time).toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-    html += `<tr>
-      <td><strong>${r.part_description||'—'}</strong></td>
-      <td style="font-size:11px;color:#888;">${r.part_no||'—'}</td>
-      <td style="text-align:center;">${r.quantity_returned}</td>
-      <td>${r.asset_no||'—'}</td>
-      <td>${r.line||'—'}</td>
-      <td>${d}</td>
-      <td><button onclick="markSupplierReturned(${r.id})" style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Mark returned</button></td>
-    </tr>`;
+    html += `<tr><td><strong>${r.part_description||'—'}</strong></td><td style="font-size:11px;color:#888;">${r.part_no||'—'}</td><td style="text-align:center;">${r.quantity_returned}</td><td>${r.asset_no||'—'}</td><td>${r.line||'—'}</td><td>${d}</td><td><button onclick="markSupplierReturned(${r.id})" style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Mark returned</button></td></tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -3489,40 +4112,11 @@ async function markSupplierReturned(returnId) {
 
 function showClerkReturnForm() {
   const issued = allRequests.filter(r => r.status === 'Issued');
-  const options = issued.map(r =>
-    `<option value="${r.id}">${r.part_description||r.part_no} x${r.quantity} — ${r.asset_no||'?'} ${r.line||''} (${r.mechanic||'?'})</option>`
-  ).join('');
+  const options = issued.map(r => `<option value="${r.id}">${r.part_description||r.part_no} x${r.quantity} — ${r.asset_no||'?'} ${r.line||''} (${r.mechanic||'?'})</option>`).join('');
   const overlay = document.createElement('div');
   overlay.id = 'clerkReturnOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-  overlay.innerHTML = `
-    <div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">
-      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">Receive Return</div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Select issued part</label>
-        <select id="clerkReturnSelect" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
-          <option value="">— Select part —</option>
-          ${options}
-        </select>
-      </div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Quantity returned</label>
-        <input type="number" id="clerkReturnQty" value="1" min="1" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;">
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Reason</label>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Wrong part issued"> Wrong part issued</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Not needed"> Not needed</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Partial return"> Partial return</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Faulty / defective"> Faulty / defective <span style="font-size:10px;color:#888;"> — awaiting supplier</span></label>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button onclick="document.getElementById('clerkReturnOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button>
-        <button onclick="submitClerkReturn()" style="padding:12px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Return</button>
-      </div>
-    </div>`;
+  overlay.innerHTML = `<div style="background:white;border-radius:14px;padding:20px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;"><div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">Receive Return</div><div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Select issued part</label><select id="clerkReturnSelect" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;"><option value="">— Select part —</option>${options}</select></div><div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Quantity returned</label><input type="number" id="clerkReturnQty" value="1" min="1" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Reason</label><div style="display:flex;flex-direction:column;gap:8px;"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Wrong part issued"> Wrong part issued</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Not needed"> Not needed</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Partial return"> Partial return</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="radio" name="clerkReturnReason" value="Faulty / defective"> Faulty / defective <span style="font-size:10px;color:#888;"> — awaiting supplier</span></label></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button onclick="document.getElementById('clerkReturnOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;">Cancel</button><button onclick="submitClerkReturn()" style="padding:12px;background:#ED7D31;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;">Confirm Return</button></div></div>`;
   document.body.appendChild(overlay);
 }
 
@@ -3532,11 +4126,9 @@ async function submitClerkReturn() {
   const reason = document.querySelector('input[name="clerkReturnReason"]:checked');
   if (!reqId)  { showToast('Please select a part.', 'error'); return; }
   if (!reason) { showToast('Please select a reason.', 'error'); return; }
-
   const req      = allRequests.find(r => r.id == reqId);
   const isFaulty = reason.value === 'Faulty / defective';
   const consumed = Math.max(0, (req.quantity||1) - qty);
-
   try {
     await fetch(SUPABASE_URL + '/rest/v1/parts_returns', {
       method: 'POST',
@@ -3602,34 +4194,441 @@ function renderPartsLineChart() {
   });
 }
 
-function switchDashTab(tab) {
-  const tabs = ['assets','downtime','lifecycle','inventory','linechange'];
-  document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
-  document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + tab).classList.add('active');
-  if (tab === 'downtime')   loadDowntimeData();
-  if (tab === 'linechange')  initLineChange();
-  if (tab === 'lifecycle')  { lcAssets = []; } // reset cache so it rebuilds from latest data
-  if (tab === 'inventory')  loadInventoryData();
+// ── INVENTORY CSV IMPORT ──────────────────────────────────────────────────────
+function downloadInvTemplate() {
+  const csv = 'part_no,description,stock_qty,min_qty,machine_type,supplier,draw_number,unit_price\nPN001,Example Part Name,10,2,S/N LOCKST,Supplier Name,D-14,25.50\nPN002,Another Part,5,1,,,,\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'PMT_Inventory_Template.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-loadData();
-loadEfficiencyTarget();
-startAutoRefresh();
-fetchStorageUsage();
+function handleInvCsvDrop(e) {
+  e.preventDefault();
+  document.getElementById('csvDropZone').style.borderColor = '#ddd';
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) parseInvCsv(file);
+  else showToast('Please drop a .csv file.', 'error');
+}
 
-// ═══ LINE CHANGE ═════════════════════════════════════════════════════════════
+function handleInvCsvFile(input) {
+  const file = input.files[0];
+  if (file) parseInvCsv(file);
+}
+
+function parseInvCsv(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { showToast('CSV appears empty.', 'error'); return; }
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
+    const partNoIdx = headers.indexOf('part_no');
+    const descIdx = headers.indexOf('description');
+    const stockIdx = headers.indexOf('stock_qty');
+    const minIdx = headers.indexOf('min_qty');
+    const machineTypeIdx = headers.indexOf('machine_type');
+    const supplierIdx = headers.indexOf('supplier');
+    const drawIdx = headers.indexOf('draw_number');
+    const priceIdx = headers.indexOf('unit_price');
+    if (partNoIdx < 0 || descIdx < 0 || stockIdx < 0) {
+      showToast('Missing required columns: part_no, description, stock_qty', 'error'); return;
+    }
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
+      if (!cols[partNoIdx]) continue;
+      const row = {
+        part_no: cols[partNoIdx], description: cols[descIdx] || '',
+        stock_qty: parseInt(cols[stockIdx]) || 0,
+        min_qty: minIdx >= 0 ? (parseInt(cols[minIdx]) || 0) : 0,
+      };
+      if (machineTypeIdx >= 0 && cols[machineTypeIdx]) row.machine_type = cols[machineTypeIdx];
+      if (supplierIdx    >= 0 && cols[supplierIdx])    row.supplier     = cols[supplierIdx];
+      if (drawIdx        >= 0 && cols[drawIdx])        row.draw_number  = cols[drawIdx];
+      if (priceIdx       >= 0 && cols[priceIdx])       row.unit_price   = parseFloat(cols[priceIdx]) || null;
+      rows.push(row);
+    }
+    if (rows.length === 0) { showToast('No valid rows found.', 'error'); return; }
+    renderInvImportPreview(rows);
+  };
+  reader.readAsText(file);
+}
+
+function renderInvImportPreview(rows) {
+  const preview = document.getElementById('invImportPreview');
+  const updates = rows.filter(r => allInventory.some(p => p.part_no === r.part_no));
+  const inserts = rows.filter(r => !allInventory.some(p => p.part_no === r.part_no));
+  preview.innerHTML = `<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;"><div style="background:#E2EFDA;border-radius:8px;padding:10px 16px;font-size:13px;"><div style="font-size:10px;font-weight:700;color:#3B6D11;text-transform:uppercase;letter-spacing:0.06em;">New parts</div><div style="font-size:22px;font-weight:700;color:#27500A;">${inserts.length}</div></div><div style="background:#EBF3FB;border-radius:8px;padding:10px 16px;font-size:13px;"><div style="font-size:10px;font-weight:700;color:#2E5597;text-transform:uppercase;letter-spacing:0.06em;">Updates</div><div style="font-size:22px;font-weight:700;color:#1F3864;">${updates.length}</div></div><div style="background:#f5f5f5;border-radius:8px;padding:10px 16px;font-size:13px;"><div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Total rows</div><div style="font-size:22px;font-weight:700;color:#333;">${rows.length}</div></div></div><div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #f0f2f5;border-radius:8px;margin-bottom:14px;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead style="position:sticky;top:0;background:#f8f9fa;"><tr><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Part No</th><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Description</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Stock</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Min</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #eee;">Action</th></tr></thead><tbody>${rows.map(r => { const isUpdate = allInventory.some(p => p.part_no === r.part_no); return `<tr style="border-bottom:1px solid #f5f5f5;"><td style="padding:7px 10px;font-weight:600;">${r.part_no}</td><td style="padding:7px 10px;color:#555;">${r.description}</td><td style="padding:7px 10px;text-align:center;">${r.stock_qty}</td><td style="padding:7px 10px;text-align:center;">${r.min_qty}</td><td style="padding:7px 10px;text-align:center;"><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;${isUpdate?'background:#EBF3FB;color:#2E5597;':'background:#E2EFDA;color:#3B6D11;'}">${isUpdate ? 'UPDATE' : 'NEW'}</span></td></tr>`; }).join('')}</tbody></table></div><button onclick="requirePin('Import inventory', function(){ confirmInvImport(${JSON.stringify(rows).replace(/"/g,'&quot;')}) })" style="width:100%;padding:13px;background:#1F3864;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Import ${rows.length} parts to inventory</button>`;
+}
+
+async function confirmInvImport(rows) {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Importing...';
+  let success = 0, failed = 0;
+  for (const row of rows) {
+    try {
+      await fetch(SUPABASE_URL + '/rest/v1/parts_inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ ...row, updated_at: new Date().toISOString() })
+      });
+      success++;
+    } catch(e) { failed++; }
+  }
+  document.getElementById('invImportPreview').innerHTML =
+    `<div style="text-align:center;padding:24px;background:#E2EFDA;border-radius:10px;"><div style="font-size:32px;margin-bottom:8px;">✓</div><div style="font-size:16px;font-weight:700;color:#2D7D46;">Import complete</div><div style="font-size:13px;color:#555;margin-top:4px;">${success} parts imported${failed>0?' · '+failed+' failed':''}</div></div>`;
+  showToast(success + ' parts imported successfully!', 'success');
+  await loadInventoryData();
+  document.getElementById('invCsvFile').value = '';
+}
+
+// ── ADJUST STOCK ──────────────────────────────────────────────────────────────
+function filterAdjustList() { renderAdjustList(document.getElementById('adjustSearchInput').value); }
+
+function renderAdjustList(query) {
+  const el = document.getElementById('adjustPartList');
+  if (!allInventory || allInventory.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">Loading inventory...</div>'; return; }
+  const q = (query || '').trim().toLowerCase();
+  const filtered = q.length < 2 ? allInventory.slice(0, 50) : allInventory.filter(p => (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q));
+  if (filtered.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">No parts found.</div>'; return; }
+  let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Machine</th><th class="num">Current stock</th><th class="num">Min qty</th><th>Adjust</th></tr></thead><tbody>';
+  window._adjParts = filtered;
+  filtered.forEach((p, i) => {
+    const isLow = p.min_qty > 0 && p.stock_qty <= p.min_qty;
+    const isOos = p.stock_qty === 0;
+    const stockColor = isOos ? '#C00000' : isLow ? '#ED7D31' : '#2D7D46';
+    html += '<tr><td><strong>' + p.description + '</strong></td><td style="font-size:11px;color:#888;">' + p.part_no + '</td><td style="font-size:12px;">' + (p.machine_type||'--') + '</td><td style="text-align:center;font-weight:700;color:' + stockColor + ';">' + p.stock_qty + '</td><td style="text-align:center;color:#888;">' + (p.min_qty||0) + '</td><td><div style="display:flex;align-items:center;gap:6px;"><input type="number" id="adj_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '" value="' + p.stock_qty + '" min="0" style="width:70px;padding:5px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;"><button class="pin-adj" data-idx="' + i + '" style="padding:5px 12px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Save</button></div></td></tr>';
+  });
+  html += '</tbody></table>';
+  if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('.pin-adj').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const i = parseInt(this.dataset.idx);
+      requirePin('Adjust stock', function() { saveStockAdjust(window._adjParts[i].part_no); });
+    });
+  });
+}
+
+async function saveStockAdjust(partNo) {
+  const safeId = 'adj_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
+  const input  = document.getElementById(safeId);
+  if (!input) return;
+  const newQty = parseInt(input.value);
+  if (isNaN(newQty) || newQty < 0) { showToast('Invalid quantity', 'error'); return; }
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ stock_qty: newQty, updated_at: new Date().toISOString() })
+    });
+    if (res.ok) {
+      const part = allInventory.find(p => p.part_no === partNo);
+      if (part) part.stock_qty = newQty;
+      input.style.borderColor = '#70AD47';
+      setTimeout(() => { input.style.borderColor = '#ddd'; }, 1500);
+      showToast(partNo + ' stock updated to ' + newQty, 'success');
+      renderInventory();
+    } else { showToast('Update failed', 'error'); }
+  } catch(e) { showToast('Update failed', 'error'); }
+}
+
+// ── CATALOGUE ─────────────────────────────────────────────────────────────────
+function filterCatalogueList() { renderCatalogueList(document.getElementById('catalogueSearchInput').value); }
+
+function renderCatalogueList(query) {
+  const el = document.getElementById('catalogueList');
+  if (!allInventory || allInventory.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">Loading...</div>'; return; }
+  const q = (query || '').trim().toLowerCase();
+  const filtered = q.length < 2 ? allInventory.slice(0, 50) : allInventory.filter(p => (p.description||'').toLowerCase().includes(q) || (p.part_no||'').toLowerCase().includes(q));
+  if (filtered.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">No parts found.</div>'; return; }
+  let html = '<table class="sl-table"><thead><tr><th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th><th>Draw</th><th>Unit price</th><th class="num">Stock</th><th class="num">Min</th><th>Actions</th></tr></thead><tbody>';
+  window._catParts = filtered;
+  filtered.forEach((p, i) => {
+    html += '<tr id="catrow_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '"><td><strong>' + p.description + '</strong></td><td style="font-size:11px;color:#888;">' + p.part_no + '</td><td style="font-size:12px;">' + (p.machine_type||'--') + '</td><td style="font-size:12px;">' + (p.supplier||'--') + '</td><td style="font-size:12px;color:#555;">' + (p.draw_number||'--') + '</td><td style="font-size:12px;">' + (p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '--') + '</td><td style="text-align:center;">' + p.stock_qty + '</td><td style="text-align:center;">' + (p.min_qty||0) + '</td><td style="display:flex;gap:6px;"><button class="pin-edit" data-idx="' + i + '" style="padding:4px 10px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Edit</button><button class="pin-del" data-idx="' + i + '" style="padding:4px 10px;background:#FCE4D6;border:none;border-radius:6px;color:#C00000;font-size:11px;font-weight:600;cursor:pointer;">Delete</button></td></tr>';
+  });
+  html += '</tbody></table>';
+  if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
+  el.innerHTML = html;
+  el.querySelectorAll('.pin-edit').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const i = parseInt(this.dataset.idx);
+      requirePin('Edit part', function() { showEditPartForm(window._catParts[i].part_no); });
+    });
+  });
+  el.querySelectorAll('.pin-del').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const i = parseInt(this.dataset.idx);
+      requirePin('Delete part', function() { confirmDeletePart(window._catParts[i].part_no, window._catParts[i].description); });
+    });
+  });
+}
+
+function showAddPartForm() { showPartForm(null); }
+function showEditPartForm(partNo) { const part = allInventory.find(p => p.part_no === partNo); if (part) showPartForm(part); }
+
+function showPartForm(part) {
+  const isEdit = !!part;
+  const overlay = document.createElement('div');
+  overlay.id = 'partFormOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
+  overlay.innerHTML = `<div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);margin:auto;"><div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">${isEdit ? 'Edit part' : 'Add new part'}</div>${[['Part number','partFormNo','text',isEdit?part.part_no:'',isEdit],['Description','partFormDesc','text',isEdit?part.description:'',false],['Machine type','partFormMachine','text',isEdit?(part.machine_type||''):'',false],['Supplier','partFormSupplier','text',isEdit?(part.supplier||''):'',false],['Draw number','partFormDraw','text',isEdit?(part.draw_number||''):'',false],['Unit price (R)','partFormPrice','number',isEdit?(part.unit_price!=null?part.unit_price:''):'',false],['Stock qty','partFormStock','number',isEdit?part.stock_qty:0,false],['Min qty','partFormMin','number',isEdit?(part.min_qty||0):0,false]].map(([label,id,type,val,disabled]) => '<div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">'+label+'</label><input type="'+type+'" id="'+id+'" value="'+val+'"' + (disabled ? ' disabled style="background:#f5f5f5;' : ' style="') + 'width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;"></div>').join('')}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;"><button onclick="document.getElementById('partFormOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button><button onclick="savePartForm('${isEdit ? part.part_no : ''}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">${isEdit ? 'Save changes' : 'Add part'}</button></div></div>`;
+  document.body.appendChild(overlay);
+}
+
+async function savePartForm(existingPartNo) {
+  const partNo   = document.getElementById('partFormNo').value.trim();
+  const desc     = document.getElementById('partFormDesc').value.trim();
+  const machine  = document.getElementById('partFormMachine').value.trim();
+  const supplier = document.getElementById('partFormSupplier').value.trim();
+  const stock    = parseInt(document.getElementById('partFormStock').value) || 0;
+  const min      = parseInt(document.getElementById('partFormMin').value) || 0;
+  if (!partNo || !desc) { showToast('Part number and description are required', 'error'); return; }
+  const draw  = document.getElementById('partFormDraw').value.trim();
+  const price = document.getElementById('partFormPrice').value;
+  const payload = { part_no: partNo, description: desc, machine_type: machine||null, supplier: supplier||null, draw_number: draw||null, unit_price: price !== '' ? parseFloat(price) : null, stock_qty: stock, min_qty: min, updated_at: new Date().toISOString() };
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?on_conflict=part_no', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      document.getElementById('partFormOverlay').remove();
+      showToast((existingPartNo ? 'Part updated' : 'Part added') + ': ' + desc, 'success');
+      await loadInventoryData();
+      renderCatalogueList(document.getElementById('catalogueSearchInput').value);
+    } else { showToast('Save failed', 'error'); }
+  } catch(e) { showToast('Save failed', 'error'); }
+}
+
+function confirmDeletePart(partNo, desc) {
+  if (!confirm('Delete "' + desc + '" (' + partNo + ') from the catalogue? This cannot be undone.')) return;
+  deletePart(partNo);
+}
+
+async function deletePart(partNo) {
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if (res.ok) {
+      showToast('Part deleted', 'success');
+      await loadInventoryData();
+      renderCatalogueList(document.getElementById('catalogueSearchInput').value);
+    } else { showToast('Delete failed', 'error'); }
+  } catch(e) { showToast('Delete failed', 'error'); }
+}
+
+// ── PARTS USAGE HISTORY ───────────────────────────────────────────────────────
+function populateHistoryPartSelect() {
+  const sel = document.getElementById('historyPartSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Select a part --</option>';
+  const parts = [...allInventory].sort((a,b) => a.description.localeCompare(b.description));
+  parts.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.part_no;
+    opt.textContent = p.description + ' (' + p.part_no + ')';
+    if (p.part_no === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (current) loadPartHistory();
+}
+
+function clearPartHistory() {
+  document.getElementById('historyPartSelect').value = '';
+  document.getElementById('historyDateFrom').value   = '';
+  document.getElementById('historyDateTo').value     = '';
+  document.getElementById('partHistoryContent').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above to view its usage history</div>';
+}
+
+function loadPartHistory() {
+  const partNo   = document.getElementById('historyPartSelect').value;
+  const dateFrom = document.getElementById('historyDateFrom').value;
+  const dateTo   = document.getElementById('historyDateTo').value;
+  const el       = document.getElementById('partHistoryContent');
+  if (!partNo) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above</div>'; return; }
+  let records = allRequests.filter(r => (r.part_no === partNo || r.part_description === allInventory.find(p => p.part_no === partNo)?.description) && (r.status === 'Issued' || r.status === 'Out of Stock'));
+  if (dateFrom) records = records.filter(r => (r.issued_time||'').split('T')[0] >= dateFrom);
+  if (dateTo)   records = records.filter(r => (r.issued_time||'').split('T')[0] <= dateTo);
+  if (records.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No usage records found for this part.</div>'; return; }
+  const totalQty = records.reduce((s,r) => s + (r.quantity||0), 0);
+  const oosCount = records.filter(r => r.status === 'Out of Stock').length;
+  const byLine = {}, byAsset = {}, byMechanic = {};
+  records.forEach(r => {
+    if (r.line)     byLine[r.line]         = (byLine[r.line]||0)         + (r.quantity||0);
+    if (r.asset_no) byAsset[r.asset_no]    = (byAsset[r.asset_no]||0)    + (r.quantity||0);
+    if (r.mechanic) byMechanic[r.mechanic] = (byMechanic[r.mechanic]||0) + (r.quantity||0);
+  });
+  const topLines     = Object.entries(byLine).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topAssets    = Object.entries(byAsset).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topMechanics = Object.entries(byMechanic).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const part = allInventory.find(p => p.part_no === partNo);
+  let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;"><div class="dt-kpi" style="border-left:4px solid #2E5597;"><div class="dt-kpi-label">Total issued</div><div class="dt-kpi-value">${records.length}</div><div class="dt-kpi-sub">transactions</div></div><div class="dt-kpi" style="border-left:4px solid #70AD47;"><div class="dt-kpi-label">Total qty</div><div class="dt-kpi-value">${totalQty}</div><div class="dt-kpi-sub">units</div></div><div class="dt-kpi" style="border-left:4px solid #1F3864;"><div class="dt-kpi-label">Current stock</div><div class="dt-kpi-value">${part ? part.stock_qty : '--'}</div><div class="dt-kpi-sub">in store</div></div><div class="dt-kpi" style="border-left:4px solid #C00000;"><div class="dt-kpi-label">Out of stock</div><div class="dt-kpi-value">${oosCount}</div><div class="dt-kpi-sub">requests unmet</div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;">`;
+  const miniTable = (title, rows) => '<div class="chart-card" style="padding:14px;"><div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">' + title + '</div>' + rows.map(([k,v]) => '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;"><span>' + k + '</span><span style="font-weight:700;color:#2E5597;">' + v + '</span></div>').join('') + '</div>';
+  html += miniTable('Top lines', topLines);
+  html += miniTable('Top assets', topAssets);
+  html += miniTable('Top mechanics', topMechanics);
+  html += '</div><div style="overflow-x:auto;"><table class="sl-table"><thead><tr><th>Date</th><th>Qty</th><th>Status</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
+  records.sort((a,b) => new Date(b.issued_time||0) - new Date(a.issued_time||0)).forEach(r => {
+    const d = r.issued_time ? new Date(r.issued_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
+    const isOOS = r.status === 'Out of Stock';
+    html += '<tr' + (isOOS ? ' style="background:#FFF8F8;"' : '') + '><td>' + d + '</td><td style="text-align:center;font-weight:600;color:' + (isOOS?'#C00000':'#2E5597') + ';">x' + r.quantity + '</td><td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;background:' + (isOOS?'#FCE4D6':'#E2EFDA') + ';color:' + (isOOS?'#C00000':'#2D7D46') + ';">' + r.status + '</span></td><td>' + (r.mechanic||'--') + '</td><td>' + (r.asset_no||'--') + '</td><td>' + (r.line||'--') + '</td><td style="color:#888;">' + (r.issued_by||'--') + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+// ── REORDER STATUS ────────────────────────────────────────────────────────────
+function renderReorderStatus() {
+  const el = document.getElementById('reorderStatusList');
+  const lowStock = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
+  if (lowStock.length === 0) { el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">All parts above minimum stock — nothing to reorder.</div>'; return; }
+  const sorted = [...lowStock].sort((a,b) => {
+    if (a.stock_qty === 0 && b.stock_qty > 0) return -1;
+    if (b.stock_qty === 0 && a.stock_qty > 0) return 1;
+    return a.stock_qty - b.stock_qty;
+  });
+  let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Supplier</th><th class="num">Stock</th><th class="num">Min</th><th>Order status</th><th>Ordered date</th><th>Notes</th><th></th></tr></thead><tbody>';
+  sorted.forEach(p => {
+    const key = 'pmt_order_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_');
+    let orderData = {};
+    try { orderData = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+    const status = orderData.status || 'Not ordered';
+    const orderedDate = orderData.date || '';
+    const notes = orderData.notes || '';
+    const isOrdered = status === 'Ordered';
+    const isReceived = status === 'Received';
+    const statusColor = isReceived ? '#2D7D46' : isOrdered ? '#2E5597' : '#C00000';
+    const statusBg    = isReceived ? '#E2EFDA'  : isOrdered ? '#DEEAF1' : '#FCE4D6';
+    html += '<tr><td><strong>' + p.description + '</strong><br><span style="font-size:10px;color:#888;">' + (p.machine_type||'') + '</span></td><td style="font-size:11px;color:#888;">' + p.part_no + '</td><td style="font-size:12px;">' + (p.supplier||'--') + '</td><td style="text-align:center;font-weight:700;color:' + (p.stock_qty===0?'#C00000':'#ED7D31') + ';">' + p.stock_qty + '</td><td style="text-align:center;color:#888;">' + p.min_qty + '</td><td><span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' + status + '</span></td><td style="font-size:12px;color:#888;">' + orderedDate + '</td><td style="font-size:12px;color:#555;max-width:150px;">' + notes + '</td><td><button onclick="showOrderStatusForm(\'' + p.part_no.replace(/'/g,"\\'") + '\',\'' + p.description.replace(/'/g,"\\'") + '\')" style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Update</button></td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function showOrderStatusForm(partNo, desc) {
+  const key = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
+  let existing = {};
+  try { existing = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+  const overlay = document.createElement('div');
+  overlay.id = 'orderStatusOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `<div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);"><div style="font-size:15px;font-weight:700;color:#1F3864;margin-bottom:4px;">Update order status</div><div style="font-size:12px;color:#888;margin-bottom:16px;">${desc} &nbsp;|&nbsp; ${partNo}</div><div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Status</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">${['Not ordered','Ordered','Received'].map(s => '<button onclick="selectOrderStatus(this,\'' + s + '\')" style="padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid ' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#ddd') + ';background:' + (existing.status===s ? (s==='Received'?'#E2EFDA':s==='Ordered'?'#DEEAF1':'#FCE4D6') : 'white') + ';color:' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#666') + ';">' + s + '</button>').join('')}</div><input type="hidden" id="orderStatusValue" value="${existing.status||'Not ordered'}"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Order date</label><input type="date" id="orderDateInput" value="${existing.date||''}" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Notes (optional)</label><input type="text" id="orderNotesInput" value="${existing.notes||''}" placeholder="e.g. PO #1234, expected delivery..." style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button onclick="document.getElementById('orderStatusOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button><button onclick="saveOrderStatus('${partNo}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button></div></div>`;
+  document.body.appendChild(overlay);
+}
+
+function selectOrderStatus(btn, status) {
+  document.getElementById('orderStatusValue').value = status;
+  const colors = { 'Not ordered': ['#C00000','#FCE4D6'], 'Ordered': ['#2E5597','#DEEAF1'], 'Received': ['#2D7D46','#E2EFDA'] };
+  btn.parentElement.querySelectorAll('button').forEach(b => { b.style.borderColor = '#ddd'; b.style.background = 'white'; b.style.color = '#666'; });
+  const [color, bg] = colors[status] || ['#555','#f5f5f5'];
+  btn.style.borderColor = color; btn.style.background = bg; btn.style.color = color;
+}
+
+function saveOrderStatus(partNo) {
+  const key    = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
+  const status = document.getElementById('orderStatusValue').value;
+  const date   = document.getElementById('orderDateInput').value;
+  const notes  = document.getElementById('orderNotesInput').value;
+  try { localStorage.setItem(key, JSON.stringify({ status, date, notes })); } catch(e) {}
+  document.getElementById('orderStatusOverlay').remove();
+  showToast('Order status updated', 'success');
+  renderReorderStatus();
+}
+
+// ── STOCK PIN PROTECTION ──────────────────────────────────────────────────────
+const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_SECS = 30;
+let _pinCallback = null;
+let _pinAttempts = 0;
+let _pinLockUntil = 0;
+
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function requirePin(actionLabel, callback) {
+  const now = Date.now();
+  if (_pinLockUntil > now) {
+    const secs = Math.ceil((_pinLockUntil - now) / 1000);
+    showToast('Too many attempts. Try again in ' + secs + 's.', 'error');
+    return;
+  }
+  _pinCallback = callback;
+  _pinAttempts = 0;
+  document.getElementById('pinActionLabel').textContent = actionLabel;
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinInput').style.borderColor = '#ddd';
+  document.getElementById('pinInput').disabled = false;
+  document.getElementById('pinSubmitBtn').disabled = false;
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinAttemptInfo').textContent = '';
+  document.getElementById('pinOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
+}
+
+function closePinOverlay() {
+  document.getElementById('pinOverlay').style.display = 'none';
+  document.getElementById('pinInput').value = '';
+  _pinCallback = null;
+}
+
+async function submitPin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  const input = document.getElementById('pinInput');
+  const errorEl = document.getElementById('pinError');
+  const infoEl = document.getElementById('pinAttemptInfo');
+  if (!pin) { errorEl.textContent = 'Please enter the PIN.'; return; }
+  const entered = await hashPin(pin);
+  if (entered === PIN_HASH) {
+    const cb = _pinCallback;
+    closePinOverlay();
+    _pinAttempts = 0;
+    if (cb) cb();
+  } else {
+    _pinAttempts++;
+    input.value = '';
+    input.style.borderColor = '#C00000';
+    const remaining = MAX_ATTEMPTS - _pinAttempts;
+    if (_pinAttempts >= MAX_ATTEMPTS) {
+      _pinLockUntil = Date.now() + (LOCKOUT_SECS * 1000);
+      errorEl.textContent = 'Incorrect PIN. Locked for ' + LOCKOUT_SECS + ' seconds.';
+      infoEl.textContent = '';
+      input.disabled = true;
+      document.getElementById('pinSubmitBtn').disabled = true;
+      setTimeout(() => {
+        input.disabled = false;
+        document.getElementById('pinSubmitBtn').disabled = false;
+        input.style.borderColor = '#ddd';
+        errorEl.textContent = '';
+        infoEl.textContent = 'Lockout expired — try again.';
+        _pinAttempts = 0;
+      }, LOCKOUT_SECS * 1000);
+    } else {
+      errorEl.textContent = 'Incorrect PIN.';
+      infoEl.textContent = remaining + ' attempt' + (remaining > 1 ? 's' : '') + ' remaining.';
+    }
+  }
+}
+
+// ── LINE CHANGE ───────────────────────────────────────────────────────────────
 let lcChart = null;
 let lcAllScans = [];
 let lcMovements = [];
 
 function initLineChange() {
-  const today = getTodayStr();
-  const week  = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const week     = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
   if (!document.getElementById('lcDateFrom').value) {
     document.getElementById('lcDateFrom').value = week;
-    document.getElementById('lcDateTo').value   = today;
+    document.getElementById('lcDateTo').value   = todayStr;
   }
   loadLineChange();
 }
@@ -3663,7 +4662,6 @@ async function loadLineChange() {
     lcAllScans = await res.json();
   } catch(e) { showToast('Failed to load scan data', 'error'); return; }
 
-  // Build movement events by comparing consecutive scans per asset
   const byAsset = {};
   lcAllScans.forEach(s => { if (!byAsset[s.asset_no]) byAsset[s.asset_no] = []; byAsset[s.asset_no].push(s); });
 
@@ -3764,11 +4762,7 @@ function renderLcTable(movements, dtAssets) {
     wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#bbb;font-size:14px;">No movements found for selected filters</div>';
     return;
   }
-  let html = '<table class="sl-table"><thead><tr>' +
-    '<th>Direction</th><th>Asset</th><th>Machine type</th>' +
-    '<th>From</th><th>To</th><th>Mechanic</th>' +
-    '<th>Date</th><th>Time</th><th>Dwell</th><th>Note</th>' +
-    '</tr></thead><tbody>';
+  let html = '<table class="sl-table"><thead><tr><th>Direction</th><th>Asset</th><th>Machine type</th><th>From</th><th>To</th><th>Mechanic</th><th>Date</th><th>Time</th><th>Dwell</th><th>Note</th></tr></thead><tbody>';
   movements.forEach(m => {
     const dt   = new Date(m.timestamp);
     const date = dt.toLocaleDateString('en-ZA', {day:'2-digit',month:'2-digit'});
@@ -3783,18 +4777,7 @@ function renderLcTable(movements, dtAssets) {
     const note  = m.from_loc === 'Pool A' || m.from_loc === 'Pool B' ? 'from storage' :
                   m.to_loc   === 'Pool A' || m.to_loc   === 'Pool B' ? 'to storage'   :
                   (m.to_loc.toLowerCase().includes('line') && m.from_loc.toLowerCase().includes('line')) ? 'line transfer' : '';
-    html += '<tr>' +
-      '<td>' + badge + '</td>' +
-      '<td><strong>' + m.asset_no + '</strong>' + flag + '</td>' +
-      '<td style="color:#555;font-size:12px;">' + m.machine_type + '</td>' +
-      '<td style="color:#888;font-size:12px;">' + m.from_loc + '</td>' +
-      '<td style="color:#888;font-size:12px;">' + m.to_loc + '</td>' +
-      '<td style="font-size:12px;">' + m.mechanic + '</td>' +
-      '<td style="font-size:12px;">' + date + '</td>' +
-      '<td style="font-size:12px;">' + time + '</td>' +
-      '<td style="font-size:12px;color:#888;">' + dwell + '</td>' +
-      '<td style="font-size:11px;color:#aaa;">' + note + '</td>' +
-      '</tr>';
+    html += '<tr><td>' + badge + '</td><td><strong>' + m.asset_no + '</strong>' + flag + '</td><td style="color:#555;font-size:12px;">' + m.machine_type + '</td><td style="color:#888;font-size:12px;">' + m.from_loc + '</td><td style="color:#888;font-size:12px;">' + m.to_loc + '</td><td style="font-size:12px;">' + m.mechanic + '</td><td style="font-size:12px;">' + date + '</td><td style="font-size:12px;">' + time + '</td><td style="font-size:12px;color:#888;">' + dwell + '</td><td style="font-size:11px;color:#aaa;">' + note + '</td></tr>';
   });
   html += '</tbody></table>';
   wrap.innerHTML = html;
@@ -3812,23 +4795,14 @@ async function renderLcCurrent(line) {
     const latest = {};
     scans.forEach(s => { if (!latest[s.asset_no]) latest[s.asset_no] = s; });
     const onLine = Object.values(latest).filter(s => s.location === line);
-    if (onLine.length === 0) {
-      wrap.innerHTML = '<div style="text-align:center;padding:30px;color:#bbb;">No assets currently on ' + line + '</div>';
-      return;
-    }
+    if (onLine.length === 0) { wrap.innerHTML = '<div style="text-align:center;padding:30px;color:#bbb;">No assets currently on ' + line + '</div>'; return; }
     let html = '<div style="font-size:12px;color:#888;margin-bottom:8px;">' + onLine.length + ' asset(s) currently on ' + line + '</div>';
     html += '<table class="sl-table"><thead><tr><th>Asset</th><th>Machine type</th><th>Status</th><th>Last mechanic</th><th>Last scanned</th></tr></thead><tbody>';
     onLine.sort((a,b) => a.asset_no.localeCompare(b.asset_no)).forEach(s => {
       const dt = new Date(s.scan_timestamp);
       const ts = dt.toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit'}) + ' ' + dt.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
       const sc = s.status === 'Active / In Use' ? '#2D7D46' : (s.status||'').startsWith('Under Maintenance') ? '#C00000' : '#888';
-      html += '<tr>' +
-        '<td><strong>' + s.asset_no + '</strong></td>' +
-        '<td style="color:#555;font-size:12px;">' + (s.machine_type||'--') + '</td>' +
-        '<td><span style="font-size:11px;font-weight:700;color:' + sc + ';">' + (s.status||'--') + '</span></td>' +
-        '<td style="font-size:12px;">' + (s.mechanic||'--') + '</td>' +
-        '<td style="font-size:12px;color:#888;">' + ts + '</td>' +
-        '</tr>';
+      html += '<tr><td><strong>' + s.asset_no + '</strong></td><td style="color:#555;font-size:12px;">' + (s.machine_type||'--') + '</td><td><span style="font-size:11px;font-weight:700;color:' + sc + ';">' + (s.status||'--') + '</span></td><td style="font-size:12px;">' + (s.mechanic||'--') + '</td><td style="font-size:12px;color:#888;">' + ts + '</td></tr>';
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
@@ -3859,625 +4833,24 @@ function exportLcCsv() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   showToast('Exported ' + lcMovements.length + ' movements', 'success');
 }
-// ═══ END LINE CHANGE ══════════════════════════════════════════════════════════
 
-// ═══ INVENTORY ENHANCEMENTS ══════════════════════════════════════════════════
-
-// ── 1. ISSUES HISTORY: date filter on today's issues ─────────────────────────
-// Extend renderTodayIssues to support optional date range
-function renderTodayIssues(issued) {
-  const el = document.getElementById('todayIssuesTable');
-
-  // Build date filter controls if not already present
-  if (!document.getElementById('issuesDateFilter')) {
-    const filterHtml = `
-      <div id="issuesDateFilter" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-        <label style="font-size:12px;font-weight:700;color:#555;">Date:</label>
-        <input type="date" id="issuesFrom" onchange="filterIssuesHistory()" style="padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
-        <span style="color:#aaa;font-size:12px;">to</span>
-        <input type="date" id="issuesTo" onchange="filterIssuesHistory()" style="padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
-        <button onclick="clearIssuesFilter()" class="filter-clear">Clear</button>
-        <span id="issuesFilterInfo" style="font-size:12px;color:#888;margin-left:auto;"></span>
-      </div>`;
-    el.insertAdjacentHTML('beforebegin', filterHtml);
-  }
-
-  renderIssuesTable(issued);
+// ── DASHBOARD TAB SWITCHING ───────────────────────────────────────────────────
+function switchDashTab(tab) {
+  const tabs = ['assets','downtime','profile','inventory','linechange'];
+  document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
+  document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'downtime')   loadDowntimeData();
+  if (tab === 'linechange') initLineChange();
+  if (tab === 'profile')    { lcAssets = []; } // reset asset cache so it rebuilds from latest data
+  if (tab === 'inventory')  loadInventoryData();
 }
 
-function filterIssuesHistory() {
-  const from = document.getElementById('issuesFrom').value;
-  const to   = document.getElementById('issuesTo').value;
-  let filtered;
-  if (from || to) {
-    filtered = allRequests.filter(r => {
-      if (r.status !== 'Issued' && r.status !== 'Out of Stock') return false;
-      const d = (r.issued_time || '').split('T')[0];
-      if (from && d < from) return false;
-      if (to   && d > to)   return false;
-      return true;
-    });
-    document.getElementById('issuesFilterInfo').textContent = filtered.length + ' records';
-  } else {
-    const today = new Date().toISOString().split('T')[0];
-    filtered = allRequests.filter(r =>
-      (r.status === 'Issued' || r.status === 'Out of Stock') &&
-      (r.issued_time || '').startsWith(today)
-    );
-    document.getElementById('issuesFilterInfo').textContent = '';
-  }
-  renderIssuesTable(filtered);
-}
-
-function clearIssuesFilter() {
-  document.getElementById('issuesFrom').value = '';
-  document.getElementById('issuesTo').value   = '';
-  document.getElementById('issuesFilterInfo').textContent = '';
-  const today = new Date().toISOString().split('T')[0];
-  const todayIssued = allRequests.filter(r =>
-    (r.status === 'Issued' || r.status === 'Out of Stock') &&
-    (r.issued_time || '').startsWith(today)
-  );
-  renderIssuesTable(todayIssued);
-}
-
-function renderIssuesTable(issued) {
-  const el = document.getElementById('todayIssuesTable');
-  if (issued.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No parts issued for selected period.</div>';
-    return;
-  }
-  let html = '<table class="sl-table"><thead><tr><th>Time</th><th>Part</th><th>Qty</th><th>Status</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
-  issued.forEach(r => {
-    const t = r.issued_time ? new Date(r.issued_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
-    const returned = r.quantity_returned || 0;
-    const isOOS = r.status === 'Out of Stock';
-    const badge = isOOS
-      ? '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#FCE4D6;color:#C00000;">Out of stock</span>'
-      : '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#E2EFDA;color:#2D7D46;">Issued</span>';
-    html += '<tr' + (isOOS ? ' style="background:#FFF8F8;"' : '') + '>' +
-      '<td>' + t + '</td>' +
-      '<td><strong>' + (r.part_description||r.part_no||'--') + '</strong></td>' +
-      '<td style="text-align:center;"><span style="color:' + (isOOS?'#C00000':'#2E5597') + ';font-weight:600;">x' + r.quantity + '</span>' +
-        (returned > 0 ? '<br><span style="color:#ED7D31;font-size:10px;">returned x'+returned+'</span>' : '') + '</td>' +
-      '<td>' + badge + '</td>' +
-      '<td>' + (r.mechanic||'--') + '</td>' +
-      '<td>' + (r.asset_no||'--') + '</td>' +
-      '<td>' + (r.line||'--') + '</td>' +
-      '<td>' + (r.issued_by||'--') + '</td>' +
-    '</tr>';
-  });
-  html += '</tbody></table>';
-  el.innerHTML = html;
-}
-
-// ── 2. MANUAL STOCK ADJUSTMENT ────────────────────────────────────────────────
-function filterAdjustList() {
-  renderAdjustList(document.getElementById('adjustSearchInput').value);
-}
-
-function renderAdjustList(query) {
-  const el = document.getElementById('adjustPartList');
-  if (!allInventory || allInventory.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">Loading inventory...</div>';
-    return;
-  }
-  const q = (query || '').trim().toLowerCase();
-  const filtered = q.length < 2
-    ? allInventory.slice(0, 50)
-    : allInventory.filter(p =>
-        (p.description||'').toLowerCase().includes(q) ||
-        (p.part_no||'').toLowerCase().includes(q)
-      );
-
-  if (filtered.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">No parts found.</div>';
-    return;
-  }
-
-  let html = '<table class="sl-table"><thead><tr>' +
-    '<th>Part</th><th>Part No</th><th>Machine</th>' +
-    '<th class="num">Current stock</th><th class="num">Min qty</th>' +
-    '<th>Adjust</th></tr></thead><tbody>';
-
-  window._adjParts = filtered;
-  filtered.forEach((p, i) => {
-    const isLow = p.min_qty > 0 && p.stock_qty <= p.min_qty;
-    const isOos = p.stock_qty === 0;
-    const stockColor = isOos ? '#C00000' : isLow ? '#ED7D31' : '#2D7D46';
-    html += '<tr>' +
-      '<td><strong>' + p.description + '</strong></td>' +
-      '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
-      '<td style="font-size:12px;">' + (p.machine_type||'--') + '</td>' +
-      '<td style="text-align:center;font-weight:700;color:' + stockColor + ';">' + p.stock_qty + '</td>' +
-      '<td style="text-align:center;color:#888;">' + (p.min_qty||0) + '</td>' +
-      '<td><div style="display:flex;align-items:center;gap:6px;">' +
-        '<input type="number" id="adj_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '" value="' + p.stock_qty + '" min="0" ' +
-          'style="width:70px;padding:5px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;">' +
-        '<button class="pin-adj" data-idx="' + i + '" ' +
-          'style="padding:5px 12px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Save</button>' +
-      '</div></td>' +
-    '</tr>';
-  });
-  html += '</tbody></table>';
-  if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
-  el.innerHTML = html;
-  el.querySelectorAll('.pin-adj').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const i = parseInt(this.dataset.idx);
-      requirePin('Adjust stock', function() { saveStockAdjust(window._adjParts[i].part_no); });
-    });
-  });
-}
-
-async function saveStockAdjust(partNo) {
-  const safeId = 'adj_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
-  const input  = document.getElementById(safeId);
-  if (!input) return;
-  const newQty = parseInt(input.value);
-  if (isNaN(newQty) || newQty < 0) { showToast('Invalid quantity', 'error'); return; }
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ stock_qty: newQty, updated_at: new Date().toISOString() })
-    });
-    if (res.ok) {
-      // Update local cache
-      const part = allInventory.find(p => p.part_no === partNo);
-      if (part) part.stock_qty = newQty;
-      input.style.borderColor = '#70AD47';
-      setTimeout(() => { input.style.borderColor = '#ddd'; }, 1500);
-      showToast(partNo + ' stock updated to ' + newQty, 'success');
-      renderInventory();
-    } else { showToast('Update failed', 'error'); }
-  } catch(e) { showToast('Update failed', 'error'); }
-}
-
-// ── 3. PARTS CATALOGUE MANAGEMENT ────────────────────────────────────────────
-function filterCatalogueList() {
-  renderCatalogueList(document.getElementById('catalogueSearchInput').value);
-}
-
-function renderCatalogueList(query) {
-  const el = document.getElementById('catalogueList');
-  if (!allInventory || allInventory.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">Loading...</div>';
-    return;
-  }
-  const q = (query || '').trim().toLowerCase();
-  const filtered = q.length < 2
-    ? allInventory.slice(0, 50)
-    : allInventory.filter(p =>
-        (p.description||'').toLowerCase().includes(q) ||
-        (p.part_no||'').toLowerCase().includes(q)
-      );
-
-  if (filtered.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;">No parts found.</div>';
-    return;
-  }
-
-  let html = '<table class="sl-table"><thead><tr>' +
-    '<th>Description</th><th>Part No</th><th>Machine type</th><th>Supplier</th>' +
-    '<th>Draw</th><th>Unit price</th>' +
-    '<th class="num">Stock</th><th class="num">Min</th><th>Actions</th>' +
-    '</tr></thead><tbody>';
-
-  window._catParts = filtered;
-  filtered.forEach((p, i) => {
-    html += '<tr id="catrow_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_') + '">' +
-      '<td><strong>' + p.description + '</strong></td>' +
-      '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
-      '<td style="font-size:12px;">' + (p.machine_type||'--') + '</td>' +
-      '<td style="font-size:12px;">' + (p.supplier||'--') + '</td>' +
-      '<td style="font-size:12px;color:#555;">' + (p.draw_number||'--') + '</td>' +
-      '<td style="font-size:12px;">' + (p.unit_price != null ? 'R ' + parseFloat(p.unit_price).toFixed(2) : '--') + '</td>' +
-      '<td style="text-align:center;">' + p.stock_qty + '</td>' +
-      '<td style="text-align:center;">' + (p.min_qty||0) + '</td>' +
-      '<td style="display:flex;gap:6px;">' +
-        '<button class="pin-edit" data-idx="' + i + '" ' +
-          'style="padding:4px 10px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;">Edit</button>' +
-        '<button class="pin-del" data-idx="' + i + '" ' +
-          'style="padding:4px 10px;background:#FCE4D6;border:none;border-radius:6px;color:#C00000;font-size:11px;font-weight:600;cursor:pointer;">Delete</button>' +
-      '</td>' +
-    '</tr>';
-  });
-  html += '</tbody></table>';
-  if (!q) html += '<div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;">Showing first 50 parts. Type to search all ' + allInventory.length + '.</div>';
-  el.innerHTML = html;
-  el.querySelectorAll('.pin-edit').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const i = parseInt(this.dataset.idx);
-      requirePin('Edit part', function() { showEditPartForm(window._catParts[i].part_no); });
-    });
-  });
-  el.querySelectorAll('.pin-del').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const i = parseInt(this.dataset.idx);
-      requirePin('Delete part', function() { confirmDeletePart(window._catParts[i].part_no, window._catParts[i].description); });
-    });
-  });
-}
-
-function showAddPartForm() { showPartForm(null); }
-function showEditPartForm(partNo) {
-  const part = allInventory.find(p => p.part_no === partNo);
-  if (part) showPartForm(part);
-}
-
-function showPartForm(part) {
-  const isEdit = !!part;
-  const overlay = document.createElement('div');
-  overlay.id = 'partFormOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
-  overlay.innerHTML = `
-    <div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);margin:auto;">
-      <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">${isEdit ? 'Edit part' : 'Add new part'}</div>
-      ${[
-        ['Part number',   'partFormNo',       'text',   isEdit ? part.part_no : '',             isEdit],
-        ['Description',   'partFormDesc',     'text',   isEdit ? part.description : '',          false],
-        ['Machine type',  'partFormMachine',  'text',   isEdit ? (part.machine_type||'') : '',   false],
-        ['Supplier',      'partFormSupplier', 'text',   isEdit ? (part.supplier||'') : '',       false],
-        ['Draw number',   'partFormDraw',     'text',   isEdit ? (part.draw_number||'') : '',     false],
-        ['Unit price (R)', 'partFormPrice',    'number', isEdit ? (part.unit_price != null ? part.unit_price : '') : '', false],
-        ['Stock qty',     'partFormStock',    'number', isEdit ? part.stock_qty : 0,             false],
-        ['Min qty',       'partFormMin',      'number', isEdit ? (part.min_qty||0) : 0,          false],
-      ].map(([label, id, type, val, disabled]) =>
-        '<div style="margin-bottom:12px;">' +
-        '<label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">' + label + '</label>' +
-        '<input type="' + type + '" id="' + id + '" value="' + val + '"' + (disabled ? ' disabled style="background:#f5f5f5;' : ' style="') + 'width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">' +
-        '</div>'
-      ).join('')}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
-        <button onclick="document.getElementById('partFormOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
-        <button onclick="savePartForm('${isEdit ? part.part_no : ''}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">${isEdit ? 'Save changes' : 'Add part'}</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-async function savePartForm(existingPartNo) {
-  const partNo   = document.getElementById('partFormNo').value.trim();
-  const desc     = document.getElementById('partFormDesc').value.trim();
-  const machine  = document.getElementById('partFormMachine').value.trim();
-  const supplier = document.getElementById('partFormSupplier').value.trim();
-  const stock    = parseInt(document.getElementById('partFormStock').value) || 0;
-  const min      = parseInt(document.getElementById('partFormMin').value)   || 0;
-  if (!partNo || !desc) { showToast('Part number and description are required', 'error'); return; }
-  const draw  = document.getElementById('partFormDraw').value.trim();
-  const price = document.getElementById('partFormPrice').value;
-  const payload = { part_no: partNo, description: desc, machine_type: machine||null, supplier: supplier||null, draw_number: draw||null, unit_price: price !== '' ? parseFloat(price) : null, stock_qty: stock, min_qty: min, updated_at: new Date().toISOString() };
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?on_conflict=part_no', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      document.getElementById('partFormOverlay').remove();
-      showToast((existingPartNo ? 'Part updated' : 'Part added') + ': ' + desc, 'success');
-      await loadInventoryData();
-      renderCatalogueList(document.getElementById('catalogueSearchInput').value);
-    } else { showToast('Save failed', 'error'); }
-  } catch(e) { showToast('Save failed', 'error'); }
-}
-
-function confirmDeletePart(partNo, desc) {
-  if (!confirm('Delete "' + desc + '" (' + partNo + ') from the catalogue? This cannot be undone.')) return;
-  deletePart(partNo);
-}
-
-async function deletePart(partNo) {
-  try {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/parts_inventory?part_no=eq.' + encodeURIComponent(partNo), {
-      method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-    });
-    if (res.ok) {
-      showToast('Part deleted', 'success');
-      await loadInventoryData();
-      renderCatalogueList(document.getElementById('catalogueSearchInput').value);
-    } else { showToast('Delete failed', 'error'); }
-  } catch(e) { showToast('Delete failed', 'error'); }
-}
-
-// ── 4. PARTS USAGE HISTORY ────────────────────────────────────────────────────
-function populateHistoryPartSelect() {
-  const sel = document.getElementById('historyPartSelect');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">-- Select a part --</option>';
-  const parts = [...allInventory].sort((a,b) => a.description.localeCompare(b.description));
-  parts.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.part_no;
-    opt.textContent = p.description + ' (' + p.part_no + ')';
-    if (p.part_no === current) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  if (current) loadPartHistory();
-}
-
-function clearPartHistory() {
-  document.getElementById('historyPartSelect').value = '';
-  document.getElementById('historyDateFrom').value   = '';
-  document.getElementById('historyDateTo').value     = '';
-  document.getElementById('partHistoryContent').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above to view its usage history</div>';
-}
-
-function loadPartHistory() {
-  const partNo   = document.getElementById('historyPartSelect').value;
-  const dateFrom = document.getElementById('historyDateFrom').value;
-  const dateTo   = document.getElementById('historyDateTo').value;
-  const el       = document.getElementById('partHistoryContent');
-  if (!partNo) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px;">Select a part above</div>'; return; }
-
-  let records = allRequests.filter(r =>
-    (r.part_no === partNo || r.part_description === allInventory.find(p => p.part_no === partNo)?.description) &&
-    (r.status === 'Issued' || r.status === 'Out of Stock')
-  );
-  if (dateFrom) records = records.filter(r => (r.issued_time||'').split('T')[0] >= dateFrom);
-  if (dateTo)   records = records.filter(r => (r.issued_time||'').split('T')[0] <= dateTo);
-
-  if (records.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">No usage records found for this part.</div>';
-    return;
-  }
-
-  const totalQty   = records.reduce((s,r) => s + (r.quantity||0), 0);
-  const oosCount   = records.filter(r => r.status === 'Out of Stock').length;
-  const byLine     = {};
-  const byAsset    = {};
-  const byMechanic = {};
-  records.forEach(r => {
-    if (r.line)     byLine[r.line]         = (byLine[r.line]||0)         + (r.quantity||0);
-    if (r.asset_no) byAsset[r.asset_no]    = (byAsset[r.asset_no]||0)    + (r.quantity||0);
-    if (r.mechanic) byMechanic[r.mechanic] = (byMechanic[r.mechanic]||0) + (r.quantity||0);
-  });
-
-  const topLines    = Object.entries(byLine).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const topAssets   = Object.entries(byAsset).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const topMechanics= Object.entries(byMechanic).sort((a,b)=>b[1]-a[1]).slice(0,5);
-
-  const part = allInventory.find(p => p.part_no === partNo);
-
-  let html = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;">
-      <div class="dt-kpi" style="border-left:4px solid #2E5597;"><div class="dt-kpi-label">Total issued</div><div class="dt-kpi-value">${records.length}</div><div class="dt-kpi-sub">transactions</div></div>
-      <div class="dt-kpi" style="border-left:4px solid #70AD47;"><div class="dt-kpi-label">Total qty</div><div class="dt-kpi-value">${totalQty}</div><div class="dt-kpi-sub">units</div></div>
-      <div class="dt-kpi" style="border-left:4px solid #1F3864;"><div class="dt-kpi-label">Current stock</div><div class="dt-kpi-value">${part ? part.stock_qty : '--'}</div><div class="dt-kpi-sub">in store</div></div>
-      <div class="dt-kpi" style="border-left:4px solid #C00000;"><div class="dt-kpi-label">Out of stock</div><div class="dt-kpi-value">${oosCount}</div><div class="dt-kpi-sub">requests unmet</div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;">`;
-
-  const miniTable = (title, rows) =>
-    '<div class="chart-card" style="padding:14px;">' +
-    '<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;">' + title + '</div>' +
-    rows.map(([k,v]) =>
-      '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">' +
-      '<span>' + k + '</span><span style="font-weight:700;color:#2E5597;">' + v + '</span></div>'
-    ).join('') + '</div>';
-
-  html += miniTable('Top lines', topLines);
-  html += miniTable('Top assets', topAssets);
-  html += miniTable('Top mechanics', topMechanics);
-  html += '</div>';
-
-  // Full history table
-  html += '<div style="overflow-x:auto;"><table class="sl-table"><thead><tr><th>Date</th><th>Qty</th><th>Status</th><th>Mechanic</th><th>Asset</th><th>Line</th><th>Clerk</th></tr></thead><tbody>';
-  records.sort((a,b) => new Date(b.issued_time||0) - new Date(a.issued_time||0)).forEach(r => {
-    const d = r.issued_time ? new Date(r.issued_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
-    const isOOS = r.status === 'Out of Stock';
-    html += '<tr' + (isOOS ? ' style="background:#FFF8F8;"' : '') + '>' +
-      '<td>' + d + '</td>' +
-      '<td style="text-align:center;font-weight:600;color:' + (isOOS?'#C00000':'#2E5597') + ';">x' + r.quantity + '</td>' +
-      '<td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;background:' + (isOOS?'#FCE4D6':'#E2EFDA') + ';color:' + (isOOS?'#C00000':'#2D7D46') + ';">' + r.status + '</span></td>' +
-      '<td>' + (r.mechanic||'--') + '</td>' +
-      '<td>' + (r.asset_no||'--') + '</td>' +
-      '<td>' + (r.line||'--') + '</td>' +
-      '<td style="color:#888;">' + (r.issued_by||'--') + '</td>' +
-    '</tr>';
-  });
-  html += '</tbody></table></div>';
-  el.innerHTML = html;
-}
-
-// ── 5. REORDER STATUS TRACKING ────────────────────────────────────────────────
-function renderReorderStatus() {
-  const el = document.getElementById('reorderStatusList');
-  const lowStock = allInventory.filter(p => p.min_qty > 0 && p.stock_qty <= p.min_qty);
-
-  if (lowStock.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:14px;">All parts above minimum stock — nothing to reorder.</div>';
-    return;
-  }
-
-  const sorted = [...lowStock].sort((a,b) => {
-    if (a.stock_qty === 0 && b.stock_qty > 0) return -1;
-    if (b.stock_qty === 0 && a.stock_qty > 0) return 1;
-    return a.stock_qty - b.stock_qty;
-  });
-
-  let html = '<table class="sl-table"><thead><tr>' +
-    '<th>Part</th><th>Part No</th><th>Supplier</th>' +
-    '<th class="num">Stock</th><th class="num">Min</th>' +
-    '<th>Order status</th><th>Ordered date</th><th>Notes</th><th></th>' +
-    '</tr></thead><tbody>';
-
-  sorted.forEach(p => {
-    const key        = 'pmt_order_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_');
-    let orderData    = {};
-    try { orderData = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
-    const status     = orderData.status || 'Not ordered';
-    const orderedDate= orderData.date   || '';
-    const notes      = orderData.notes  || '';
-    const isOrdered  = status === 'Ordered';
-    const isReceived = status === 'Received';
-    const statusColor = isReceived ? '#2D7D46' : isOrdered ? '#2E5597' : '#C00000';
-    const statusBg    = isReceived ? '#E2EFDA'  : isOrdered ? '#DEEAF1' : '#FCE4D6';
-
-    html += '<tr>' +
-      '<td><strong>' + p.description + '</strong><br><span style="font-size:10px;color:#888;">' + (p.machine_type||'') + '</span></td>' +
-      '<td style="font-size:11px;color:#888;">' + p.part_no + '</td>' +
-      '<td style="font-size:12px;">' + (p.supplier||'--') + '</td>' +
-      '<td style="text-align:center;font-weight:700;color:' + (p.stock_qty===0?'#C00000':'#ED7D31') + ';">' + p.stock_qty + '</td>' +
-      '<td style="text-align:center;color:#888;">' + p.min_qty + '</td>' +
-      '<td><span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' + status + '</span></td>' +
-      '<td style="font-size:12px;color:#888;">' + orderedDate + '</td>' +
-      '<td style="font-size:12px;color:#555;max-width:150px;">' + notes + '</td>' +
-      '<td><button onclick="showOrderStatusForm(\'' + p.part_no.replace(/'/g,"\\'") + '\',\'' + p.description.replace(/'/g,"\\'") + '\')" ' +
-        'style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Update</button></td>' +
-    '</tr>';
-  });
-
-  html += '</tbody></table>';
-  el.innerHTML = html;
-}
-
-function showOrderStatusForm(partNo, desc) {
-  const key = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
-  let existing = {};
-  try { existing = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
-
-  const overlay = document.createElement('div');
-  overlay.id = 'orderStatusOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-  overlay.innerHTML = `
-    <div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-      <div style="font-size:15px;font-weight:700;color:#1F3864;margin-bottom:4px;">Update order status</div>
-      <div style="font-size:12px;color:#888;margin-bottom:16px;">${desc} &nbsp;|&nbsp; ${partNo}</div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Status</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          ${['Not ordered','Ordered','Received'].map(s =>
-            '<button onclick="selectOrderStatus(this,\'' + s + '\')" ' +
-            'style="padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid ' +
-            (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#ddd') + ';' +
-            'background:' + (existing.status===s ? (s==='Received'?'#E2EFDA':s==='Ordered'?'#DEEAF1':'#FCE4D6') : 'white') + ';' +
-            'color:' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#666') + ';">' + s + '</button>'
-          ).join('')}
-        </div>
-        <input type="hidden" id="orderStatusValue" value="${existing.status||'Not ordered'}">
-      </div>
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Order date</label>
-        <input type="date" id="orderDateInput" value="${existing.date||''}" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Notes (optional)</label>
-        <input type="text" id="orderNotesInput" value="${existing.notes||''}" placeholder="e.g. PO #1234, expected delivery..." style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button onclick="document.getElementById('orderStatusOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
-        <button onclick="saveOrderStatus('${partNo}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-function selectOrderStatus(btn, status) {
-  document.getElementById('orderStatusValue').value = status;
-  const colors = { 'Not ordered': ['#C00000','#FCE4D6'], 'Ordered': ['#2E5597','#DEEAF1'], 'Received': ['#2D7D46','#E2EFDA'] };
-  btn.parentElement.querySelectorAll('button').forEach(b => {
-    b.style.borderColor = '#ddd'; b.style.background = 'white'; b.style.color = '#666';
-  });
-  const [color, bg] = colors[status] || ['#555','#f5f5f5'];
-  btn.style.borderColor = color; btn.style.background = bg; btn.style.color = color;
-}
-
-function saveOrderStatus(partNo) {
-  const key    = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
-  const status = document.getElementById('orderStatusValue').value;
-  const date   = document.getElementById('orderDateInput').value;
-  const notes  = document.getElementById('orderNotesInput').value;
-  try { localStorage.setItem(key, JSON.stringify({ status, date, notes })); } catch(e) {}
-  document.getElementById('orderStatusOverlay').remove();
-  showToast('Order status updated', 'success');
-  renderReorderStatus();
-}
-
-// ── 6. PART NUMBER WARNING — inlined into confirmIssue below ────────────────────────────────────
-
-// ═══ END INVENTORY ENHANCEMENTS ═══════════════════════════════════════════════
-
-// ═══ STOCK PIN PROTECTION ════════════════════════════════════════════════════
-const PIN_HASH     = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
-const MAX_ATTEMPTS = 3;
-const LOCKOUT_SECS = 30;
-let _pinCallback  = null;
-let _pinAttempts  = 0;
-let _pinLockUntil = 0;
-
-async function hashPin(pin) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-function requirePin(actionLabel, callback) {
-  const now = Date.now();
-  if (_pinLockUntil > now) {
-    const secs = Math.ceil((_pinLockUntil - now) / 1000);
-    showToast('Too many attempts. Try again in ' + secs + 's.', 'error');
-    return;
-  }
-  _pinCallback = callback;
-  _pinAttempts = 0;
-  document.getElementById('pinActionLabel').textContent  = actionLabel;
-  document.getElementById('pinInput').value              = '';
-  document.getElementById('pinInput').style.borderColor  = '#ddd';
-  document.getElementById('pinInput').disabled           = false;
-  document.getElementById('pinSubmitBtn').disabled       = false;
-  document.getElementById('pinError').textContent        = '';
-  document.getElementById('pinAttemptInfo').textContent  = '';
-  document.getElementById('pinOverlay').style.display    = 'flex';
-  setTimeout(() => document.getElementById('pinInput').focus(), 100);
-}
-
-function closePinOverlay() {
-  document.getElementById('pinOverlay').style.display = 'none';
-  document.getElementById('pinInput').value = '';
-  _pinCallback = null;
-}
-
-async function submitPin() {
-  const pin     = document.getElementById('pinInput').value.trim();
-  const input   = document.getElementById('pinInput');
-  const errorEl = document.getElementById('pinError');
-  const infoEl  = document.getElementById('pinAttemptInfo');
-  if (!pin) { errorEl.textContent = 'Please enter the PIN.'; return; }
-  const entered = await hashPin(pin);
-  if (entered === PIN_HASH) {
-    const cb = _pinCallback;  // save before closePinOverlay nulls it
-    closePinOverlay();
-    _pinAttempts = 0;
-    if (cb) cb();
-  } else {
-    _pinAttempts++;
-    input.value = '';
-    input.style.borderColor = '#C00000';
-    const remaining = MAX_ATTEMPTS - _pinAttempts;
-    if (_pinAttempts >= MAX_ATTEMPTS) {
-      _pinLockUntil = Date.now() + (LOCKOUT_SECS * 1000);
-      errorEl.textContent = 'Incorrect PIN. Locked for ' + LOCKOUT_SECS + ' seconds.';
-      infoEl.textContent  = '';
-      input.disabled = true;
-      document.getElementById('pinSubmitBtn').disabled = true;
-      setTimeout(() => {
-        input.disabled = false;
-        document.getElementById('pinSubmitBtn').disabled = false;
-        input.style.borderColor = '#ddd';
-        errorEl.textContent = '';
-        infoEl.textContent  = 'Lockout expired — try again.';
-        _pinAttempts = 0;
-      }, LOCKOUT_SECS * 1000);
-    } else {
-      errorEl.textContent = 'Incorrect PIN.';
-      infoEl.textContent  = remaining + ' attempt' + (remaining > 1 ? 's' : '') + ' remaining.';
-    }
-  }
-}
-// ═══ END STOCK PIN PROTECTION ════════════════════════════════════════════════
-
+// ── INITIALISATION ────────────────────────────────────────────────────────────
+loadData();
+loadEfficiencyTarget();
+startAutoRefresh();
+fetchStorageUsage();
 </script>
 
 <!-- STOCK PIN OVERLAY -->
