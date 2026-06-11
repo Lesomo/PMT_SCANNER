@@ -4804,28 +4804,42 @@ function saveOrderStatus() {
   renderReorderStatus();
 }
 
-// ── STOCK PIN PROTECTION ──────────────────────────────────────────────────────
+// ── PIN PROTECTION ────────────────────────────────────────────────────────────
+// Stock PIN — used for inventory actions (adjust stock, edit/delete parts, import CSV)
 const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
+
+// Mechanics PIN — used to unlock the Mechanics dashboard tab.
+// REPLACE THE PLACEHOLDER BELOW with your real hash before deploying.
+// To generate it, open this dashboard in a browser, open DevTools console, and run:
+//   await hashPin('YOUR_NEW_PIN')
+// Copy the 64-character string it returns and paste it as the value below.
+const PIN_HASH_MECHANICS = 'd82cfb4f5c0e89f0baa74e44dbc3c208ad65502db72476f31849360aa390f0d6';
+
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 30;
-let _pinCallback = null;
-let _pinAttempts = 0;
-let _pinLockUntil = 0;
+let _pinCallback     = null;
+let _pinExpectedHash = PIN_HASH; // set per-call by requirePin
+let _pinAttempts     = 0;
+let _pinLockUntil    = 0;
 
 async function hashPin(pin) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function requirePin(actionLabel, callback) {
+// requirePin(label, callback, expectedHash?)
+// expectedHash is optional — defaults to PIN_HASH (stock).
+// Pass PIN_HASH_MECHANICS to gate the Mechanics tab against a separate PIN.
+function requirePin(actionLabel, callback, expectedHash) {
   const now = Date.now();
   if (_pinLockUntil > now) {
     const secs = Math.ceil((_pinLockUntil - now) / 1000);
     showToast('Too many attempts. Try again in ' + secs + 's.', 'error');
     return;
   }
-  _pinCallback = callback;
-  _pinAttempts = 0;
+  _pinCallback     = callback;
+  _pinExpectedHash = expectedHash || PIN_HASH;
+  _pinAttempts     = 0;
   document.getElementById('pinActionLabel').textContent = actionLabel;
   document.getElementById('pinInput').value = '';
   document.getElementById('pinInput').style.borderColor = '#ddd';
@@ -4840,7 +4854,8 @@ function requirePin(actionLabel, callback) {
 function closePinOverlay() {
   document.getElementById('pinOverlay').style.display = 'none';
   document.getElementById('pinInput').value = '';
-  _pinCallback = null;
+  _pinCallback     = null;
+  _pinExpectedHash = PIN_HASH; // reset to default
 }
 
 async function submitPin() {
@@ -4850,7 +4865,7 @@ async function submitPin() {
   const infoEl = document.getElementById('pinAttemptInfo');
   if (!pin) { errorEl.textContent = 'Please enter the PIN.'; return; }
   const entered = await hashPin(pin);
-  if (entered === PIN_HASH) {
+  if (entered === _pinExpectedHash) {
     const cb = _pinCallback;
     closePinOverlay();
     _pinAttempts = 0;
@@ -5679,12 +5694,14 @@ function renderMechIncidents(m, downtimePool) {
 }
 
 function switchDashTab(tab) {
+  // Mechanics tab is PIN-gated. Unlock persists for the current page session
   // only (lost on refresh), avoiding PIN-prompt-on-every-click friction.
+  // Uses a SEPARATE PIN from the stock PIN (PIN_HASH_MECHANICS).
   if (tab === 'mechanics' && !window._mechanicsTabUnlocked) {
     requirePin('Open Mechanics dashboard', function() {
       window._mechanicsTabUnlocked = true;
       switchDashTab('mechanics');
-    });
+    }, PIN_HASH_MECHANICS);
     return;
   }
 
@@ -5712,7 +5729,7 @@ fetchStorageUsage();
     <div style="width:44px;height:44px;border-radius:50%;background:#EBF3FB;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2E5597" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
     </div>
-    <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Stock management</div>
+    <div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:4px;">Authentication required</div>
     <div style="font-size:13px;color:#888;margin-bottom:20px;" id="pinActionLabel">Enter PIN to continue</div>
     <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
       <input type="password" id="pinInput" maxlength="4" inputmode="numeric" placeholder="----"
