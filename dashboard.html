@@ -929,6 +929,27 @@ tbody td {
       </div>
     </div>
 
+    <!-- ═══ INCIDENT REPORTS (resolved only, filtered by date range) ═══ -->
+    <div id="incReportsSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('incReportsBody','incReportsExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Incident reports</span>
+            <span id="incReportsBadge" class="lc-collapse-badge" style="background:#E2EFDA;color:#27500A;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="incReportsExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="incReportsBody">
+          <div class="chart-sub" style="margin-bottom:10px;">Resolved incidents within the selected date range. Click any card for full resolution details.</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <input type="text" id="incReportsSearch" placeholder="Search by asset, fault, mechanic..." oninput="renderIncidentReports()" style="flex:1;min-width:220px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;">
+            <span id="incReportsCountInfo" style="font-size:12px;color:#888;"></span>
+          </div>
+          <div id="incReportsList"></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- end panel-downtime -->
 
   <!-- ═══ ASSET PROFILE PANEL ═══ -->
@@ -2450,6 +2471,7 @@ function renderDowntime() {
   renderDtEfficiencyChart();
   renderFaultHeatmap();
   renderFaultTable();
+  renderIncidentReports();
 }
 
 function fmtMins(mins) {
@@ -3049,6 +3071,171 @@ function switchFaultView(name) {
   });
   document.getElementById('faultView-heatmap').classList.toggle('active', name === 'heatmap');
   document.getElementById('faultView-table').classList.toggle('active', name === 'table');
+}
+
+// ── INCIDENT REPORTS (Downtime tab, resolved-only, date-filtered) ────────────
+// Renders a collapsible card list of resolved incidents inside the current
+// date filter. Each card is clickable to reveal full resolution details
+// (accordion style — opening one closes any other expanded card).
+function renderIncidentReports() {
+  const section = document.getElementById('incReportsSection');
+  if (!section) return;
+
+  // Use filteredDowntime (already date-filtered by applyDtFilter) and narrow to Resolved
+  const resolved = (filteredDowntime || []).filter(r => r.status === 'Resolved');
+
+  // Apply in-section search (asset / fault / mechanic)
+  const q = (document.getElementById('incReportsSearch').value || '').trim().toLowerCase();
+  const filtered = q.length === 0 ? resolved : resolved.filter(r =>
+    (r.asset_no || '').toLowerCase().includes(q) ||
+    (r.fault    || '').toLowerCase().includes(q) ||
+    (r.mechanic || '').toLowerCase().includes(q)
+  );
+
+  document.getElementById('incReportsBadge').textContent =
+    resolved.length + ' resolved';
+
+  document.getElementById('incReportsCountInfo').textContent =
+    q.length > 0
+      ? 'Showing ' + filtered.length + ' of ' + resolved.length
+      : '';
+
+  if (resolved.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  if (filtered.length === 0) {
+    document.getElementById('incReportsList').innerHTML =
+      '<div style="text-align:center;padding:30px;color:#aaa;font-size:13px;">No incidents match the search. Try a different term or clear it.</div>';
+    return;
+  }
+
+  // Sort: newest first (by reported_time)
+  const sorted = [...filtered].sort((a, b) =>
+    (b.reported_time || '').localeCompare(a.reported_time || '')
+  );
+
+  // Cap at 200 records — long ranges otherwise produce thousands of DOM nodes.
+  // If more exist, show a note. The search box is the user's way to narrow down.
+  const CAP = 200;
+  const display = sorted.slice(0, CAP);
+  const overflow = sorted.length - display.length;
+
+  const html = display.map((r, i) => renderIncidentReportCard(r, i)).join('') +
+    (overflow > 0
+      ? '<div style="text-align:center;padding:14px;color:#888;font-size:12px;font-style:italic;">' +
+        overflow + ' more incident' + (overflow !== 1 ? 's' : '') + ' not shown &mdash; use the search to narrow further.' +
+        '</div>'
+      : '');
+
+  document.getElementById('incReportsList').innerHTML = html;
+}
+
+// Compact card — clickable to expand. The "expanded" detail mirrors the
+// downtime mobile incident view (timestamps, production lost, resolution).
+function renderIncidentReportCard(r, idx) {
+  const cardId   = 'incCard_' + idx;
+  const detailId = 'incDetail_' + idx;
+
+  const reportedTime = r.reported_time
+    ? new Date(r.reported_time).toLocaleString('en-ZA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    : '\u2014';
+  const investTime   = r.investigate_time
+    ? new Date(r.investigate_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit'})
+    : '\u2014';
+  const resolvedTime = r.resolved_time
+    ? new Date(r.resolved_time).toLocaleString('en-ZA',{hour:'2-digit',minute:'2-digit'})
+    : '\u2014';
+  const dtMins  = r.total_downtime_minutes || 0;
+  const dtLabel = dtMins > 0 ? fmtMins(dtMins) : '\u2014';
+
+  // Compact card (always visible)
+  let html = '<div id="' + cardId + '" style="background:white;border-left:4px solid #70AD47;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;transition:background 0.15s;" onclick="toggleIncidentDetail(' + idx + ')" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
+  html += '<div style="flex:1;min-width:0;">';
+  html += '<div style="font-size:15px;font-weight:700;color:#1F3864;">' + escAttr(r.asset_no || '\u2014') + '</div>';
+  html += '<div style="font-size:12px;color:#666;margin-top:3px;">' + escAttr(r.line || '\u2014') + ' &nbsp;|&nbsp; ' + escAttr(r.machine_type || 'Unknown') + '</div>';
+  html += '<div style="font-size:13px;color:#1a1a1a;margin-top:3px;font-weight:600;">' + escAttr(r.fault || '\u2014') + '</div>';
+  html += '<div style="font-size:11px;color:#aaa;margin-top:4px;">Reported: ' + reportedTime + ' &nbsp;|&nbsp; Downtime: ' + dtLabel + (r.mechanic ? ' &nbsp;|&nbsp; \u2713 ' + escAttr(r.mechanic) : '') + '</div>';
+  html += '</div>';
+  html += '<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:#E2EFDA;color:#27500A;white-space:nowrap;">RESOLVED</span>';
+  html += '</div>';
+  html += '</div>';
+
+  // Expanded detail (hidden until clicked)
+  html += '<div id="' + detailId + '" style="display:none;background:#f8f9fa;border-radius:10px;padding:16px;margin-bottom:8px;margin-top:-4px;">';
+
+  // Header band
+  html += '<div style="background:#1F3864;color:white;border-radius:8px;padding:14px 16px;margin-bottom:12px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">';
+  html += '<div style="flex:1;min-width:0;">';
+  html += '<div style="font-size:18px;font-weight:700;">' + escAttr(r.asset_no || '\u2014') + '</div>';
+  html += '<div style="font-size:12px;opacity:0.75;margin-top:2px;">' + escAttr(r.machine_type || 'Unknown') + '</div>';
+  html += '<div style="font-size:13px;margin-top:6px;">' + escAttr(r.line || '\u2014') + ' &nbsp;|&nbsp; <span style="padding:2px 10px;border-radius:12px;background:#E2EFDA;color:#27500A;font-size:11px;font-weight:700;">RESOLVED</span></div>';
+  html += '<div style="font-size:13px;margin-top:8px;font-weight:600;">Fault: ' + escAttr(r.fault || '\u2014') + '</div>';
+  html += '<div style="font-size:11px;opacity:0.7;margin-top:3px;">Reported by ' + escAttr(r.reported_by || 'null') + ' at ' + reportedTime + '</div>';
+  if (r.mechanic) html += '<div style="font-size:11px;color:#a3e0a3;margin-top:3px;">\u2713 Resolved by ' + escAttr(r.mechanic) + '</div>';
+  html += '</div>';
+  html += '</div></div>';
+
+  // Three timestamp cards
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">';
+  html += '<div style="background:white;border-radius:8px;padding:10px 12px;">';
+  html += '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Reported</div>';
+  html += '<div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-top:3px;">' + (r.reported_time ? new Date(r.reported_time).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}) : '\u2014') + '</div>';
+  html += '</div>';
+  html += '<div style="background:white;border-radius:8px;padding:10px 12px;">';
+  html += '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Investigated</div>';
+  html += '<div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-top:3px;">' + investTime + '</div>';
+  html += '</div>';
+  html += '<div style="background:white;border-radius:8px;padding:10px 12px;">';
+  html += '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Resolved</div>';
+  html += '<div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-top:3px;">' + resolvedTime + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Production lost band
+  if (dtMins > 0) {
+    html += '<div style="background:#FCE4D6;border-radius:8px;padding:10px 14px;margin-bottom:10px;">';
+    html += '<div style="font-size:10px;font-weight:700;color:#843C0C;text-transform:uppercase;letter-spacing:0.06em;">Production lost</div>';
+    html += '<div style="font-size:18px;font-weight:700;color:#843C0C;margin-top:3px;">' + dtLabel + '</div>';
+    html += '</div>';
+  }
+
+  // Resolution details
+  const hasResolutionDetails = r.mechanic || r.error_code || r.corrective_measures;
+  if (hasResolutionDetails) {
+    html += '<div style="background:white;border-radius:8px;padding:12px 14px;">';
+    html += '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Resolution details</div>';
+    if (r.mechanic)
+      html += '<div style="font-size:13px;margin-bottom:6px;"><strong>Mechanic:</strong> ' + escAttr(r.mechanic) + '</div>';
+    if (r.error_code)
+      html += '<div style="font-size:13px;margin-bottom:6px;"><strong>Error code:</strong> ' + escAttr(r.error_code) + '</div>';
+    if (r.corrective_measures) {
+      html += '<div style="font-size:13px;"><strong>Corrective measures:</strong></div>';
+      html += '<div style="font-size:13px;color:#555;margin-top:3px;">' + escAttr(r.corrective_measures) + '</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// Accordion toggle: opening one card collapses any other expanded one.
+let _incOpenIdx = null;
+function toggleIncidentDetail(idx) {
+  if (_incOpenIdx !== null && _incOpenIdx !== idx) {
+    const prev = document.getElementById('incDetail_' + _incOpenIdx);
+    if (prev) prev.style.display = 'none';
+  }
+  const el = document.getElementById('incDetail_' + idx);
+  if (!el) return;
+  const isOpen = el.style.display === 'block';
+  el.style.display = isOpen ? 'none' : 'block';
+  _incOpenIdx = isOpen ? null : idx;
 }
 
 // ── ASSET PROFILE ─────────────────────────────────────────────────────────────
@@ -4813,7 +5000,7 @@ const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f
 // To generate it, open this dashboard in a browser, open DevTools console, and run:
 //   await hashPin('YOUR_NEW_PIN')
 // Copy the 64-character string it returns and paste it as the value below.
-const PIN_HASH_MECHANICS = 'd82cfb4f5c0e89f0baa74e44dbc3c208ad65502db72476f31849360aa390f0d6';
+const PIN_HASH_MECHANICS = 'REPLACE_WITH_MECHANICS_PIN_HASH';
 
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 30;
