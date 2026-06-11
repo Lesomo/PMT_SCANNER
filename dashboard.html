@@ -632,6 +632,7 @@ tbody td {
     <div class="dash-tab" onclick="switchDashTab('profile')">Asset Profile</div>
     <div class="dash-tab" onclick="switchDashTab('inventory')">Inventory</div>
     <div class="dash-tab" onclick="switchDashTab('linechange')">Line Change</div>
+    <div class="dash-tab" onclick="switchDashTab('mechanics')">Mechanics <span style="font-size:10px;opacity:0.6;">&#128274;</span></div>
   </div>
 
   <!-- ═══ ASSET TRACKING PANEL ═══ -->
@@ -1496,6 +1497,188 @@ tbody td {
     </div>
 
   </div><!-- end panel-linechange -->
+
+  <!-- ═══ MECHANICS PANEL (PIN-gated) ═══ -->
+  <div class="dash-panel" id="panel-mechanics">
+
+    <!-- Search + filter bar -->
+    <div class="search-section">
+      <div class="chart-title">Mechanic profile</div>
+      <div class="chart-sub">Performance overview &mdash; coaching-focused, no leaderboards</div>
+
+      <div class="search-row" style="margin-top:14px;">
+        <label for="mechSelect">Mechanic:</label>
+        <select id="mechSelect" onchange="selectMechanic()" style="min-width:240px;">
+          <option value="">&mdash; Select a mechanic &mdash;</option>
+        </select>
+
+        <label for="mechYear" style="margin-left:10px;">Year:</label>
+        <select id="mechYear" onchange="applyMechanicFilter()" style="min-width:110px;padding:9px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;background:white;cursor:pointer;font-family:inherit;">
+          <option value="">All years</option>
+        </select>
+
+        <label for="mechMonth">Month:</label>
+        <select id="mechMonth" onchange="applyMechanicFilter()" style="min-width:130px;padding:9px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;background:white;cursor:pointer;font-family:inherit;">
+          <option value="">All months</option>
+          <option value="01">January</option><option value="02">February</option>
+          <option value="03">March</option><option value="04">April</option>
+          <option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option>
+          <option value="09">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+
+        <button onclick="clearMechanicFilter()" class="filter-clear">Clear filter</button>
+        <span id="mechFilterInfo" style="font-size:12px;color:#888;margin-left:auto;"></span>
+      </div>
+    </div>
+
+    <div id="mechEmpty" style="text-align:center;padding:60px;color:#aaa;font-size:14px;">
+      Select a mechanic above to view their performance profile
+    </div>
+
+    <!-- KPI row (2×4) -->
+    <div id="mechKpiRow" style="display:none;">
+      <div class="lc-kpi-grid">
+        <div class="lc-kpi blue">
+          <div class="lc-kpi-label">Downtime Closed</div>
+          <div class="lc-kpi-value" id="mKpiClosed">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiClosedSub">resolved incidents</div>
+        </div>
+        <div class="lc-kpi orange">
+          <div class="lc-kpi-label">Avg Response</div>
+          <div class="lc-kpi-value" id="mKpiResponse" style="font-size:22px;">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiResponseSub">time to arrive</div>
+        </div>
+        <div class="lc-kpi orange">
+          <div class="lc-kpi-label">Avg Repair</div>
+          <div class="lc-kpi-value" id="mKpiRepair" style="font-size:22px;">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiRepairSub">time to fix</div>
+        </div>
+        <div class="lc-kpi teal">
+          <div class="lc-kpi-label">Hours On Tools</div>
+          <div class="lc-kpi-value" id="mKpiHours" style="font-size:22px;">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiHoursSub">total repair time</div>
+        </div>
+        <div class="lc-kpi purple">
+          <div class="lc-kpi-label">PMs Completed</div>
+          <div class="lc-kpi-value" id="mKpiPMs">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiPMsSub">preventive maintenance</div>
+        </div>
+        <div class="lc-kpi green" id="mKpiFTFCard">
+          <div class="lc-kpi-label">First-Time-Fix Rate</div>
+          <div class="lc-kpi-value" id="mKpiFTF">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiFTFSub">no recurrence in 14 days</div>
+        </div>
+        <div class="lc-kpi red" id="mKpiRecCard">
+          <div class="lc-kpi-label">Recurring Fixes</div>
+          <div class="lc-kpi-value" id="mKpiRec">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiRecSub">same fault returned</div>
+        </div>
+        <div class="lc-kpi grey">
+          <div class="lc-kpi-label">Last Active</div>
+          <div class="lc-kpi-value" id="mKpiLast" style="font-size:16px;">&mdash;</div>
+          <div class="lc-kpi-sub" id="mKpiLastSub"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recurring fixes detail (directly drills into the "Recurring Fixes" KPI) -->
+    <div id="mRecSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('mRecBody','mRecExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Recurring fixes</span>
+            <span id="mRecBadge" class="lc-collapse-badge" style="background:#FCE4D6;color:#C00000;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="mRecExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="mRecBody">
+          <div class="chart-sub" style="margin-bottom:12px;">Fixes where the same fault on the same asset came back within 14 days. Color-coded gap: red &lt; 3 days, orange 3&ndash;7 days.</div>
+          <div id="mRecTable" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workload distribution heatmap -->
+    <div id="mWorkloadSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('mWorkloadBody','mWorkloadExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Workload distribution</span>
+            <span id="mWorkloadBadge" class="lc-collapse-badge" style="background:#FCE4D6;color:#843C0C;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="mWorkloadExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="mWorkloadBody">
+          <div class="chart-sub" style="margin-bottom:12px;">Faults handled by this mechanic, by line &mdash; shows specialisation vs. spread</div>
+          <div class="hm-legend">
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#f5f5f5;border:1px solid #e8e8e8;"></div> None</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#C0DD97;"></div> Low</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#FAEEDA;"></div> Moderate</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F5C4B3;"></div> High</div>
+            <div class="hm-leg-item"><div class="hm-leg-dot" style="background:#F0997B;"></div> Very high</div>
+          </div>
+          <div class="hm-wrap" id="mWorkloadHeatmap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response & repair time trend — REMOVED: monthly averages mask the variation that matters,
+         and aren't actionable without controlling for job mix / product type. The KPI sub-labels
+         already show comparison to team median, which is the useful signal. -->
+
+    <!-- Asset coverage -->
+    <div id="mAssetSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('mAssetBody','mAssetExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Asset coverage</span>
+            <span id="mAssetBadge" class="lc-collapse-badge" style="background:#DEEAF1;color:#1F497D;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="mAssetExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="mAssetBody">
+          <div class="chart-sub" style="margin-bottom:12px;">Assets this mechanic has worked on &mdash; click to open in Asset Profile</div>
+          <div id="mAssetTable"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PM activity log -->
+    <div id="mPMSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('mPMBody','mPMExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>PM activity</span>
+            <span id="mPMBadge" class="lc-collapse-badge" style="background:#EBE3F5;color:#6B3FA0;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="mPMExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="mPMBody">
+          <div id="mPMTable"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Incidents log -->
+    <div id="mIncSection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('mIncBody','mIncExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Incidents log</span>
+            <span id="mIncBadge" class="lc-collapse-badge lc-badge-grey"></span>
+          </div>
+          <span class="lc-expand-lbl" id="mIncExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="mIncBody">
+          <div class="chart-sub" style="margin-bottom:12px;">Recurrence flag &#9888; marks fixes where the same fault returned within 14 days</div>
+          <div id="mIncTable" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end panel-mechanics -->
 
   <!-- STORAGE INDICATOR -->
   <div class="storage-bar-card">
@@ -2894,11 +3077,11 @@ function showLcSuggestions() {
   if (matches.length === 0) { box.style.display = 'none'; return; }
 
   box.innerHTML = matches.map(a =>
-    `<div onclick="selectLcAsset('${a}')"
-      style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f5f5f5;"
-      onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='white'">
-      ${a}
-    </div>`
+    '<div data-asset="' + escAttr(a) + '" onclick="selectLcAsset(this.dataset.asset)"' +
+    ' style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f5f5f5;"' +
+    ' onmouseover="this.style.background=\'#f0f2f5\'" onmouseout="this.style.background=\'white\'">' +
+    escAttr(a) +
+    '</div>'
   ).join('');
   box.style.display = 'block';
 }
@@ -4369,16 +4552,57 @@ function renderCatalogueList(query) {
 function showAddPartForm() { showPartForm(null); }
 function showEditPartForm(partNo) { const part = allInventory.find(p => p.part_no === partNo); if (part) showPartForm(part); }
 
+// Escape a value for safe insertion into an HTML attribute.
+// Without this, values containing " or ' break the markup or the
+// inline onclick handler, producing "Invalid or unexpected token" errors.
+function escAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function showPartForm(part) {
   const isEdit = !!part;
   const overlay = document.createElement('div');
   overlay.id = 'partFormOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
-  overlay.innerHTML = `<div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);margin:auto;"><div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">${isEdit ? 'Edit part' : 'Add new part'}</div>${[['Part number','partFormNo','text',isEdit?part.part_no:'',isEdit],['Description','partFormDesc','text',isEdit?part.description:'',false],['Machine type','partFormMachine','text',isEdit?(part.machine_type||''):'',false],['Supplier','partFormSupplier','text',isEdit?(part.supplier||''):'',false],['Draw number','partFormDraw','text',isEdit?(part.draw_number||''):'',false],['Unit price (R)','partFormPrice','number',isEdit?(part.unit_price!=null?part.unit_price:''):'',false],['Stock qty','partFormStock','number',isEdit?part.stock_qty:0,false],['Min qty','partFormMin','number',isEdit?(part.min_qty||0):0,false]].map(([label,id,type,val,disabled]) => '<div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">'+label+'</label><input type="'+type+'" id="'+id+'" value="'+val+'"' + (disabled ? ' disabled style="background:#f5f5f5;' : ' style="') + 'width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;"></div>').join('')}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;"><button onclick="document.getElementById('partFormOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button><button onclick="savePartForm('${isEdit ? part.part_no : ''}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">${isEdit ? 'Save changes' : 'Add part'}</button></div></div>`;
+
+  const fields = [
+    ['Part number',    'partFormNo',       'text',   isEdit ? part.part_no : '',                                   isEdit],
+    ['Description',    'partFormDesc',     'text',   isEdit ? (part.description || '') : '',                       false],
+    ['Machine type',   'partFormMachine',  'text',   isEdit ? (part.machine_type || '') : '',                      false],
+    ['Supplier',       'partFormSupplier', 'text',   isEdit ? (part.supplier || '') : '',                          false],
+    ['Draw number',    'partFormDraw',     'text',   isEdit ? (part.draw_number || '') : '',                       false],
+    ['Unit price (R)', 'partFormPrice',    'number', isEdit ? (part.unit_price != null ? part.unit_price : '') : '', false],
+    ['Stock qty',      'partFormStock',    'number', isEdit ? part.stock_qty : 0,                                  false],
+    ['Min qty',        'partFormMin',      'number', isEdit ? (part.min_qty || 0) : 0,                             false]
+  ];
+
+  const fieldsHtml = fields.map(([label, id, type, val, disabled]) =>
+    '<div style="margin-bottom:12px;">' +
+      '<label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">' + label + '</label>' +
+      '<input type="' + type + '" id="' + id + '" value="' + escAttr(val) + '"' +
+        (disabled ? ' disabled style="background:#f5f5f5;' : ' style="') +
+        'width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">' +
+    '</div>'
+  ).join('');
+
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);margin:auto;">' +
+      '<div style="font-size:16px;font-weight:700;color:#1F3864;margin-bottom:16px;">' + (isEdit ? 'Edit part' : 'Add new part') + '</div>' +
+      fieldsHtml +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">' +
+        '<button onclick="document.getElementById(\'partFormOverlay\').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<button data-is-edit="' + (isEdit ? '1' : '0') + '" onclick="savePartForm(this.dataset.isEdit === \'1\')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">' + (isEdit ? 'Save changes' : 'Add part') + '</button>' +
+      '</div>' +
+    '</div>';
   document.body.appendChild(overlay);
 }
 
-async function savePartForm(existingPartNo) {
+async function savePartForm(isEdit) {
   const partNo   = document.getElementById('partFormNo').value.trim();
   const desc     = document.getElementById('partFormDesc').value.trim();
   const machine  = document.getElementById('partFormMachine').value.trim();
@@ -4397,7 +4621,7 @@ async function savePartForm(existingPartNo) {
     });
     if (res.ok) {
       document.getElementById('partFormOverlay').remove();
-      showToast((existingPartNo ? 'Part updated' : 'Part added') + ': ' + desc, 'success');
+      showToast((isEdit ? 'Part updated' : 'Part added') + ': ' + desc, 'success');
       await loadInventoryData();
       renderCatalogueList(document.getElementById('catalogueSearchInput').value);
     } else { showToast('Save failed', 'error'); }
@@ -4494,7 +4718,8 @@ function renderReorderStatus() {
     return a.stock_qty - b.stock_qty;
   });
   let html = '<table class="sl-table"><thead><tr><th>Part</th><th>Part No</th><th>Supplier</th><th class="num">Stock</th><th class="num">Min</th><th>Order status</th><th>Ordered date</th><th>Notes</th><th></th></tr></thead><tbody>';
-  sorted.forEach(p => {
+  window._reorderParts = sorted;
+  sorted.forEach((p, i) => {
     const key = 'pmt_order_' + p.part_no.replace(/[^a-zA-Z0-9]/g,'_');
     let orderData = {};
     try { orderData = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
@@ -4505,7 +4730,7 @@ function renderReorderStatus() {
     const isReceived = status === 'Received';
     const statusColor = isReceived ? '#2D7D46' : isOrdered ? '#2E5597' : '#C00000';
     const statusBg    = isReceived ? '#E2EFDA'  : isOrdered ? '#DEEAF1' : '#FCE4D6';
-    html += '<tr><td><strong>' + p.description + '</strong><br><span style="font-size:10px;color:#888;">' + (p.machine_type||'') + '</span></td><td style="font-size:11px;color:#888;">' + p.part_no + '</td><td style="font-size:12px;">' + (p.supplier||'--') + '</td><td style="text-align:center;font-weight:700;color:' + (p.stock_qty===0?'#C00000':'#ED7D31') + ';">' + p.stock_qty + '</td><td style="text-align:center;color:#888;">' + p.min_qty + '</td><td><span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' + status + '</span></td><td style="font-size:12px;color:#888;">' + orderedDate + '</td><td style="font-size:12px;color:#555;max-width:150px;">' + notes + '</td><td><button onclick="showOrderStatusForm(\'' + p.part_no.replace(/'/g,"\\'") + '\',\'' + p.description.replace(/'/g,"\\'") + '\')" style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Update</button></td></tr>';
+    html += '<tr><td><strong>' + p.description + '</strong><br><span style="font-size:10px;color:#888;">' + (p.machine_type||'') + '</span></td><td style="font-size:11px;color:#888;">' + p.part_no + '</td><td style="font-size:12px;">' + (p.supplier||'--') + '</td><td style="text-align:center;font-weight:700;color:' + (p.stock_qty===0?'#C00000':'#ED7D31') + ';">' + p.stock_qty + '</td><td style="text-align:center;color:#888;">' + p.min_qty + '</td><td><span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' + status + '</span></td><td style="font-size:12px;color:#888;">' + orderedDate + '</td><td style="font-size:12px;color:#555;max-width:150px;">' + notes + '</td><td><button data-idx="' + i + '" onclick="showOrderStatusForm(window._reorderParts[this.dataset.idx].part_no, window._reorderParts[this.dataset.idx].description)" style="padding:4px 10px;background:#1F3864;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Update</button></td></tr>';
   });
   html += '</tbody></table>';
   el.innerHTML = html;
@@ -4518,7 +4743,42 @@ function showOrderStatusForm(partNo, desc) {
   const overlay = document.createElement('div');
   overlay.id = 'orderStatusOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-  overlay.innerHTML = `<div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);"><div style="font-size:15px;font-weight:700;color:#1F3864;margin-bottom:4px;">Update order status</div><div style="font-size:12px;color:#888;margin-bottom:16px;">${desc} &nbsp;|&nbsp; ${partNo}</div><div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Status</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">${['Not ordered','Ordered','Received'].map(s => '<button onclick="selectOrderStatus(this,\'' + s + '\')" style="padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid ' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#ddd') + ';background:' + (existing.status===s ? (s==='Received'?'#E2EFDA':s==='Ordered'?'#DEEAF1':'#FCE4D6') : 'white') + ';color:' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#666') + ';">' + s + '</button>').join('')}</div><input type="hidden" id="orderStatusValue" value="${existing.status||'Not ordered'}"></div><div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Order date</label><input type="date" id="orderDateInput" value="${existing.date||''}" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;"></div><div style="margin-bottom:16px;"><label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Notes (optional)</label><input type="text" id="orderNotesInput" value="${existing.notes||''}" placeholder="e.g. PO #1234, expected delivery..." style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><button onclick="document.getElementById('orderStatusOverlay').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button><button onclick="saveOrderStatus('${partNo}')" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button></div></div>`;
+
+  // Stash partNo on the overlay so saveOrderStatus can read it back safely,
+  // avoiding embedding the part number into an inline onclick (which breaks
+  // for any part_no containing a quote).
+  overlay.dataset.partNo = partNo;
+
+  const statusButtons = ['Not ordered','Ordered','Received'].map(s =>
+    '<button onclick="selectOrderStatus(this,\'' + s + '\')" style="padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid ' +
+    (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#ddd') +
+    ';background:' + (existing.status===s ? (s==='Received'?'#E2EFDA':s==='Ordered'?'#DEEAF1':'#FCE4D6') : 'white') +
+    ';color:' + (existing.status===s ? (s==='Received'?'#2D7D46':s==='Ordered'?'#2E5597':'#C00000') : '#666') +
+    ';">' + s + '</button>'
+  ).join('');
+
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:14px;padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
+      '<div style="font-size:15px;font-weight:700;color:#1F3864;margin-bottom:4px;">Update order status</div>' +
+      '<div style="font-size:12px;color:#888;margin-bottom:16px;">' + escAttr(desc) + ' &nbsp;|&nbsp; ' + escAttr(partNo) + '</div>' +
+      '<div style="margin-bottom:12px;">' +
+        '<label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Status</label>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' + statusButtons + '</div>' +
+        '<input type="hidden" id="orderStatusValue" value="' + escAttr(existing.status || 'Not ordered') + '">' +
+      '</div>' +
+      '<div style="margin-bottom:12px;">' +
+        '<label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Order date</label>' +
+        '<input type="date" id="orderDateInput" value="' + escAttr(existing.date || '') + '" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;">' +
+      '</div>' +
+      '<div style="margin-bottom:16px;">' +
+        '<label style="display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Notes (optional)</label>' +
+        '<input type="text" id="orderNotesInput" value="' + escAttr(existing.notes || '') + '" placeholder="e.g. PO #1234, expected delivery..." style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;">' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        '<button onclick="document.getElementById(\'orderStatusOverlay\').remove()" style="padding:12px;border:1.5px solid #ddd;border-radius:8px;background:white;font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<button onclick="saveOrderStatus()" style="padding:12px;background:#1F3864;border:none;border-radius:8px;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>' +
+      '</div>' +
+    '</div>';
   document.body.appendChild(overlay);
 }
 
@@ -4530,13 +4790,16 @@ function selectOrderStatus(btn, status) {
   btn.style.borderColor = color; btn.style.background = bg; btn.style.color = color;
 }
 
-function saveOrderStatus(partNo) {
+function saveOrderStatus() {
+  const overlay = document.getElementById('orderStatusOverlay');
+  const partNo  = overlay && overlay.dataset.partNo;
+  if (!partNo) { showToast('Could not save — part reference missing.', 'error'); return; }
   const key    = 'pmt_order_' + partNo.replace(/[^a-zA-Z0-9]/g,'_');
   const status = document.getElementById('orderStatusValue').value;
   const date   = document.getElementById('orderDateInput').value;
   const notes  = document.getElementById('orderNotesInput').value;
   try { localStorage.setItem(key, JSON.stringify({ status, date, notes })); } catch(e) {}
-  document.getElementById('orderStatusOverlay').remove();
+  overlay.remove();
   showToast('Order status updated', 'success');
   renderReorderStatus();
 }
@@ -4835,8 +5098,597 @@ function exportLcCsv() {
 }
 
 // ── DASHBOARD TAB SWITCHING ───────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// MECHANICS DASHBOARD (PIN-gated)
+// ═════════════════════════════════════════════════════════════════════════════
+
+let mDowntimeAll = [];   // all downtime_log records (filtered by date in-memory)
+let mPMAll       = [];   // all pm_log records
+let mLoadedOnce  = false;
+
+const FTF_DAYS = 14; // first-time-fix verification window
+const TEAM_MIN_INCIDENTS = 3; // min incidents to include in team-median sample
+
+async function loadMechanicsData() {
+  // Show empty state; section will populate after fetch
+  document.getElementById('mechEmpty').textContent = mLoadedOnce
+    ? 'Select a mechanic above to view their performance profile'
+    : 'Loading mechanic data...';
+  document.getElementById('mechKpiRow').style.display     = 'none';
+  document.getElementById('mRecSection').style.display      = 'none';
+  document.getElementById('mWorkloadSection').style.display = 'none';
+  document.getElementById('mAssetSection').style.display    = 'none';
+  document.getElementById('mPMSection').style.display       = 'none';
+  document.getElementById('mIncSection').style.display      = 'none';
+
+  if (mLoadedOnce) {
+    // Cached — just refresh the dropdown options
+    populateMechanicDropdown();
+    return;
+  }
+
+  try {
+    // High limit overrides Supabase's default 1000-row cap.
+    const [dtRes, pmRes] = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=20000',
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+      fetch(SUPABASE_URL + '/rest/v1/pm_log?select=*&order=completed_date.desc&limit=20000',
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } })
+    ]);
+    mDowntimeAll = await dtRes.json();
+    mPMAll       = await pmRes.json();
+    mLoadedOnce  = true;
+
+    populateMechanicDropdown();
+    populateMechanicYearDropdown();
+    document.getElementById('mechEmpty').textContent =
+      'Select a mechanic above to view their performance profile';
+  } catch(e) {
+    document.getElementById('mechEmpty').textContent =
+      'Failed to load mechanic data. Refresh and try again.';
+    showToast('Could not load mechanic data.', 'error');
+  }
+}
+
+function populateMechanicDropdown() {
+  const sel = document.getElementById('mechSelect');
+  const prev = sel.value;
+  // Distinct mechanics from downtime_log.mechanic only (per spec)
+  const mechs = [...new Set(mDowntimeAll.map(d => d.mechanic).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— Select a mechanic —</option>' +
+    mechs.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+  if (prev && mechs.includes(prev)) sel.value = prev;
+}
+
+function populateMechanicYearDropdown() {
+  const years = [...new Set(mDowntimeAll
+    .map(d => d.reported_time ? String(d.reported_time).substring(0, 4) : null)
+    .filter(Boolean)
+  )].sort().reverse();
+  const sel = document.getElementById('mechYear');
+  sel.innerHTML = '<option value="">All years</option>' +
+    years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+}
+
+function clearMechanicFilter() {
+  document.getElementById('mechYear').value  = '';
+  document.getElementById('mechMonth').value = '';
+  applyMechanicFilter();
+}
+
+function applyMechanicFilter() {
+  // Re-render the currently selected mechanic with new date filter
+  if (document.getElementById('mechSelect').value) selectMechanic();
+}
+
+// Apply year+month filter to a records array (returns filtered copy)
+function filterMechByDate(records, timeField) {
+  const year  = document.getElementById('mechYear').value;
+  const month = document.getElementById('mechMonth').value;
+  if (!year && !month) return records;
+  return records.filter(r => {
+    const ts = r[timeField];
+    if (!ts) return false;
+    const s = String(ts);
+    if (year  && s.substring(0, 4) !== year)  return false;
+    if (month && s.substring(5, 7) !== month) return false;
+    return true;
+  });
+}
+
+// ── METRIC COMPUTATION ───────────────────────────────────────────
+// Compute all metrics for a given mechanic against a record pool.
+// The pool is the date-filtered universe — used so first-time-fix
+// can detect recurrence using the same time scope.
+function computeMechMetrics(mechName, downtimePool, pmPool) {
+  const myDt       = downtimePool.filter(d => d.mechanic === mechName);
+  const myResolved = myDt.filter(d => d.status === 'Resolved');
+  const myPM       = pmPool.filter(p => p.completed_by === mechName);
+
+  const avg = arr => arr.length === 0 ? null : arr.reduce((a, b) => a + b, 0) / arr.length;
+
+  const responses = myDt
+    .filter(d => d.response_minutes != null && d.response_minutes >= 0)
+    .map(d => d.response_minutes);
+  const repairs   = myResolved
+    .filter(d => d.repair_minutes != null && d.repair_minutes >= 0)
+    .map(d => d.repair_minutes);
+
+  // First-time-fix: same-asset same-fault didn't recur within FTF_DAYS after resolution.
+  // Only assess incidents resolved more than FTF_DAYS ago (else we can't know yet).
+  const FTF_MS = FTF_DAYS * 24 * 60 * 60 * 1000;
+  const now    = Date.now();
+  const assessable = myResolved.filter(d =>
+    d.resolved_time && (now - new Date(d.resolved_time).getTime()) >= FTF_MS
+  );
+  let recurred = 0;
+  assessable.forEach(d => {
+    const resolvedMs = new Date(d.resolved_time).getTime();
+    const came_back = downtimePool.some(o =>
+      o.id !== d.id &&
+      o.asset_no === d.asset_no &&
+      o.fault === d.fault &&
+      o.reported_time &&
+      new Date(o.reported_time).getTime() > resolvedMs &&
+      new Date(o.reported_time).getTime() <= resolvedMs + FTF_MS
+    );
+    if (came_back) recurred++;
+  });
+
+  // Last active across both downtime and PM
+  const lastDtTs = myDt.map(d => d.reported_time).filter(Boolean).sort().reverse()[0] || null;
+  const lastPMTs = myPM.map(p => p.completed_date).filter(Boolean).sort().reverse()[0] || null;
+  const lastActive = [lastDtTs, lastPMTs].filter(Boolean).sort().reverse()[0] || null;
+
+  return {
+    closed:         myResolved.length,
+    incidents:      myDt.length,
+    avgResponse:    avg(responses),
+    avgRepair:      avg(repairs),
+    totalRepairMin: repairs.reduce((a, b) => a + b, 0),
+    pmCount:        myPM.length,
+    ftfRate:        assessable.length === 0 ? null : ((assessable.length - recurred) / assessable.length) * 100,
+    recurred:       recurred,
+    assessable:     assessable.length,
+    lastActive:     lastActive,
+    myDt:           myDt,
+    myResolved:     myResolved,
+    myPM:           myPM
+  };
+}
+
+// Team median across mechanics with at least TEAM_MIN_INCIDENTS incidents in scope.
+// We exclude the selected mechanic so we don't bias the comparison.
+function computeTeamMedians(downtimePool, pmPool, excludeMech) {
+  const mechs = [...new Set(downtimePool.map(d => d.mechanic).filter(Boolean))]
+    .filter(m => m !== excludeMech);
+  const stats = mechs.map(m => computeMechMetrics(m, downtimePool, pmPool))
+    .filter(s => s.incidents >= TEAM_MIN_INCIDENTS);
+
+  const med = arr => {
+    const cleaned = arr.filter(v => v != null).sort((a, b) => a - b);
+    if (cleaned.length === 0) return null;
+    const mid = Math.floor(cleaned.length / 2);
+    return cleaned.length % 2 === 0 ? (cleaned[mid - 1] + cleaned[mid]) / 2 : cleaned[mid];
+  };
+
+  return {
+    avgResponse:   med(stats.map(s => s.avgResponse)),
+    avgRepair:     med(stats.map(s => s.avgRepair)),
+    totalRepairMin:med(stats.map(s => s.totalRepairMin)),
+    pmCount:       med(stats.map(s => s.pmCount)),
+    ftfRate:       med(stats.map(s => s.ftfRate)),
+    sampleSize:    stats.length
+  };
+}
+
+// ── MAIN RENDER ──────────────────────────────────────────────────
+function selectMechanic() {
+  const mechName = document.getElementById('mechSelect').value;
+  const sections = ['mechKpiRow','mRecSection','mWorkloadSection','mAssetSection','mPMSection','mIncSection'];
+
+  if (!mechName) {
+    sections.forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('mechEmpty').style.display = 'block';
+    document.getElementById('mechFilterInfo').textContent = '';
+    return;
+  }
+
+  // Apply date filter to the global pool, then compute
+  const dtPool = filterMechByDate(mDowntimeAll, 'reported_time');
+  const pmPool = filterMechByDate(mPMAll,       'completed_date');
+  const m      = computeMechMetrics(mechName, dtPool, pmPool);
+  const team   = computeTeamMedians(dtPool, pmPool, mechName);
+
+  document.getElementById('mechEmpty').style.display = 'none';
+
+  renderMechKPIs(m, team);
+  renderMechRecurring(m, dtPool);
+  renderMechWorkload(m);
+  renderMechAssets(m);
+  renderMechPMs(m);
+  renderMechIncidents(m, dtPool);
+
+  // Filter info
+  const yr = document.getElementById('mechYear').value;
+  const mo = document.getElementById('mechMonth').value;
+  document.getElementById('mechFilterInfo').textContent = (yr || mo)
+    ? 'Filtered: ' + (yr || 'all years') + ' / ' + (mo ? new Date(2000, +mo - 1, 1).toLocaleString('en', { month: 'long' }) : 'all months')
+    : '';
+}
+
+// Helper — formats a number-vs-team comparison, ignoring nulls
+function teamCmp(myVal, teamVal, unit, lowerIsBetter) {
+  if (myVal == null || teamVal == null) return 'team: insufficient data';
+  const diff = myVal - teamVal;
+  const absD = Math.abs(diff);
+  if (absD < 0.5) return 'team median: ' + teamVal.toFixed(unit === '%' ? 0 : 1) + unit + ' (on par)';
+  const better = lowerIsBetter ? (diff < 0) : (diff > 0);
+  const dir = better ? 'faster' : 'slower';
+  const dirGeneric = better ? 'better' : 'behind';
+  return 'team median: ' + teamVal.toFixed(unit === '%' ? 0 : 1) + unit +
+         ' &middot; ' + (unit === 'm' && lowerIsBetter ? dir : dirGeneric) +
+         ' by ' + absD.toFixed(unit === '%' ? 0 : 1) + unit;
+}
+
+function renderMechKPIs(m, team) {
+  const fmtMinsShort = mins => mins == null ? '—'
+    : mins >= 60 ? Math.floor(mins / 60) + 'h ' + Math.round(mins % 60) + 'm'
+    : Math.round(mins) + 'm';
+
+  // Downtime closed
+  document.getElementById('mKpiClosed').textContent = m.closed;
+  document.getElementById('mKpiClosedSub').textContent =
+    m.incidents > m.closed
+      ? m.closed + ' of ' + m.incidents + ' resolved'
+      : 'all resolved';
+
+  // Response
+  document.getElementById('mKpiResponse').textContent = fmtMinsShort(m.avgResponse);
+  document.getElementById('mKpiResponseSub').innerHTML = teamCmp(m.avgResponse, team.avgResponse, 'm', true);
+
+  // Repair
+  document.getElementById('mKpiRepair').textContent = fmtMinsShort(m.avgRepair);
+  document.getElementById('mKpiRepairSub').innerHTML = teamCmp(m.avgRepair, team.avgRepair, 'm', true);
+
+  // Hours on tools
+  const hrs = m.totalRepairMin / 60;
+  document.getElementById('mKpiHours').textContent = hrs >= 10 ? Math.round(hrs) + 'h' : hrs.toFixed(1) + 'h';
+  document.getElementById('mKpiHoursSub').textContent =
+    team.totalRepairMin != null
+      ? 'team median: ' + (team.totalRepairMin / 60).toFixed(1) + 'h'
+      : 'total repair time';
+
+  // PMs
+  document.getElementById('mKpiPMs').textContent = m.pmCount;
+  document.getElementById('mKpiPMsSub').textContent =
+    team.pmCount != null ? 'team median: ' + team.pmCount.toFixed(0) : 'preventive maintenance';
+
+  // First-Time-Fix Rate (color-coded card)
+  const ftfCard = document.getElementById('mKpiFTFCard');
+  ftfCard.classList.remove('green', 'orange', 'red');
+  if (m.ftfRate == null) {
+    document.getElementById('mKpiFTF').textContent = '—';
+    document.getElementById('mKpiFTFSub').textContent = 'no assessable fixes yet';
+    ftfCard.classList.add('green');
+  } else {
+    document.getElementById('mKpiFTF').textContent = Math.round(m.ftfRate) + '%';
+    document.getElementById('mKpiFTFSub').innerHTML =
+      'across ' + m.assessable + ' fix' + (m.assessable !== 1 ? 'es' : '') +
+      (team.ftfRate != null ? '<br>team median: ' + Math.round(team.ftfRate) + '%' : '');
+    if      (m.ftfRate >= 85) ftfCard.classList.add('green');
+    else if (m.ftfRate >= 70) ftfCard.classList.add('orange');
+    else                      ftfCard.classList.add('red');
+  }
+
+  // Recurring fixes (count, not rate)
+  document.getElementById('mKpiRec').textContent = m.recurred;
+  document.getElementById('mKpiRecSub').textContent =
+    m.assessable > 0
+      ? 'of ' + m.assessable + ' assessable fixes'
+      : '14-day window';
+
+  // Last active
+  document.getElementById('mKpiLast').textContent = m.lastActive ? formatShortDate(m.lastActive) : '—';
+  if (m.lastActive) {
+    const days = Math.floor((Date.now() - new Date(m.lastActive).getTime()) / (1000 * 60 * 60 * 24));
+    document.getElementById('mKpiLastSub').textContent =
+      days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
+  } else {
+    document.getElementById('mKpiLastSub').textContent = '';
+  }
+
+  document.getElementById('mechKpiRow').style.display = 'block';
+}
+
+// ── SECTION: RECURRING FIXES DETAIL ──────────────────────────────
+// Drills into the "Recurring Fixes" KPI: for each of this mechanic's
+// resolved incidents, find the matching recurrence (same asset + same
+// fault, within FTF_DAYS afterwards) and surface them in a table.
+// Useful for asking the actual question: is this person struggling on
+// a specific fault, a specific asset, or is it scattered?
+function renderMechRecurring(m, downtimePool) {
+  const section = document.getElementById('mRecSection');
+  const FTF_MS  = FTF_DAYS * 24 * 60 * 60 * 1000;
+
+  // Build pairs: [originalFix, theRecurrenceIncident]
+  // Only consider assessable fixes (resolved more than FTF_DAYS ago).
+  const now   = Date.now();
+  const pairs = [];
+  m.myResolved.forEach(d => {
+    if (!d.resolved_time) return;
+    const rMs = new Date(d.resolved_time).getTime();
+    if ((now - rMs) < FTF_MS) return; // not yet assessable
+
+    // Find the EARLIEST recurrence within the window (could be more than one;
+    // we surface the closest one for "came back after" gap)
+    let nextRecurrence = null;
+    downtimePool.forEach(o => {
+      if (o.id === d.id) return;
+      if (o.asset_no !== d.asset_no) return;
+      if (o.fault !== d.fault) return;
+      if (!o.reported_time) return;
+      const oMs = new Date(o.reported_time).getTime();
+      if (oMs <= rMs) return;
+      if (oMs > rMs + FTF_MS) return;
+      if (!nextRecurrence || oMs < new Date(nextRecurrence.reported_time).getTime()) {
+        nextRecurrence = o;
+      }
+    });
+
+    if (nextRecurrence) pairs.push({ fix: d, recurrence: nextRecurrence });
+  });
+
+  if (pairs.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  // Sort: most recent first
+  pairs.sort((a, b) => (b.fix.resolved_time || '').localeCompare(a.fix.resolved_time || ''));
+
+  document.getElementById('mRecBadge').textContent =
+    pairs.length + ' fix' + (pairs.length !== 1 ? 'es' : '') + ' came back';
+
+  let html = '<table class="sl-table"><thead><tr>' +
+    '<th>Fix date</th><th>Asset</th><th>Line</th><th>Fault</th>' +
+    '<th class="num">Repair time</th><th class="num">Came back after</th>' +
+    '<th>Re-fixed by</th><th>&nbsp;</th></tr></thead><tbody>';
+
+  pairs.forEach(p => {
+    const fixDate = formatShortDate(p.fix.resolved_time);
+    const recMs   = new Date(p.recurrence.reported_time).getTime();
+    const fixMs   = new Date(p.fix.resolved_time).getTime();
+    const gapDays = (recMs - fixMs) / (1000 * 60 * 60 * 24);
+
+    // Color-code gap severity
+    let gapColor = '#555';
+    let gapBg    = 'transparent';
+    if (gapDays < 3)      { gapColor = '#C00000'; gapBg = '#FCEBEB'; }
+    else if (gapDays < 7) { gapColor = '#843C0C'; gapBg = '#FCE4D6'; }
+
+    const gapLabel = gapDays < 1
+      ? Math.round(gapDays * 24) + ' hrs'
+      : gapDays < 1.5 ? '1 day' : Math.round(gapDays) + ' days';
+
+    const reFixer = p.recurrence.mechanic || '\u2014';
+    const sameMech = reFixer === p.fix.mechanic;
+
+    html += '<tr>' +
+      '<td style="font-size:12px;">' + fixDate + '</td>' +
+      '<td><strong>' + (p.fix.asset_no || '\u2014') + '</strong></td>' +
+      '<td style="font-size:12px;">' + (p.fix.line || '\u2014') + '</td>' +
+      '<td style="font-size:12px;">' + (p.fix.fault || '\u2014') + '</td>' +
+      '<td style="text-align:center;font-size:12px;">' +
+        (p.fix.repair_minutes != null ? fmtMins(p.fix.repair_minutes) : '\u2014') + '</td>' +
+      '<td style="text-align:center;"><span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;color:' + gapColor + ';background:' + gapBg + ';">' + gapLabel + '</span></td>' +
+      '<td style="font-size:12px;color:' + (sameMech ? '#555' : '#888') + ';">' +
+        reFixer + (sameMech ? '' : ' <span style="font-size:10px;color:#aaa;font-style:italic;">(different)</span>') + '</td>' +
+      '<td><button onclick="openAssetProfile(\'' + (p.fix.asset_no || '').replace(/'/g, "\\'") + '\')" style="padding:3px 9px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Asset</button></td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('mRecTable').innerHTML = html;
+
+  document.getElementById('mRecBody').classList.remove('lc-open');
+  document.getElementById('mRecExpandLbl').textContent = 'Expand \u25BC';
+  section.style.display = 'block';
+}
+
+// ── SECTION: WORKLOAD HEATMAP ────────────────────────────────────
+function renderMechWorkload(m) {
+  const section = document.getElementById('mWorkloadSection');
+  const badge   = document.getElementById('mWorkloadBadge');
+
+  if (m.myDt.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  // Lines this mechanic has touched (in numeric order where possible)
+  const myLines = [...new Set(m.myDt.map(d => d.line).filter(Boolean))].sort((a, b) => {
+    const na = parseInt(String(a).replace(/\D/g, ''), 10);
+    const nb = parseInt(String(b).replace(/\D/g, ''), 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(a).localeCompare(String(b));
+  });
+
+  // Fault rows = canonical list + any extras this mechanic has
+  const knownFaults  = FAULT_TYPES;
+  const customFaults = [...new Set(m.myDt.map(i => i.fault).filter(f => f && !knownFaults.includes(f)))];
+  const allFaults    = [...knownFaults, ...customFaults];
+  const usedFaults   = allFaults.filter(f => m.myDt.some(d => d.fault === f));
+
+  badge.textContent = m.myDt.length + ' incident' + (m.myDt.length !== 1 ? 's' : '') +
+                      ' across ' + myLines.length + ' line' + (myLines.length !== 1 ? 's' : '') +
+                      ' and ' + usedFaults.length + ' fault type' + (usedFaults.length !== 1 ? 's' : '');
+
+  // Compute max for color scaling
+  let maxCount = 0;
+  usedFaults.forEach(ft => myLines.forEach(line => {
+    const cnt = m.myDt.filter(d => d.fault === ft && d.line === line).length;
+    if (cnt > maxCount) maxCount = cnt;
+  }));
+
+  let html = '<table class="hm-table"><thead><tr><th class="row-hdr">Fault</th>';
+  myLines.forEach(l => { html += `<th>${String(l).replace('Line ', 'L')}</th>`; });
+  html += '<th style="font-size:10px;color:#555;">Total</th></tr></thead><tbody>';
+
+  usedFaults.forEach(ft => {
+    const rowTotal = m.myDt.filter(d => d.fault === ft).length;
+    html += `<tr><td class="hm-row-label" style="font-size:11px;">${ft}</td>`;
+    myLines.forEach(line => {
+      const cnt = m.myDt.filter(d => d.fault === ft && d.line === line).length;
+      const cls = faultCellClass(cnt, maxCount);
+      html += `<td class="hm-cell ${cls}" title="${line} \u2014 ${ft}: ${cnt}">${cnt > 0 ? cnt : ''}</td>`;
+    });
+    html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#555;">${rowTotal}</td></tr>`;
+  });
+
+  // Column totals row
+  html += '<tr><td class="hm-row-label" style="font-size:11px;font-weight:700;">Total</td>';
+  myLines.forEach(line => {
+    const lt = m.myDt.filter(d => d.line === line).length;
+    html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#555;">${lt || ''}</td>`;
+  });
+  html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#1a1a1a;">${m.myDt.length}</td></tr>`;
+  html += '</tbody></table>';
+
+  document.getElementById('mWorkloadHeatmap').innerHTML = html;
+  document.getElementById('mWorkloadBody').classList.remove('lc-open');
+  document.getElementById('mWorkloadExpandLbl').textContent = 'Expand \u25BC';
+  section.style.display = 'block';
+}
+
+
+// ── SECTION: ASSET COVERAGE ──────────────────────────────────────
+function renderMechAssets(m) {
+  const section = document.getElementById('mAssetSection');
+  if (m.myDt.length === 0) { section.style.display = 'none'; return; }
+
+  const byAsset = {};
+  m.myDt.forEach(d => {
+    if (!d.asset_no) return;
+    if (!byAsset[d.asset_no]) {
+      byAsset[d.asset_no] = { asset: d.asset_no, machine_type: d.machine_type || '\u2014', incidents: 0, downtime: 0, last: null };
+    }
+    byAsset[d.asset_no].incidents++;
+    if (d.status === 'Resolved') byAsset[d.asset_no].downtime += (d.total_downtime_minutes || 0);
+    if (d.reported_time && (!byAsset[d.asset_no].last || d.reported_time > byAsset[d.asset_no].last)) {
+      byAsset[d.asset_no].last = d.reported_time;
+    }
+  });
+
+  const rows = Object.values(byAsset).sort((a, b) => b.incidents - a.incidents);
+  document.getElementById('mAssetBadge').textContent = rows.length + ' asset' + (rows.length !== 1 ? 's' : '');
+
+  let html = '<table class="sl-table"><thead><tr><th>Asset</th><th>Machine type</th><th class="num">Incidents</th><th class="num">Downtime</th><th>Last worked</th><th></th></tr></thead><tbody>';
+  rows.forEach(r => {
+    html += '<tr><td><strong>' + r.asset + '</strong></td>' +
+            '<td style="color:#555;font-size:12px;">' + r.machine_type + '</td>' +
+            '<td style="text-align:center;font-weight:600;">' + r.incidents + '</td>' +
+            '<td style="text-align:center;color:#843C0C;font-weight:600;">' + (r.downtime > 0 ? fmtMins(r.downtime) : '\u2014') + '</td>' +
+            '<td style="font-size:12px;color:#888;">' + (r.last ? formatShortDate(r.last) : '\u2014') + '</td>' +
+            '<td><button onclick="openAssetProfile(\'' + r.asset.replace(/'/g, "\\'") + '\')" style="padding:4px 10px;background:#2E5597;border:none;border-radius:6px;color:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">View profile</button></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('mAssetTable').innerHTML = html;
+
+  document.getElementById('mAssetBody').classList.remove('lc-open');
+  document.getElementById('mAssetExpandLbl').textContent = 'Expand \u25BC';
+  section.style.display = 'block';
+}
+
+function openAssetProfile(assetNo) {
+  switchDashTab('profile');
+  document.getElementById('lcAssetInput').value = assetNo;
+  loadLifecycle();
+}
+
+// ── SECTION: PM LOG ──────────────────────────────────────────────
+function renderMechPMs(m) {
+  const section = document.getElementById('mPMSection');
+  if (m.myPM.length === 0) { section.style.display = 'none'; return; }
+
+  document.getElementById('mPMBadge').textContent = m.myPM.length + ' PM' + (m.myPM.length !== 1 ? 's' : '');
+
+  const sorted = [...m.myPM].sort((a, b) => (b.completed_date || '').localeCompare(a.completed_date || ''));
+
+  let html = '<table class="sl-table"><thead><tr><th>Date</th><th>Asset</th><th>Service</th><th>Condition</th><th>Notes</th></tr></thead><tbody>';
+  sorted.forEach(p => {
+    const tier = (p.service_type || '').toLowerCase();
+    const tierCls = tier === 'major' ? 'pm-major' : tier === 'normal' ? 'pm-normal' : 'pm-minor';
+    const condCls = ({ 'Excellent': 'cond-excellent', 'Good': 'cond-good', 'Average': 'cond-average', 'Poor': 'cond-poor' })[p.machine_condition] || '';
+    html += '<tr><td style="font-size:12px;">' + (p.completed_date || '\u2014') + '</td>' +
+            '<td><strong>' + (p.asset_no || '\u2014') + '</strong></td>' +
+            '<td><span class="pm-badge ' + tierCls + '">' + (p.service_type || '\u2014') + '</span></td>' +
+            '<td class="' + condCls + '" style="font-size:12px;">' + (p.machine_condition || '\u2014') + '</td>' +
+            '<td style="font-size:12px;color:#555;">' + (p.overall_note || '') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('mPMTable').innerHTML = html;
+
+  document.getElementById('mPMBody').classList.remove('lc-open');
+  document.getElementById('mPMExpandLbl').textContent = 'Expand \u25BC';
+  section.style.display = 'block';
+}
+
+// ── SECTION: INCIDENTS LOG ───────────────────────────────────────
+function renderMechIncidents(m, downtimePool) {
+  const section = document.getElementById('mIncSection');
+  if (m.myDt.length === 0) { section.style.display = 'none'; return; }
+
+  document.getElementById('mIncBadge').textContent = m.myDt.length + ' incident' + (m.myDt.length !== 1 ? 's' : '');
+
+  const FTF_MS = FTF_DAYS * 24 * 60 * 60 * 1000;
+  const sorted = [...m.myDt].sort((a, b) => (b.reported_time || '').localeCompare(a.reported_time || ''));
+
+  let html = '<table class="sl-table"><thead><tr><th>Reported</th><th>Asset</th><th>Line</th><th>Fault</th><th>Status</th><th class="num">Response</th><th class="num">Repair</th><th>&nbsp;</th></tr></thead><tbody>';
+  sorted.forEach(d => {
+    let recurFlag = '';
+    if (d.status === 'Resolved' && d.resolved_time) {
+      const rMs = new Date(d.resolved_time).getTime();
+      const cameBack = downtimePool.some(o =>
+        o.id !== d.id &&
+        o.asset_no === d.asset_no &&
+        o.fault === d.fault &&
+        o.reported_time &&
+        new Date(o.reported_time).getTime() > rMs &&
+        new Date(o.reported_time).getTime() <= rMs + FTF_MS
+      );
+      if (cameBack) recurFlag = '<span title="Same fault recurred within ' + FTF_DAYS + ' days" style="color:#C00000;font-weight:700;">&#9888;</span>';
+    }
+    const stCls = d.status === 'Resolved' ? '#2D7D46' : d.status === 'Investigating' ? '#1F497D' : '#843C0C';
+    const stBg  = d.status === 'Resolved' ? '#E2EFDA' : d.status === 'Investigating' ? '#DEEAF1' : '#FCE4D6';
+    html += '<tr><td style="font-size:12px;">' + (d.reported_time ? formatShortDate(d.reported_time) : '\u2014') + '</td>' +
+            '<td><strong>' + (d.asset_no || '\u2014') + '</strong></td>' +
+            '<td style="font-size:12px;">' + (d.line || '\u2014') + '</td>' +
+            '<td style="font-size:12px;">' + (d.fault || '\u2014') + '</td>' +
+            '<td><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:' + stBg + ';color:' + stCls + ';">' + (d.status || '\u2014') + '</span></td>' +
+            '<td style="text-align:center;font-size:12px;">' + (d.response_minutes != null ? d.response_minutes + 'm' : '\u2014') + '</td>' +
+            '<td style="text-align:center;font-size:12px;">' + (d.repair_minutes != null ? fmtMins(d.repair_minutes) : '\u2014') + '</td>' +
+            '<td style="text-align:center;">' + recurFlag + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('mIncTable').innerHTML = html;
+
+  document.getElementById('mIncBody').classList.remove('lc-open');
+  document.getElementById('mIncExpandLbl').textContent = 'Expand \u25BC';
+  section.style.display = 'block';
+}
+
 function switchDashTab(tab) {
-  const tabs = ['assets','downtime','profile','inventory','linechange'];
+  // only (lost on refresh), avoiding PIN-prompt-on-every-click friction.
+  if (tab === 'mechanics' && !window._mechanicsTabUnlocked) {
+    requirePin('Open Mechanics dashboard', function() {
+      window._mechanicsTabUnlocked = true;
+      switchDashTab('mechanics');
+    });
+    return;
+  }
+
+  const tabs = ['assets','downtime','profile','inventory','linechange','mechanics'];
   document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
@@ -4844,6 +5696,7 @@ function switchDashTab(tab) {
   if (tab === 'linechange') initLineChange();
   if (tab === 'profile')    { lcAssets = []; } // reset asset cache so it rebuilds from latest data
   if (tab === 'inventory')  loadInventoryData();
+  if (tab === 'mechanics')  loadMechanicsData();
 }
 
 // ── INITIALISATION ────────────────────────────────────────────────────────────
