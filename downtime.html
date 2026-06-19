@@ -16,7 +16,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .header { background: #1F3864; color: white; padding: 16px; text-align: center; }
 .header h1 { font-size: 18px; font-weight: 600; }
 .header p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-  
+
 .app { max-width: 480px; margin: 0 auto; padding: 16px; }
 
 /* ROLE SELECTOR */
@@ -222,7 +222,7 @@ textarea { min-height: 90px; resize: vertical; }
       </div>
     </div>
 
-      <div class="card">
+    <div class="card">
       <div class="card-title">Step 2 — Incident details</div>
       <div class="field">
         <label>Line</label>
@@ -254,6 +254,11 @@ textarea { min-height: 90px; resize: vertical; }
         </select>
       </div>
     </div>
+
+    <button class="submit-btn navy" id="supSubmitBtn" onclick="submitDowntime()" disabled>
+      Log Machine Down
+    </button>
+  </div>
 
   <!-- Success -->
   <div id="supSuccessView" style="display:none">
@@ -386,22 +391,22 @@ textarea { min-height: 90px; resize: vertical; }
         <!-- Mechanic name — captured here so it's on the request -->
         <div class="field">
           <label>Your name</label>
-        <select id="investigateMechName" onchange="saveMechName();">
-          <option value="">Select your name...</option>
-          <option>Ashley</option>
-          <option>Bernard</option>
-          <option>Bradwin</option>
-          <option>Keenan</option>
-          <option>Khanyisa</option>
-          <option>Lele</option>
-          <option>Monray</option>
-          <option>Nur</option>
-          <option>Phillip</option>
-          <option>Phumzi</option>
-          <option>Ralton</option>
-          <option>Riedaw</option>
-          <option>Wallied</option>
-        </select>
+          <select id="partsRequestMechanic" onchange="saveMechName();">
+            <option value="">Select your name...</option>
+            <option>Ashley</option>
+            <option>Bernard</option>
+            <option>Bradwin</option>
+            <option>Keenan</option>
+            <option>Khanyisa</option>
+            <option>Lele</option>
+            <option>Monray</option>
+            <option>Nur</option>
+            <option>Phillip</option>
+            <option>Phumzi</option>
+            <option>Ralton</option>
+            <option>Riedaw</option>
+            <option>Wallied</option>
+          </select>
         </div>
 
         <!-- Existing requests list -->
@@ -434,26 +439,26 @@ textarea { min-height: 90px; resize: vertical; }
         <div class="card-title">Resolve job card</div>
         <div class="field">
           <label>Your name</label>
-        <select id="investigateMechName" onchange="saveMechName();">
-          <option value="">Select your name...</option>
-          <option>Ashley</option>
-          <option>Bernard</option>
-          <option>Bradwin</option>
-          <option>Keenan</option>
-          <option>Khanyisa</option>
-          <option>Lele</option>
-          <option>Monray</option>
-          <option>Nur</option>
-          <option>Phillip</option>
-          <option>Phumzi</option>
-          <option>Ralton</option>
-          <option>Riedaw</option>
-          <option>Wallied</option>
-        </select>
+          <select id="mechName" onchange="saveMechName();">
+            <option value="">Select your name...</option>
+            <option>Ashley</option>
+            <option>Bernard</option>
+            <option>Bradwin</option>
+            <option>Keenan</option>
+            <option>Khanyisa</option>
+            <option>Lele</option>
+            <option>Monray</option>
+            <option>Nur</option>
+            <option>Phillip</option>
+            <option>Phumzi</option>
+            <option>Ralton</option>
+            <option>Riedaw</option>
+            <option>Wallied</option>
+          </select>
         </div>
         <div class="field">
           <label>Error code</label>
-           <select id="mechErrorCode">
+          <select id="mechErrorCode">
             <option value="">Select error code...</option>
             <option>Feed system fault</option>
             <option>Mechanical / timing fault</option>
