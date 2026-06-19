@@ -85,6 +85,7 @@ const CONFIG = {
     'Line 13', 'Line 14', 'Line 15', 'Line 16',
     'Line 17', 'Line 18', 'Line 19', 'Line 20',
     'Line 21', 'Line 22', 'Line 23', 'Line 24',
+    'S/ROOM','T/ROOM',
   ],
 
   // ── POOL LOCATIONS ────────────────────────────────────────────
@@ -108,7 +109,6 @@ const CONFIG = {
     'Nur',
     'Phillip',
     'Phumzi',
-    'Rameez',
     'Ralton',
     'Riedaw',
     'Wallied',
@@ -124,6 +124,7 @@ const CONFIG = {
     'Machine not sewing',
     'Unusual noise / vibration',
     'Machine stopped — error light',
+    'Machine — safety',
   ],
 
   // ── ERROR CODES (mechanic resolution) ────────────────────────
@@ -135,6 +136,8 @@ const CONFIG = {
     'Needle / hook fault',
     'Setup / operator error',
     'Electrical / sensor fault',
+    'Safety — Eye guard',
+    'Safety — Finger guard',
     'Other — see comments',
   ],
 
