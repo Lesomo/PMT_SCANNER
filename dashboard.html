@@ -3070,8 +3070,15 @@ function renderFaultHeatmap() {
     return;
   }
 
+  // Include any fault values logged that aren't in the canonical FAULT_TYPES list
+  // (e.g. "Machine stopped — Safety") so they still get a row instead of being dropped.
+  const customFaults = [...new Set(
+    filteredDowntime.map(r => r.fault).filter(f => f && !FAULT_TYPES.includes(f))
+  )];
+  const faultRows = [...FAULT_TYPES, ...customFaults];
+
   let maxCount = 0;
-  FAULT_TYPES.forEach(ft => {
+  faultRows.forEach(ft => {
     DT_LINES.forEach(line => {
       const cnt = filteredDowntime.filter(r => r.fault === ft && r.line === line).length;
       if (cnt > maxCount) maxCount = cnt;
@@ -3082,7 +3089,7 @@ function renderFaultHeatmap() {
   DT_LINES.forEach(l => { html += `<th>${l.replace('Line ','L')}</th>`; });
   html += '</tr></thead><tbody>';
 
-  FAULT_TYPES.forEach(ft => {
+  faultRows.forEach(ft => {
     html += `<tr><td class="hm-row-label" style="font-size:11px;">${ft}</td>`;
     DT_LINES.forEach(line => {
       const cnt = filteredDowntime.filter(r => r.fault === ft && r.line === line).length;
@@ -3109,14 +3116,20 @@ function renderFaultTable() {
     return;
   }
 
+  // Same fix as the heatmap above: fold in any fault names not in FAULT_TYPES.
+  const customFaults = [...new Set(
+    filteredDowntime.map(r => r.fault).filter(f => f && !FAULT_TYPES.includes(f))
+  )];
+  const faultCols = [...FAULT_TYPES, ...customFaults];
+
   let html = '<table class="sl-table"><thead><tr><th>Line</th>';
-  FAULT_TYPES.forEach(ft => { html += `<th class="num" style="font-size:10px;">${ft.length > 20 ? ft.substring(0,18)+'…' : ft}</th>`; });
+  faultCols.forEach(ft => { html += `<th class="num" style="font-size:10px;">${ft.length > 20 ? ft.substring(0,18)+'…' : ft}</th>`; });
   html += '<th class="num">Total</th></tr></thead><tbody>';
 
   lines.forEach(line => {
     const lineRecs = filteredDowntime.filter(r => r.line === line);
     html += `<tr><td style="font-weight:600;white-space:nowrap;">${line}</td>`;
-    FAULT_TYPES.forEach(ft => {
+    faultCols.forEach(ft => {
       const cnt = lineRecs.filter(r => r.fault === ft).length;
       html += `<td style="text-align:center;">${cnt > 0 ? `<span class="count-pill" style="background:#F5C4B3;color:#712B13;">${cnt}</span>` : '<span style="color:#ccc;">—</span>'}</td>`;
     });
