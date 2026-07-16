@@ -338,27 +338,27 @@ tbody td {
 .repeat-alert-gap { font-size: 11px; font-weight: 700; color: #ED7D31; background: #FFF2CC; padding: 2px 8px; border-radius: 4px; }
 .repeat-alert-warn { font-size: 11px; color: #C00000; font-style: italic; margin-top: 6px; }
 
-/* Escalation severity tiers: High (<=15min) / Moderate (15-60min) / Normal (>60min) */
-.repeat-alert-high { background: #FFF5F5; border-color: #F7C1C1; border-left-color: #C00000; }
-.repeat-alert-high .repeat-alert-asset { color: #C00000; }
-.repeat-alert-high .repeat-alert-warn { color: #C00000; }
+/* Escalation severity tiers: Very high (<=30min) / High (30-60min) / Moderate (>60min) */
+.repeat-alert-veryhigh { background: #FFF5F5; border-color: #F7C1C1; border-left-color: #C00000; }
+.repeat-alert-veryhigh .repeat-alert-asset { color: #C00000; }
+.repeat-alert-veryhigh .repeat-alert-warn { color: #C00000; }
 
-.repeat-alert-moderate { background: #FFFAF0; border-color: #F5D9A8; border-left-color: #ED7D31; }
-.repeat-alert-moderate .repeat-alert-asset { color: #C1621A; }
-.repeat-alert-moderate .repeat-alert-warn { color: #C1621A; }
+.repeat-alert-high { background: #FFFAF0; border-color: #F5D9A8; border-left-color: #ED7D31; }
+.repeat-alert-high .repeat-alert-asset { color: #C1621A; }
+.repeat-alert-high .repeat-alert-warn { color: #C1621A; }
 
-.repeat-alert-normal { background: #F0F5FC; border-color: #BFD4EE; border-left-color: #2F5597; }
-.repeat-alert-normal .repeat-alert-asset { color: #2F5597; }
-.repeat-alert-normal .repeat-alert-warn { color: #2F5597; }
+.repeat-alert-moderate { background: #F0F5FC; border-color: #BFD4EE; border-left-color: #2F5597; }
+.repeat-alert-moderate .repeat-alert-asset { color: #2F5597; }
+.repeat-alert-moderate .repeat-alert-warn { color: #2F5597; }
 
 .repeat-severity-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: white; padding: 2px 8px; border-radius: 10px; }
-.repeat-severity-badge.high { background: #C00000; }
-.repeat-severity-badge.moderate { background: #ED7D31; }
-.repeat-severity-badge.normal { background: #2F5597; }
+.repeat-severity-badge.veryhigh { background: #C00000; }
+.repeat-severity-badge.high { background: #ED7D31; }
+.repeat-severity-badge.moderate { background: #2F5597; }
 
-.repeat-alert-gap.high { color: #C00000; background: #FBDADA; }
-.repeat-alert-gap.moderate { color: #C1621A; background: #FFF2CC; }
-.repeat-alert-gap.normal { color: #2F5597; background: #DCE6F5; }
+.repeat-alert-gap.veryhigh { color: #C00000; background: #FBDADA; }
+.repeat-alert-gap.high { color: #C1621A; background: #FFF2CC; }
+.repeat-alert-gap.moderate { color: #2F5597; background: #DCE6F5; }
 
 .req-card { background: white; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; border-left: 4px solid #ED7D31; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .req-card.issued { border-left-color: #70AD47; }
@@ -869,9 +869,9 @@ tbody td {
         </div>
         <div class="chart-sub" style="margin-bottom:8px;">Assets with multiple incidents today — possible misdiagnosis or cascade failure</div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:11px;color:#555;">
-          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#C00000;display:inline-block;"></span>High priority — within 15 min</span>
-          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#ED7D31;display:inline-block;"></span>Moderate — within 60 min</span>
-          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#2F5597;display:inline-block;"></span>Normal — over 60 min</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#C00000;display:inline-block;"></span>Very high — within 30 min</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#ED7D31;display:inline-block;"></span>High — 30–60 min</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#2F5597;display:inline-block;"></span>Moderate — over 60 min</span>
         </div>
         <div id="repeatAlertsList"></div>
       </div>
@@ -2776,23 +2776,23 @@ function renderRepeatAlerts() {
 
   // Escalation tiers, based on the gap between an incident's resolved_time and the
   // next incident's reported_time on the same asset:
-  //   High priority : gap <= 15 min  (likely misdiagnosis / failed repair)
-  //   Moderate      : gap 16-60 min (incomplete repair / needs inspection)
-  //   Normal        : gap > 60 min  (unrelated / separate fault, monitor as usual)
+  //   Very high : gap <= 30 min  (likely misdiagnosis / failed repair)
+  //   High      : gap 31-60 min (incomplete repair / needs inspection)
+  //   Moderate  : gap > 60 min  (unrelated / separate fault, monitor as usual)
   function gapTier(gapMins) {
-    if (gapMins <= 15) return 'high';
-    if (gapMins <= 60) return 'moderate';
-    return 'normal';
+    if (gapMins <= 30) return 'veryhigh';
+    if (gapMins <= 60) return 'high';
+    return 'moderate';
   }
-  const TIER_RANK = { high: 3, moderate: 2, normal: 1 };
-  const TIER_LABEL = { high: 'High priority', moderate: 'Moderate', normal: 'Normal' };
+  const TIER_RANK = { veryhigh: 3, high: 2, moderate: 1 };
+  const TIER_LABEL = { veryhigh: 'Very high', high: 'High', moderate: 'Moderate' };
   const TIER_WARN = {
-    high: 'Broke down within 15 min of last fix — likely misdiagnosis or failed repair. Recommend immediate re-inspection.',
-    moderate: 'Broke down within 60 min of last fix — possible incomplete repair. Recommend inspection.',
-    normal: 'Multiple incidents today, more than 60 min apart — likely separate faults. Monitor as usual.'
+    veryhigh: 'Broke down within 30 min of last fix — likely misdiagnosis or failed repair. Recommend immediate re-inspection.',
+    high: 'Broke down within 60 min of last fix — possible incomplete repair. Recommend inspection.',
+    moderate: 'Multiple incidents today, more than 60 min apart — likely separate faults. Monitor as usual.'
   };
 
-  // Compute worst-case tier per asset up front so High-priority assets can be listed first
+  // Compute worst-case tier per asset up front so the most urgent assets can be listed first
   const repeats = Object.entries(byAsset)
     .filter(([_, recs]) => recs.length >= 2)
     .map(([assetNo, recs]) => {
@@ -2807,7 +2807,7 @@ function renderRepeatAlerts() {
           }
         }
       }
-      return { assetNo, recs: sorted, tier: worstTier || 'normal' };
+      return { assetNo, recs: sorted, tier: worstTier || 'moderate' };
     })
     .sort((a, b) => (TIER_RANK[b.tier] - TIER_RANK[a.tier]) || (b.recs.length - a.recs.length));
 
