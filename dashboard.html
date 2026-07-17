@@ -3087,17 +3087,31 @@ function renderFaultHeatmap() {
 
   let html = '<table class="hm-table"><thead><tr><th class="row-hdr">Fault</th>';
   DT_LINES.forEach(l => { html += `<th>${l.replace('Line ','L')}</th>`; });
+  html += '<th style="font-size:10px;color:#555;border-left:1px solid #eee;">Total</th>';
   html += '</tr></thead><tbody>';
 
+  let grandTotal = 0;
   faultRows.forEach(ft => {
     html += `<tr><td class="hm-row-label" style="font-size:11px;">${ft}</td>`;
+    let rowTotal = 0;
     DT_LINES.forEach(line => {
       const cnt = filteredDowntime.filter(r => r.fault === ft && r.line === line).length;
+      rowTotal += cnt;
       const cls = faultCellClass(cnt, maxCount);
       html += `<td class="hm-cell ${cls}" title="${line} — ${ft}: ${cnt} incident${cnt !== 1 ? 's' : ''}">${cnt > 0 ? cnt : ''}</td>`;
     });
-    html += '</tr>';
+    grandTotal += rowTotal;
+    html += `<td style="text-align:center;font-weight:700;font-size:11px;border-left:1px solid #eee;">${rowTotal > 0 ? rowTotal : ''}</td></tr>`;
   });
+
+  // Totals row: per-line totals across all fault types, plus grand total
+  html += `<tr><td class="hm-row-label" style="font-size:11px;font-weight:700;border-top:1px solid #ddd;">Total</td>`;
+  DT_LINES.forEach(line => {
+    const cnt = filteredDowntime.filter(r => faultRows.includes(r.fault) && r.line === line).length;
+    html += `<td style="text-align:center;font-weight:700;font-size:11px;border-top:1px solid #ddd;">${cnt > 0 ? cnt : ''}</td>`;
+  });
+  html += `<td style="text-align:center;font-weight:700;font-size:11px;border-top:1px solid #ddd;border-left:1px solid #eee;">${grandTotal}</td></tr>`;
+
   html += '</tbody></table>';
   container.innerHTML = html;
 }
@@ -3126,15 +3140,27 @@ function renderFaultTable() {
   faultCols.forEach(ft => { html += `<th class="num" style="font-size:10px;">${ft.length > 20 ? ft.substring(0,18)+'…' : ft}</th>`; });
   html += '<th class="num">Total</th></tr></thead><tbody>';
 
+  const faultColTotals = faultCols.map(() => 0);
+  let grandTotal = 0;
   lines.forEach(line => {
     const lineRecs = filteredDowntime.filter(r => r.line === line);
     html += `<tr><td style="font-weight:600;white-space:nowrap;">${line}</td>`;
-    faultCols.forEach(ft => {
+    faultCols.forEach((ft, i) => {
       const cnt = lineRecs.filter(r => r.fault === ft).length;
+      faultColTotals[i] += cnt;
       html += `<td style="text-align:center;">${cnt > 0 ? `<span class="count-pill" style="background:#F5C4B3;color:#712B13;">${cnt}</span>` : '<span style="color:#ccc;">—</span>'}</td>`;
     });
+    grandTotal += lineRecs.length;
     html += `<td style="text-align:center;font-weight:700;">${lineRecs.length}</td></tr>`;
   });
+
+  // Totals row: per-fault-type totals across all lines, plus grand total
+  html += `<tr style="border-top:2px solid #ddd;"><td style="font-weight:700;white-space:nowrap;">Total</td>`;
+  faultColTotals.forEach(t => {
+    html += `<td style="text-align:center;font-weight:700;">${t > 0 ? t : '—'}</td>`;
+  });
+  html += `<td style="text-align:center;font-weight:700;">${grandTotal}</td></tr>`;
+
   html += '</tbody></table>';
   container.innerHTML = html;
 }
