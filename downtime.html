@@ -340,11 +340,12 @@ textarea { min-height: 90px; resize: vertical; }
       <div class="card" style="border:1.5px solid #ED7D31;">
         <div class="card-title" style="color:#ED7D31;">⚠ Machine type needed</div>
         <p style="font-size:13px;color:#555;margin-bottom:14px;">This asset wasn't found in master data. Please confirm the correct machine type before investigating — this will also update master data so future scans resolve automatically.</p>
-        <div class="field">
+        <div class="field" style="position:relative;">
           <label>Machine type</label>
-          <select id="machineTypeSelect">
-            <option value="">Loading types...</option>
-          </select>
+          <input type="text" id="mtTypeInput" placeholder="Search or select type..." autocomplete="off"
+            style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;"
+            oninput="mtFilterTypeList(this.value)" onfocus="mtShowTypeList()" onblur="mtHideTypeListDelayed()">
+          <div id="mtTypeDropdown" style="display:none;border:1.5px solid #ED7D31;border-top:none;border-radius:0 0 10px 10px;background:white;max-height:200px;overflow-y:auto;position:absolute;left:0;right:0;z-index:10;box-shadow:0 4px 10px rgba(0,0,0,0.1);"></div>
         </div>
         <button class="submit-btn orange" id="confirmMachineTypeBtn" onclick="confirmMachineType()" disabled>
           Confirm Machine Type
@@ -537,7 +538,6 @@ let currentJobData = null;
 let supScanner = null;
 let supScannerActive = false;
 let allJobs = [];
-let machineTypesCache = null;
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 function goScreen(id) {
@@ -1069,45 +1069,106 @@ function switchMechTab(tab) {
 }
 
 // ── MACHINE TYPE CONFIRMATION (for Unknown types) ─────────────────
-async function fetchMachineTypes() {
-  if (machineTypesCache) return machineTypesCache;
-  try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/master_data?select=asset_type&asset_type=not.is.null&order=asset_type.asc',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-    );
-    const data = await res.json();
-    const types = [...new Set(data.map(r => r.asset_type).filter(Boolean))].sort();
-    machineTypesCache = types;
-    return types;
-  } catch(e) {
-    return [];
+// Fixed list, matching the Asset Register app's format (code | description)
+const MACHINE_TYPES = [
+  { code: 'BLNDST',          desc: 'BLIND STITCH MACHINE' },
+  { code: 'BRTCK',           desc: 'BARTACKING MACHINE' },
+  { code: 'BTN W/P',         desc: 'BUTTON WRAP' },
+  { code: 'BTNHOLE',         desc: 'BUTTONHOLE MACHINE' },
+  { code: 'EYELET BTNHOLE',  desc: 'EYELET BUTTON HOLE' },
+  { code: 'BTNSEW CHAINST',  desc: 'BUTTON SEW-ON CHAIN STITCH' },
+  { code: 'BTNSEW LOCKST',   desc: 'BUTTON SEW-ON LOCK STITCH' },
+  { code: 'COVERSEAM',       desc: 'COVERSEAM MACHINE' },
+  { code: 'BNDR',            desc: 'COVERSEAM BINDER' },
+  { code: 'CYLBED',          desc: 'CYLINDERBED COVERSEAM' },
+  { code: 'CYLBED with Tr',  desc: 'CYLINDERBED SPREADER & TRIMMER' },
+  { code: 'ELST',            desc: 'ELASTICATOR' },
+  { code: 'FLATBD',          desc: 'FLATBED COVERSEAM' },
+  { code: 'C/S spr/Tr',      desc: 'SPREADER & TRIMMER' },
+  { code: 'DBL NDL',         desc: 'DOUBLE NEEDLE MACHINE' },
+  { code: 'D/N CHAINST',     desc: 'DOUBLE NEEDLE CHAIN STITCH' },
+  { code: 'D/N LOCKST',      desc: 'DOUBLE NEEDLE LOCK STITCH' },
+  { code: 'EMB',             desc: 'EMBROIDERY MACHINE' },
+  { code: 'FDARM',           desc: 'FEED OF THE ARM' },
+  { code: 'JETPKT',          desc: 'JETPOCKET MACHINE' },
+  { code: 'MULTINDL',        desc: 'MULTI NEEDLE MACHINE' },
+  { code: 'NFLCK',           desc: 'NEEDLE FEED LOCKSTITCH' },
+  { code: '3 THRD O/L',      desc: '3 THREAD OVERLOCK MACHINE' },
+  { code: '4 THRD O/L',      desc: '4 THREAD OVERLOCK' },
+  { code: '5 THRD /SFTY O/L',desc: '5 THREAD SAFETY OVERLOCK MACHINE' },
+  { code: '5 THRD O/L T/B F',desc: '5THRD O/L WITH TOP AND BOTTOM FEED' },
+  { code: '6THRD/MK/SFT O/L',desc: '6 THREAD MOCK SAFETY OVERLOCK MACHINE' },
+  { code: 'S/N CHAINST',     desc: 'SINGLE NEEDLE CHAIN STITCH' },
+  { code: 'S/N LOCKST EDGET',desc: 'SINGLE NEEDLE LOCK STITCH + EDGE TRIMMER' },
+  { code: 'PLN S/N',          desc: 'PLAIN SINGLE NEEDLE LOCKSTITCH' },
+  { code: 'ROUCH',           desc: 'ROUCHING MACHINE' },
+  { code: 'STD',             desc: 'STUD MACHINE' },
+  { code: 'ZIGZAG ST',       desc: 'ZIG ZAG STITCH MACHINE' },
+];
+
+let mtSelectedCode = ''; // tracks a confirmed pick from the dropdown (vs free-typed text)
+
+function mtFilterTypeList(q) {
+  const dropdown = document.getElementById('mtTypeDropdown');
+  const filtered = q.length === 0
+    ? MACHINE_TYPES
+    : MACHINE_TYPES.filter(t =>
+        t.code.toLowerCase().includes(q.toLowerCase()) ||
+        t.desc.toLowerCase().includes(q.toLowerCase())
+      );
+  mtRenderTypeDropdown(filtered);
+  dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
+
+  // Any manual typing invalidates a previous selection until re-picked from the list
+  if (q !== mtSelectedCode) {
+    mtSelectedCode = '';
+    document.getElementById('confirmMachineTypeBtn').disabled = true;
   }
 }
 
-async function showMachineTypeConfirm() {
+function mtShowTypeList() {
+  const q = document.getElementById('mtTypeInput').value;
+  mtFilterTypeList(q);
+}
+
+function mtHideTypeListDelayed() {
+  setTimeout(() => { document.getElementById('mtTypeDropdown').style.display = 'none'; }, 200);
+}
+
+function mtRenderTypeDropdown(types) {
+  const dropdown = document.getElementById('mtTypeDropdown');
+  dropdown.innerHTML = types.map(t =>
+    `<div onclick="mtSelectType('${t.code.replace(/'/g,"\\'")}','${t.desc.replace(/'/g,"\\'")}')"
+      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:14px;"
+      onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='white'">
+      <strong>${t.code}</strong>
+      <span style="color:#888;font-size:12px;margin-left:8px;">${t.desc}</span>
+    </div>`
+  ).join('');
+}
+
+function mtSelectType(code, desc) {
+  document.getElementById('mtTypeInput').value = code;
+  document.getElementById('mtTypeDropdown').style.display = 'none';
+  mtSelectedCode = code;
+  document.getElementById('confirmMachineTypeBtn').disabled = false;
+}
+
+function showMachineTypeConfirm() {
   document.getElementById('investigateSection').style.display = 'none';
   document.getElementById('machineTypeConfirmSection').style.display = 'block';
 
-  const sel = document.getElementById('machineTypeSelect');
+  const input = document.getElementById('mtTypeInput');
   const btn = document.getElementById('confirmMachineTypeBtn');
-  sel.innerHTML = '<option value="">Loading types...</option>';
+  input.value = '';
+  mtSelectedCode = '';
   btn.disabled = true;
-
-  const types = await fetchMachineTypes();
-  if (types.length === 0) {
-    sel.innerHTML = '<option value="">No machine types found — check master data</option>';
-    return;
-  }
-  sel.innerHTML = '<option value="">Select machine type...</option>' +
-    types.map(t => `<option value="${t}">${t}</option>`).join('');
-  sel.onchange = () => { btn.disabled = !sel.value; };
+  btn.textContent = 'Confirm Machine Type';
 }
 
 async function confirmMachineType() {
-  const sel = document.getElementById('machineTypeSelect');
-  const type = sel.value;
-  if (!type) { showToast('Please select a machine type.', 'error'); return; }
+  const type = mtSelectedCode || document.getElementById('mtTypeInput').value.trim();
+  if (!type || !mtSelectedCode) { showToast('Please pick a machine type from the list.', 'error'); return; }
 
   const btn = document.getElementById('confirmMachineTypeBtn');
   btn.disabled = true;
