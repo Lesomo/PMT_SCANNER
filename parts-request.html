@@ -249,6 +249,7 @@ textarea { min-height: 80px; resize: vertical; }
   transition: all 0.15s;
 }
 .btn-add-part:hover { background: #e8eaed; }
+.btn-add-part:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* SUBMIT */
 .submit-btn {
@@ -405,14 +406,14 @@ textarea { min-height: 80px; resize: vertical; }
         <div class="input-wrap">
           <label>Part description</label>
           <input type="text" id="partDesc" placeholder="e.g. Feed dog, Needle bar..."
-            onkeydown="if(event.key==='Enter'){addPart();}">
+            onkeydown="if(event.key==='Enter'){event.preventDefault(); addPart();}">
         </div>
         <div class="qty-wrap">
           <label>Qty</label>
           <input type="number" id="partQty" value="1" min="1" max="99">
         </div>
       </div>
-      <button class="btn-add-part" onclick="addPart()">+ Add Part</button>
+      <button class="btn-add-part" id="addPartBtn" onclick="addPart()">+ Add Part</button>
     </div>
 
     <!-- Notes -->
@@ -452,6 +453,23 @@ let currentReason     = '';
 let pendingParts      = [];
 let scanner           = null;
 let scannerActive     = false;
+
+// Guards against double-fire / double-submit
+let addingPart   = false;
+let isSubmitting = false;
+
+// One ID per form-fill session — reused if a submit needs retrying, so the
+// database unique constraint can recognise "same batch, try again" vs a
+// genuinely new request.
+let currentBatchId = generateBatchId();
+
+function generateBatchId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 // ── BARCODE ───────────────────────────────────────────────────────────────────
 function cleanBarcode(val) {
@@ -564,17 +582,45 @@ function selectReason(reason, btn) {
 }
 
 // ── PARTS ─────────────────────────────────────────────────────────────────────
+// Guarded against double-fire (fast double-tap, or Enter-key + button click
+// racing each other) and merges same-description entries instead of creating
+// duplicate rows.
 function addPart() {
-  const desc = document.getElementById('partDesc').value.trim();
-  const qty  = parseInt(document.getElementById('partQty').value) || 1;
-  if (!desc) { showToast('Please describe the part needed.', 'error'); return; }
-  pendingParts.push({ description: desc, quantity: qty });
-  document.getElementById('partDesc').value = '';
-  document.getElementById('partQty').value  = 1;
-  document.getElementById('partDesc').focus();
-  renderParts();
-  checkReady();
-  showToast('Part added.', 'success');
+  if (addingPart) return;
+  addingPart = true;
+  const addBtn = document.getElementById('addPartBtn');
+  addBtn.disabled = true;
+
+  try {
+    const descInput = document.getElementById('partDesc');
+    const desc = descInput.value.trim();
+    const qty  = parseInt(document.getElementById('partQty').value) || 1;
+
+    if (!desc) {
+      showToast('Please describe the part needed.', 'error');
+      return;
+    }
+
+    const existing = pendingParts.find(
+      p => p.description.toLowerCase() === desc.toLowerCase()
+    );
+    if (existing) {
+      existing.quantity += qty;
+      showToast('Updated quantity for ' + existing.description + '.', 'success');
+    } else {
+      pendingParts.push({ description: desc, quantity: qty });
+      showToast('Part added.', 'success');
+    }
+
+    descInput.value = '';
+    document.getElementById('partQty').value = 1;
+    descInput.focus();
+    renderParts();
+    checkReady();
+  } finally {
+    addBtn.disabled = false;
+    addingPart = false;
+  }
 }
 
 function removePart(idx) {
@@ -615,7 +661,14 @@ function checkReady() {
 }
 
 // ── SUBMIT ────────────────────────────────────────────────────────────────────
+// Guarded with isSubmitting (blocks re-entrant calls, not just re-clicks) and
+// stamps every row with the same request_batch_id for this form-fill, so a
+// retried submission after a dropped connection can be recognised/blocked by
+// the database unique constraint instead of creating duplicate rows.
 async function submitRequest() {
+  if (isSubmitting) return;
+  isSubmitting = true;
+
   const btn      = document.getElementById('submitBtn');
   const mechName = document.getElementById('mechName').value;
   const line     = document.getElementById('lineSelect').value;
@@ -636,7 +689,8 @@ async function submitRequest() {
     status           : 'Pending',
     requested_time   : new Date().toISOString(),
     request_reason   : currentReason,
-    notes            : notes || null
+    notes            : notes || null,
+    request_batch_id : currentBatchId
   }));
 
   try {
@@ -658,10 +712,21 @@ async function submitRequest() {
         currentAsset + ' — ' + line + ' (' + currentReason + ')';
       document.getElementById('formView').style.display    = 'none';
       document.getElementById('successView').style.display = 'block';
+    } else if (res.status === 409) {
+      // Unique constraint hit: this exact batch already made it to the DB
+      // on a prior attempt (e.g. connection dropped after insert succeeded).
+      // Treat as success rather than letting the user submit a third time.
+      const partCount = pendingParts.length;
+      document.getElementById('successDetail').textContent =
+        partCount + ' part' + (partCount > 1 ? 's' : '') + ' requested for ' +
+        currentAsset + ' — ' + line + ' (' + currentReason + ')';
+      document.getElementById('formView').style.display    = 'none';
+      document.getElementById('successView').style.display = 'block';
     } else {
       const err = await res.text();
-      // If the request_reason or notes column doesn't exist yet, retry without them
-      if (err.includes('request_reason') || err.includes('notes')) {
+      // If the request_reason / notes / request_batch_id column doesn't
+      // exist yet, retry without them
+      if (err.includes('request_reason') || err.includes('notes') || err.includes('request_batch_id')) {
         await submitLegacy(payloads, btn);
       } else {
         showToast('Submission failed. Please try again.', 'error');
@@ -673,12 +738,14 @@ async function submitRequest() {
     showToast('Connection error.', 'error');
     btn.disabled    = false;
     btn.textContent = 'Submit Parts Request';
+  } finally {
+    isSubmitting = false;
   }
 }
 
-// Fallback if request_reason / notes columns not yet added to Supabase
+// Fallback if request_reason / notes / request_batch_id columns not yet added to Supabase
 async function submitLegacy(payloads, btn) {
-  const stripped = payloads.map(({ request_reason, notes, ...rest }) => rest);
+  const stripped = payloads.map(({ request_reason, notes, request_batch_id, ...rest }) => rest);
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
       method  : 'POST',
@@ -715,6 +782,7 @@ function resetForm() {
   currentMachineType = '';
   currentReason      = '';
   pendingParts       = [];
+  currentBatchId     = generateBatchId(); // fresh ID for the next request
 
   document.getElementById('assetInput').value       = '';
   document.getElementById('assetConfirmed').style.display = 'none';
