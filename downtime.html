@@ -1384,6 +1384,14 @@ let pendingRequests = [];
 let addingPartRequest = false;
 let submittingParts = false;
 
+function generatePartsBatchId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function showPartsRequest() {
   document.getElementById('partsDecisionSection').style.display = 'none';
   document.getElementById('partsRequestSection').style.display = 'block';
@@ -1497,8 +1505,10 @@ async function submitPartRequests(jobId, assetNo, machineType, line, mechName, b
   if (res.ok || res.status === 201) return;
 
   const err = await res.text();
-  // If request_batch_id column doesn't exist yet, retry without it
-  if (err.includes('request_batch_id')) {
+  // If request_batch_id column doesn't exist yet, or the value sent doesn't
+  // match its column type (e.g. uuid), retry without it rather than losing
+  // the whole parts request over a schema mismatch on one tracking field.
+  if (err.includes('request_batch_id') || err.includes('invalid input syntax for type uuid')) {
     const stripped = payloads.map(({ request_batch_id, ...rest }) => rest);
     const retryRes = await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
       method: 'POST',
@@ -1534,7 +1544,10 @@ async function submitAndProceed() {
 
   // One ID per attempt for this job's parts request — supports future
   // retry-safe behaviour once a unique constraint exists on parts_requests.
-  const batchId = currentJobId + '-parts-' + Date.now();
+  // Must be a real UUID: request_batch_id is typed uuid on parts_requests
+  // (see the parts-request.html migration), so a plain string here causes
+  // Postgres to reject the insert with "invalid input syntax for type uuid".
+  const batchId = generatePartsBatchId();
 
   try {
     if (pendingRequests.length > 0) {
