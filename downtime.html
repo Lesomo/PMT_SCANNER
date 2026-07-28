@@ -436,14 +436,14 @@ textarea { min-height: 90px; resize: vertical; }
           <label>Part description</label>
           <input type="text" id="partDescInput" placeholder="e.g. Feed dog, Needle bar, Bobbin case..."
             style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;"
-            onkeydown="if(event.key==='Enter'){addPartRequest();}">
+            onkeydown="if(event.key==='Enter'){event.preventDefault(); addPartRequest();}">
         </div>
         <div class="field">
           <label>Quantity</label>
           <input type="number" id="partQty" value="1" min="1" max="99"
             style="width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;">
         </div>
-        <button class="submit-btn orange" onclick="addPartRequest()" style="margin-bottom:10px;">
+        <button class="submit-btn orange" id="addPartRequestBtn" onclick="addPartRequest()" style="margin-bottom:10px;">
           + Add Part Request
         </button>
         <button class="submit-btn navy" id="donePartsBtn" onclick="submitAndProceed()" disabled>
@@ -525,8 +525,6 @@ textarea { min-height: 90px; resize: vertical; }
     </div>
   </div>
 </div>
-
-<!-- DUPLICATE INCIDENT BLOCK OVERLAY -->
 
 <script>
 const SUPABASE_URL = 'https://tdrlvyblmcqctifcikhq.supabase.co';
@@ -735,18 +733,6 @@ function closeDupOverlay() {
   dupExistingJob = null;
 }
 
-function viewDupTicket() {
-  document.getElementById('dupOverlay').style.display = 'none';
-  if (dupExistingJob) {
-    // Switch to mechanic screen and open the existing job card directly
-    goScreen('screenMechanic');
-    loadMechanicScreen().then(() => {
-      if (dupExistingJob.id) openJobDetail(dupExistingJob.id);
-    });
-  }
-  dupExistingJob = null;
-}
-
 function viewExistingTicket() {
   closeDupOverlay();
   // Switch to mechanic screen and open the existing job card
@@ -760,50 +746,78 @@ function viewExistingTicket() {
   }, 200);
 }
 
+// Guards against double-submit / re-entrant calls on the downtime log itself
+let submittingDowntime = false;
+
 async function submitDowntime() {
+  if (submittingDowntime) return;
+  submittingDowntime = true;
+
   const btn = document.getElementById('supSubmitBtn');
   btn.disabled = true;
   btn.textContent = 'Checking...';
 
-  // Check for existing open or investigating ticket for this asset
-  const existing = await checkExistingTicket(currentAssetNo);
-  if (existing) {
-    btn.disabled = false;
-    btn.textContent = 'Log Machine Down';
-    showDupOverlay(existing);
-    return;
-  }
-
-  btn.textContent = 'Logging...';
-  const payload = {
-    asset_no: currentAssetNo,
-    machine_type: currentMachineType,
-    line: document.getElementById('supLine').value,
-    fault: document.getElementById('supFault').value,
-    reported_time: new Date().toISOString(),
-    status: 'Open'
-  };
   try {
+    // Check for existing open or investigating ticket for this asset.
+    // NOTE: this is a best-effort check, not a guarantee — two supervisors
+    // scanning the same asset within a second or two of each other can both
+    // pass this check before either insert lands. The real backstop is the
+    // partial unique index on downtime_log (see SQL note below), which the
+    // 409 branch below handles.
+    const existing = await checkExistingTicket(currentAssetNo);
+    if (existing) {
+      showDupOverlay(existing);
+      return;
+    }
+
+    btn.textContent = 'Logging...';
+    const payload = {
+      asset_no: currentAssetNo,
+      machine_type: currentMachineType,
+      line: document.getElementById('supLine').value,
+      fault: document.getElementById('supFault').value,
+      reported_time: new Date().toISOString(),
+      status: 'Open'
+    };
+
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
       body: JSON.stringify(payload)
     });
+
     if (res.ok || res.status === 201) {
       // Send push notification to all subscribed mechanics
       sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault);
       document.getElementById('supSuccessView').style.display = 'block';
-      // Auto-reset after 3 seconds for next incident
-      setTimeout(() => resetSupervisor(), 3000);
       document.getElementById('supSuccessDetail').textContent =
         currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
+      // Auto-reset after 3 seconds for next incident
+      setTimeout(() => resetSupervisor(), 3000);
+    } else if (res.status === 409) {
+      // Database-level unique index caught a race: another submission for
+      // this asset landed between our check and our insert. Treat exactly
+      // like the client-side duplicate check — refresh and show the ticket
+      // that actually won the race, rather than a generic error.
+      const raced = await checkExistingTicket(currentAssetNo);
+      btn.disabled = false;
+      btn.textContent = 'Log Machine Down';
+      if (raced) {
+        showDupOverlay(raced);
+      } else {
+        showToast('Asset already logged as down. Please refresh and check.', 'error');
+      }
     } else {
       showToast('Error submitting. Please try again.', 'error');
-      btn.disabled = false; btn.textContent = 'Log Machine Down';
+      btn.disabled = false;
+      btn.textContent = 'Log Machine Down';
     }
   } catch(e) {
     showToast('Connection error.', 'error');
-    btn.disabled = false; btn.textContent = 'Log Machine Down';
+    btn.disabled = false;
+    btn.textContent = 'Log Machine Down';
+  } finally {
+    submittingDowntime = false;
   }
 }
 
@@ -1365,8 +1379,10 @@ async function markResolved() {
   } catch(e) { showToast('Connection error.', 'error'); btn.disabled = false; btn.textContent = 'Mark as Resolved'; }
 }
 
-// ── PARTS ─────────────────────────────────────────────────────────
+// ── PARTS (embedded mechanic flow) ─────────────────────────────────
 let pendingRequests = [];
+let addingPartRequest = false;
+let submittingParts = false;
 
 function showPartsRequest() {
   document.getElementById('partsDecisionSection').style.display = 'none';
@@ -1385,32 +1401,49 @@ function showResolveSection() {
   document.getElementById('resolveSection').style.display = 'block';
 }
 
-async function submitAndProceed() {
-  const mechName = document.getElementById('partsRequestMechanic').value;
-  if (!mechName) { showToast('Please select your name before submitting.', 'error'); return; }
+// Guarded against double-fire (fast double-tap, or Enter-key + button click
+// racing each other) and merges same-description entries instead of pushing
+// a duplicate line into the request.
+function addPartRequest() {
+  if (addingPartRequest) return;
+  addingPartRequest = true;
+  const addBtn = document.getElementById('addPartRequestBtn');
+  addBtn.disabled = true;
 
-  const btn = document.getElementById('donePartsBtn');
-  btn.disabled = true;
-  btn.textContent = 'Submitting request...';
+  try {
+    const input = document.getElementById('partDescInput');
+    const desc = input.value.trim();
+    const qty  = parseInt(document.getElementById('partQty').value) || 1;
 
-  // Submit parts to Supabase immediately with mechanic name
-  if (pendingRequests.length > 0) {
-    await submitPartRequests(
-      currentJobId,
-      currentJobData.asset_no,
-      currentJobData.machine_type,
-      currentJobData.line,
-      mechName
+    if (!desc) {
+      showToast('Please describe the part needed.', 'error');
+      return;
+    }
+
+    const existing = pendingRequests.find(
+      r => r.description.toLowerCase() === desc.toLowerCase()
     );
-    pendingRequests = [];
+    if (existing) {
+      existing.quantity += qty;
+      showToast('Updated quantity for ' + existing.description + '.', 'success');
+    } else {
+      pendingRequests.push({ description: desc, part_no: '', quantity: qty });
+      showToast('Part added to request.', 'success');
+    }
+
+    input.value = '';
+    document.getElementById('partQty').value = 1;
+    input.focus();
+    renderExistingRequests();
+  } finally {
+    addBtn.disabled = false;
+    addingPartRequest = false;
   }
+}
 
-  // Pre-fill mechanic name on the resolve screen
-  const resolveSelect = document.getElementById('mechName');
-  if (resolveSelect) resolveSelect.value = mechName;
-
-  showToast('Part request sent to workshop!', 'success');
-  showResolveSection();
+function removePartRequest(idx) {
+  pendingRequests.splice(idx, 1);
+  renderExistingRequests();
 }
 
 function renderExistingRequests() {
@@ -1432,24 +1465,9 @@ function renderExistingRequests() {
   document.getElementById('donePartsBtn').disabled = false;
 }
 
-function addPartRequest() {
-  const desc = document.getElementById('partDescInput').value.trim();
-  const qty  = parseInt(document.getElementById('partQty').value) || 1;
-  if (!desc) { showToast('Please describe the part needed.', 'error'); return; }
-  pendingRequests.push({ description: desc, part_no: '', quantity: qty });
-  document.getElementById('partDescInput').value = '';
-  document.getElementById('partQty').value = 1;
-  document.getElementById('partDescInput').focus();
-  renderExistingRequests();
-  showToast('Part added to request.', 'success');
-}
-
-function removePartRequest(idx) {
-  pendingRequests.splice(idx, 1);
-  renderExistingRequests();
-}
-
-async function submitPartRequests(jobId, assetNo, machineType, line, mechName) {
+// Throws on failure instead of swallowing it — callers must find out if the
+// request didn't make it to the workshop, rather than silently proceeding.
+async function submitPartRequests(jobId, assetNo, machineType, line, mechName, batchId) {
   if (pendingRequests.length === 0) return;
   const payloads = pendingRequests.map(r => ({
     job_card_id: jobId,
@@ -1461,15 +1479,91 @@ async function submitPartRequests(jobId, assetNo, machineType, line, mechName) {
     part_description: r.description,
     quantity: r.quantity,
     status: 'Pending',
-    requested_time: new Date().toISOString()
+    requested_time: new Date().toISOString(),
+    request_batch_id: batchId
   }));
-  try {
-    await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
+
+  const res = await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(payloads)
+  });
+
+  if (res.ok || res.status === 201) return;
+
+  const err = await res.text();
+  // If request_batch_id column doesn't exist yet, retry without it
+  if (err.includes('request_batch_id')) {
+    const stripped = payloads.map(({ request_batch_id, ...rest }) => rest);
+    const retryRes = await fetch(SUPABASE_URL + '/rest/v1/parts_requests', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
-      body: JSON.stringify(payloads)
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(stripped)
     });
-  } catch(e) { console.error('Parts submit error', e); }
+    if (retryRes.ok || retryRes.status === 201) return;
+    throw new Error('Parts request failed: ' + await retryRes.text());
+  }
+
+  throw new Error('Parts request failed: ' + err);
+}
+
+async function submitAndProceed() {
+  if (submittingParts) return;
+  submittingParts = true;
+
+  const mechName = document.getElementById('partsRequestMechanic').value;
+  if (!mechName) {
+    showToast('Please select your name before submitting.', 'error');
+    submittingParts = false;
+    return;
+  }
+
+  const btn = document.getElementById('donePartsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting request...';
+
+  // One ID per attempt for this job's parts request — supports future
+  // retry-safe behaviour once a unique constraint exists on parts_requests.
+  const batchId = currentJobId + '-parts-' + Date.now();
+
+  try {
+    if (pendingRequests.length > 0) {
+      await submitPartRequests(
+        currentJobId,
+        currentJobData.asset_no,
+        currentJobData.machine_type,
+        currentJobData.line,
+        mechName,
+        batchId
+      );
+      pendingRequests = [];
+    }
+
+    // Pre-fill mechanic name on the resolve screen
+    const resolveSelect = document.getElementById('mechName');
+    if (resolveSelect) resolveSelect.value = mechName;
+
+    showToast('Part request sent to workshop!', 'success');
+    showResolveSection();
+  } catch (e) {
+    // Surface the failure instead of silently letting the mechanic proceed
+    // to resolve the job while the parts request never reached the workshop.
+    showToast('Could not send parts request — check connection and try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Submit Request & Proceed to Resolve';
+  } finally {
+    submittingParts = false;
+  }
 }
 
 async function loadCompletedParts(jobId) {
