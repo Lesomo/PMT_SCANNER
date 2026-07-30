@@ -611,7 +611,6 @@ tbody td {
 </style>
 </head>
 <body>
-
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
@@ -634,7 +633,7 @@ tbody td {
       </svg>
       Export CSV
     </button>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshCurrentTab()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M23 4v6h-6M1 20v-6h6"/>
         <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
@@ -978,7 +977,6 @@ tbody td {
     </div>
 
   </div><!-- end panel-downtime -->
-
   <!-- ═══ ASSET PROFILE PANEL ═══ -->
   <div class="dash-panel" id="panel-profile">
 
@@ -1177,7 +1175,6 @@ tbody td {
     </div>
 
   </div><!-- end panel-profile -->
-
   <!-- ═══ INVENTORY PANEL ═══ -->
   <div class="dash-panel" id="panel-inventory">
 
@@ -1458,7 +1455,6 @@ tbody td {
     </div>
 
   </div><!-- end panel-inventory -->
-
   <!-- LINE CHANGE PANEL -->
   <div class="dash-panel" id="panel-linechange">
 
@@ -1762,33 +1758,83 @@ let autoEnabled = true;
 let locationChart = null;
 let statusChart = null;
 
+// ── ACTIVE TAB TRACKING (for tab-aware refresh) ─────────────────────────────
+let currentDashTab = 'assets';
+
 // ── FETCH DATA ───────────────────────────────────────────────────────────────
 async function loadData() {
+  const res = await fetch(
+    SUPABASE_URL + '/rest/v1/scan_log?select=asset_no,machine_type,mechanic,location,status,scan_timestamp,shift_date&order=scan_timestamp.desc&limit=1000',
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      }
+    }
+  );
+
+  if (!res.ok) throw new Error('Status ' + res.status);
+
+  allData = await res.json();
+  applyFilter();
+  fetchStorageUsage();
+  return allData.length;
+}
+
+// ── TAB-AWARE REFRESH DISPATCHER ─────────────────────────────────────────────
+// Both the header "Refresh" button and the 30s auto-refresh timer call this.
+// It only re-fetches the data source backing whichever tab is currently
+// active — it does NOT blindly refresh all five tabs on every tick. See the
+// design discussion: refreshing everything always would (a) pull the
+// PIN-gated Mechanics dataset into memory before anyone unlocks it, (b)
+// multiply Supabase egress ~5x per tick, and (c) collapse expanded sections
+// on tabs the person isn't even looking at. Mechanics only refreshes here if
+// it has already been unlocked this session.
+async function refreshCurrentTab() {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spinning');
 
   try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/scan_log?select=asset_no,machine_type,mechanic,location,status,scan_timestamp,shift_date&order=scan_timestamp.desc&limit=1000',
-      {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY
-        }
+    switch (currentDashTab) {
+      case 'assets': {
+        const count = await loadData();
+        showToast('Asset Tracking refreshed — ' + count + ' records', 'success');
+        break;
       }
-    );
-
-    if (!res.ok) throw new Error('Status ' + res.status);
-
-    allData = await res.json();
-    applyFilter();
+      case 'downtime': {
+        await loadDowntimeData();
+        showToast('Downtime data refreshed — ' + allDowntime.length + ' records', 'success');
+        break;
+      }
+      case 'inventory': {
+        await loadInventoryData();
+        showToast('Inventory data refreshed', 'success');
+        break;
+      }
+      case 'linechange': {
+        await loadLineChange();
+        showToast('Line Change data refreshed', 'success');
+        break;
+      }
+      case 'mechanics': {
+        if (window._mechanicsTabUnlocked) {
+          await loadMechanicsData(true);
+          showToast('Mechanics data refreshed', 'success');
+        }
+        // Not unlocked yet — silently skip. Never fetch PIN-gated data
+        // in the background before the person has authenticated.
+        break;
+      }
+      case 'profile': {
+        // Asset Profile always fetches live on search — nothing stale to
+        // refresh here in the background.
+        break;
+      }
+    }
 
     const now = new Date();
     document.getElementById('lastUpdated').textContent =
       'Last updated: ' + now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    showToast('Data refreshed — ' + allData.length + ' records', 'success');
-    fetchStorageUsage();
 
   } catch (e) {
     showToast('Connection error. Retrying...', 'error');
@@ -2237,7 +2283,7 @@ function toggleAuto() {
 
 function startAutoRefresh() {
   clearInterval(autoInterval);
-  autoInterval = setInterval(loadData, 30000);
+  autoInterval = setInterval(refreshCurrentTab, 30000);
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -2435,14 +2481,12 @@ function loadEfficiencyTarget() {
 }
 
 async function loadDowntimeData() {
-  try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=5000',
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-    );
-    allDowntime = await res.json();
-    applyDtFilter();
-  } catch(e) { console.error('Downtime fetch error', e); }
+  const res = await fetch(
+    SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=5000',
+    { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+  );
+  allDowntime = await res.json();
+  applyDtFilter();
 }
 
 function applyDtFilter() {
@@ -2774,11 +2818,6 @@ function renderRepeatAlerts() {
   const section = document.getElementById('repeatAlertsSection');
   const list    = document.getElementById('repeatAlertsList');
 
-  // Escalation tiers, based on the gap between an incident's resolved_time and the
-  // next incident's reported_time on the same asset:
-  //   Very high : gap <= 30 min  (likely misdiagnosis / failed repair)
-  //   High      : gap 31-60 min (incomplete repair / needs inspection)
-  //   Moderate  : gap > 60 min  (unrelated / separate fault, monitor as usual)
   function gapTier(gapMins) {
     if (gapMins <= 30) return 'veryhigh';
     if (gapMins <= 60) return 'high';
@@ -2792,7 +2831,6 @@ function renderRepeatAlerts() {
     moderate: 'Multiple incidents today, more than 60 min apart — likely separate faults. Monitor as usual.'
   };
 
-  // Compute worst-case tier per asset up front so the most urgent assets can be listed first
   const repeats = Object.entries(byAsset)
     .filter(([_, recs]) => recs.length >= 2)
     .map(([assetNo, recs]) => {
@@ -3070,8 +3108,6 @@ function renderFaultHeatmap() {
     return;
   }
 
-  // Include any fault values logged that aren't in the canonical FAULT_TYPES list
-  // (e.g. "Machine stopped — Safety") so they still get a row instead of being dropped.
   const customFaults = [...new Set(
     filteredDowntime.map(r => r.fault).filter(f => f && !FAULT_TYPES.includes(f))
   )];
@@ -3120,7 +3156,6 @@ function renderFaultTable() {
     return;
   }
 
-  // Same fix as the heatmap above: fold in any fault names not in FAULT_TYPES.
   const customFaults = [...new Set(
     filteredDowntime.map(r => r.fault).filter(f => f && !FAULT_TYPES.includes(f))
   )];
@@ -3155,17 +3190,12 @@ function switchFaultView(name) {
 }
 
 // ── INCIDENT REPORTS (Downtime tab, resolved-only, date-filtered) ────────────
-// Renders a collapsible card list of resolved incidents inside the current
-// date filter. Each card is clickable to reveal full resolution details
-// (accordion style — opening one closes any other expanded card).
 function renderIncidentReports() {
   const section = document.getElementById('incReportsSection');
   if (!section) return;
 
-  // Use filteredDowntime (already date-filtered by applyDtFilter) and narrow to Resolved
   const resolved = (filteredDowntime || []).filter(r => r.status === 'Resolved');
 
-  // Apply in-section search (asset / fault / mechanic)
   const q = (document.getElementById('incReportsSearch').value || '').trim().toLowerCase();
   const filtered = q.length === 0 ? resolved : resolved.filter(r =>
     (r.asset_no || '').toLowerCase().includes(q) ||
@@ -3193,13 +3223,10 @@ function renderIncidentReports() {
     return;
   }
 
-  // Sort: newest first (by reported_time)
   const sorted = [...filtered].sort((a, b) =>
     (b.reported_time || '').localeCompare(a.reported_time || '')
   );
 
-  // Cap at 200 records — long ranges otherwise produce thousands of DOM nodes.
-  // If more exist, show a note. The search box is the user's way to narrow down.
   const CAP = 200;
   const display = sorted.slice(0, CAP);
   const overflow = sorted.length - display.length;
@@ -3214,8 +3241,6 @@ function renderIncidentReports() {
   document.getElementById('incReportsList').innerHTML = html;
 }
 
-// Compact card — clickable to expand. The "expanded" detail mirrors the
-// downtime mobile incident view (timestamps, production lost, resolution).
 function renderIncidentReportCard(r, idx) {
   const cardId   = 'incCard_' + idx;
   const detailId = 'incDetail_' + idx;
@@ -3232,7 +3257,6 @@ function renderIncidentReportCard(r, idx) {
   const dtMins  = r.total_downtime_minutes || 0;
   const dtLabel = dtMins > 0 ? fmtMins(dtMins) : '\u2014';
 
-  // Compact card (always visible)
   let html = '<div id="' + cardId + '" style="background:white;border-left:4px solid #70AD47;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06);cursor:pointer;transition:background 0.15s;" onclick="toggleIncidentDetail(' + idx + ')" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'">';
   html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
   html += '<div style="flex:1;min-width:0;">';
@@ -3245,10 +3269,8 @@ function renderIncidentReportCard(r, idx) {
   html += '</div>';
   html += '</div>';
 
-  // Expanded detail (hidden until clicked)
   html += '<div id="' + detailId + '" style="display:none;background:#f8f9fa;border-radius:10px;padding:16px;margin-bottom:8px;margin-top:-4px;">';
 
-  // Header band
   html += '<div style="background:#1F3864;color:white;border-radius:8px;padding:14px 16px;margin-bottom:12px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">';
   html += '<div style="flex:1;min-width:0;">';
@@ -3261,7 +3283,6 @@ function renderIncidentReportCard(r, idx) {
   html += '</div>';
   html += '</div></div>';
 
-  // Three timestamp cards
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">';
   html += '<div style="background:white;border-radius:8px;padding:10px 12px;">';
   html += '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Reported</div>';
@@ -3277,7 +3298,6 @@ function renderIncidentReportCard(r, idx) {
   html += '</div>';
   html += '</div>';
 
-  // Production lost band
   if (dtMins > 0) {
     html += '<div style="background:#FCE4D6;border-radius:8px;padding:10px 14px;margin-bottom:10px;">';
     html += '<div style="font-size:10px;font-weight:700;color:#843C0C;text-transform:uppercase;letter-spacing:0.06em;">Production lost</div>';
@@ -3285,7 +3305,6 @@ function renderIncidentReportCard(r, idx) {
     html += '</div>';
   }
 
-  // Resolution details
   const hasResolutionDetails = r.mechanic || r.error_code || r.corrective_measures;
   if (hasResolutionDetails) {
     html += '<div style="background:white;border-radius:8px;padding:12px 14px;">';
@@ -3305,7 +3324,6 @@ function renderIncidentReportCard(r, idx) {
   return html;
 }
 
-// Accordion toggle: opening one card collapses any other expanded one.
 let _incOpenIdx = null;
 function toggleIncidentDetail(idx) {
   if (_incOpenIdx !== null && _incOpenIdx !== idx) {
@@ -3371,7 +3389,6 @@ async function loadLifecycle() {
   const assetNo = document.getElementById('lcAssetInput').value.trim();
   document.getElementById('lcSuggestions').style.display = 'none';
 
-  // Hide everything
   document.getElementById('lcKpiRow').style.display          = 'none';
   document.getElementById('lcRecurrenceAlert').style.display = 'none';
   document.getElementById('lcPartsSection').style.display    = 'none';
@@ -3383,7 +3400,6 @@ async function loadLifecycle() {
 
   if (!assetNo) return;
 
-  // Get machine type from master data
   try {
     const mtRes = await fetch(
       SUPABASE_URL + '/rest/v1/master_data?asset_no=eq.' + encodeURIComponent(assetNo) + '&select=asset_type',
@@ -3395,7 +3411,6 @@ async function loadLifecycle() {
     }
   } catch(e) {}
 
-  // Four parallel fetches
   const [scanRes, dtRes, partsRes, pmRes] = await Promise.all([
     fetch(
       SUPABASE_URL + '/rest/v1/scan_log?asset_no=eq.' + encodeURIComponent(assetNo) +
@@ -3430,17 +3445,14 @@ async function loadLifecycle() {
     return;
   }
 
-  // Compute status — open downtime overrides scan status
   const openIncident = incidents.find(i => i.status === 'Open' || i.status === 'Investigating');
   const lastScan     = scans.length > 0 ? scans[scans.length - 1] : null;
   renderLcStatus(openIncident, lastScan);
 
-  // KPI calculations
   const totalDowntime  = incidents
     .filter(i => i.status === 'Resolved')
     .reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
 
-  // Last activity — most recent of scan or incident
   let lastActivityDate = null;
   let lastActivityLoc  = '—';
   let lastActivityType = '';
@@ -3471,11 +3483,9 @@ async function loadLifecycle() {
 
   const lastPM = pmLogs.length > 0 ? pmLogs[0] : null;
 
-  // Populate KPIs
   document.getElementById('lcKpiScans').textContent      = scans.length;
   document.getElementById('lcKpiIncidents').textContent  = incidents.length;
 
-  // Downtime — show hours if >= 60 mins
   if (totalDowntime >= 60) {
     const h = Math.floor(totalDowntime / 60);
     const m = totalDowntime % 60;
@@ -3490,9 +3500,6 @@ async function loadLifecycle() {
 
   document.getElementById('lcKpiPartsReq').textContent   = parts.length;
 
-  // MTBF — Mean Time Between Failures
-  // Formula: span between first and last incident / (count − 1)
-  // Needs ≥ 2 incidents to compute. Color-code the card border by value.
   const mtbfCard  = document.getElementById('lcKpiMTBFCard');
   const mtbfValEl = document.getElementById('lcKpiMTBF');
   const mtbfSubEl = document.getElementById('lcKpiMTBFSub');
@@ -3514,7 +3521,6 @@ async function loadLifecycle() {
         mtbfValEl.textContent = '< 1 hr';
       }
       mtbfSubEl.textContent = 'avg across ' + sortedInc.length + ' incidents';
-      // Color thresholds: red <7d, orange 7–30d, green ≥30d
       if      (gapDays < 7)  mtbfCard.classList.add('red');
       else if (gapDays < 30) mtbfCard.classList.add('orange');
       else                   mtbfCard.classList.add('green');
@@ -3541,26 +3547,16 @@ async function loadLifecycle() {
 
   document.getElementById('lcKpiRow').style.display = 'block';
 
-  // Recurrence alert — top-level banner, only shown if patterns are detected
   renderLcRecurrenceAlert(incidents);
-
-  // Parts section
   renderLcParts(parts);
-
-  // PM section
   renderLcPM(pmLogs);
-
-  // Fault × Line heatmap (asset-scoped, mirrors downtime tab logic)
   renderLcFaultSection(incidents);
 
-  // Timeline
-  // Timeline — store events in module scope so filters can re-render without re-fetching
   lcAllTimelineEvents = [];
   scans.forEach(s     => lcAllTimelineEvents.push({ type: 'scan',     time: s.scan_timestamp,  data: s }));
   incidents.forEach(i => lcAllTimelineEvents.push({ type: 'incident', time: i.reported_time,   data: i }));
   lcAllTimelineEvents.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-  // Populate year dropdown with years actually present (descending)
   const years = [...new Set(lcAllTimelineEvents
     .map(e => e.time ? String(e.time).substring(0, 4) : null)
     .filter(Boolean)
@@ -3571,25 +3567,21 @@ async function loadLifecycle() {
   document.getElementById('lcTimelineMonth').value = '';
   document.getElementById('lcTimelineFilterInfo').textContent = '';
 
-  // Badge in the collapse header shows total event count
   document.getElementById('lcTimelineBadge').textContent =
     lcAllTimelineEvents.length + ' event' + (lcAllTimelineEvents.length !== 1 ? 's' : '');
 
-  // Render (default = no filter)
   renderLcTimeline();
 
   document.getElementById('lcTimelineSection').style.display = 'block';
   document.getElementById('lcEmpty').style.display           = 'none';
 }
 
-// ── STATUS RENDERER ──────────────────────────────────────────────
 function renderLcStatus(openIncident, lastScan) {
   const card  = document.getElementById('lcKpiStatusCard');
   const valEl = document.getElementById('lcKpiStatusVal');
   const subEl = document.getElementById('lcKpiStatusSub');
 
   if (openIncident) {
-    // Active downtime overrides scan status
     const mechInfo = openIncident.mechanic
       ? (openIncident.status === 'Investigating' ? openIncident.mechanic + ' investigating' : 'open — no mechanic')
       : 'open — no mechanic';
@@ -3617,7 +3609,6 @@ function renderLcStatus(openIncident, lastScan) {
   }
 }
 
-// ── PARTS RENDERER ───────────────────────────────────────────────
 function renderLcParts(parts) {
   const section = document.getElementById('lcPartsSection');
   const badge   = document.getElementById('lcPartsBadge');
@@ -3672,7 +3663,6 @@ function renderLcParts(parts) {
   tableEl.innerHTML = html;
 }
 
-// ── PM RENDERER ──────────────────────────────────────────────────
 function renderLcPM(pmLogs) {
   const section = document.getElementById('lcPMSection');
   const badge   = document.getElementById('lcPMBadge');
@@ -3733,18 +3723,12 @@ function renderLcPM(pmLogs) {
   tableEl.innerHTML = html;
 }
 
-// ── RECURRENCE DETECTION ─────────────────────────────────────────
-// Flags when the same fault recurs ≥ RECURRENCE_MIN times within
-// RECURRENCE_DAYS days. The point is to catch incomplete fixes —
-// if "thread breaking" hits 3× in a week, the underlying issue
-// probably wasn't actually resolved.
 const RECURRENCE_MIN  = 3;
 const RECURRENCE_DAYS = 7;
 
 function findRecurrencePatterns(incidents) {
   const WINDOW_MS = RECURRENCE_DAYS * 24 * 60 * 60 * 1000;
 
-  // Group timestamps by fault (skip records missing either)
   const byFault = {};
   incidents.forEach(i => {
     if (!i.fault || !i.reported_time) return;
@@ -3759,7 +3743,6 @@ function findRecurrencePatterns(incidents) {
     times.sort((a, b) => a - b);
     let i = 0;
     while (i < times.length) {
-      // Find longest run starting at i where (times[j] - times[i]) <= WINDOW_MS
       let j = i;
       while (j + 1 < times.length && (times[j + 1] - times[i]) <= WINDOW_MS) j++;
       const count = j - i + 1;
@@ -3772,14 +3755,13 @@ function findRecurrencePatterns(incidents) {
           last:  new Date(times[j]),
           spanDays: spanDays
         });
-        i = j + 1; // skip past this cluster (avoid overlapping reports)
+        i = j + 1;
       } else {
         i++;
       }
     }
   });
 
-  // Sort: most severe first (highest count, then most recent)
   patterns.sort((a, b) => b.count - a.count || b.last - a.last);
   return patterns;
 }
@@ -3793,14 +3775,12 @@ function renderLcRecurrenceAlert(incidents) {
     return;
   }
 
-  // Title with pattern count
   const total = patterns.length;
   document.getElementById('lcRecurrenceTitle').textContent =
     total === 1
       ? 'Recurring fault detected'
       : total + ' recurring fault patterns detected';
 
-  // Detail rows
   document.getElementById('lcRecurrenceList').innerHTML = patterns.map(p => {
     const spanLbl = p.spanDays < 1
       ? 'within ' + Math.round(p.spanDays * 24) + ' hours'
@@ -3817,11 +3797,6 @@ function renderLcRecurrenceAlert(incidents) {
   banner.style.display = 'block';
 }
 
-// ── FAULT × LINE HEATMAP (asset-scoped) ──────────────────────────
-// Mirrors renderFaultHeatmap / renderFaultTable on the downtime tab,
-// but uses only this asset's incidents and only lines where this
-// asset has actually been down. Reuses FAULT_TYPES, hm-* CSS, and
-// faultCellClass() from the downtime tab so the look is identical.
 function renderLcFaultSection(incidents) {
   const section = document.getElementById('lcFaultSection');
   const badge   = document.getElementById('lcFaultBadge');
@@ -3831,7 +3806,6 @@ function renderLcFaultSection(incidents) {
     return;
   }
 
-  // Distinct lines this asset has been down on
   const assetLines = [...new Set(incidents.map(i => i.line).filter(Boolean))].sort((a, b) => {
     const na = parseInt(String(a).replace(/\D/g, ''), 10);
     const nb = parseInt(String(b).replace(/\D/g, ''), 10);
@@ -3850,7 +3824,6 @@ function renderLcFaultSection(incidents) {
   renderLcFaultHeatmap(incidents, assetLines);
   renderLcFaultTable(incidents, assetLines);
 
-  // Default to closed (consistent with Parts and PM sections)
   document.getElementById('lcFaultBody').classList.remove('lc-open');
   document.getElementById('lcFaultExpandLbl').textContent = 'Expand \u25BC';
   section.style.display = 'block';
@@ -3859,8 +3832,6 @@ function renderLcFaultSection(incidents) {
 function renderLcFaultHeatmap(incidents, assetLines) {
   const container = document.getElementById('lcFaultHeatmapContainer');
 
-  // Build counts per (fault, line), and also capture any faults this asset
-  // has that aren't in the canonical FAULT_TYPES list (e.g. "Other", legacy)
   const knownFaults  = FAULT_TYPES;
   const customFaults = [...new Set(
     incidents.map(i => i.fault).filter(f => f && !knownFaults.includes(f))
@@ -3881,15 +3852,13 @@ function renderLcFaultHeatmap(incidents, assetLines) {
   html += '<th style="font-size:10px;color:#555;padding-left:10px;border-left:1px solid #eee;">Downtime</th>';
   html += '</tr></thead><tbody>';
 
-  // Helper: sum total_downtime_minutes for resolved incidents matching a predicate
-  // (matches the KPI logic — open/investigating incidents have no final duration yet)
   const sumDt = pred => incidents
     .filter(i => i.status === 'Resolved' && pred(i))
     .reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
 
   rows.forEach(ft => {
     const rowTotal = incidents.filter(r => r.fault === ft).length;
-    if (rowTotal === 0) return; // skip fault types this asset has never had
+    if (rowTotal === 0) return;
     const rowDt    = sumDt(r => r.fault === ft);
     const dtLabel  = rowDt > 0 ? fmtMins(rowDt) : '\u2014';
     const dtTitle  = rowDt > 0
@@ -3906,7 +3875,6 @@ function renderLcFaultHeatmap(incidents, assetLines) {
     html += `</tr>`;
   });
 
-  // Column totals row
   const grandDt = sumDt(() => true);
   html += '<tr><td class="hm-row-label" style="font-size:11px;font-weight:700;">Total</td>';
   assetLines.forEach(line => {
@@ -3943,7 +3911,6 @@ function renderLcFaultTable(incidents, assetLines) {
   html += '<th class="num" style="border-left:1px solid #eee;">Downtime</th>';
   html += '</tr></thead><tbody>';
 
-  // Helper — same logic as the heatmap: only resolved incidents contribute downtime
   const sumDt = pred => incidents
     .filter(i => i.status === 'Resolved' && pred(i))
     .reduce((s, i) => s + (i.total_downtime_minutes || 0), 0);
@@ -3961,7 +3928,6 @@ function renderLcFaultTable(incidents, assetLines) {
     html += `</tr>`;
   });
 
-  // Column-total row
   const grandDt = sumDt(() => true);
   html += '<tr style="border-top:2px solid #eee;"><td style="font-weight:700;">Total</td>';
   cols.forEach(ft => {
@@ -3988,13 +3954,9 @@ function switchLcFaultView(name) {
   document.getElementById('lcFaultView-table').classList.toggle('active', name === 'table');
 }
 
-// ── TIMELINE FILTER & RENDER ─────────────────────────────────────
-// Reads the Year/Month dropdowns and renders only matching events.
-// Events are kept in lcAllTimelineEvents so filter changes are instant
-// and don't trigger another Supabase fetch.
 function renderLcTimeline() {
-  const year  = document.getElementById('lcTimelineYear').value;   // "" or "2025"
-  const month = document.getElementById('lcTimelineMonth').value;  // "" or "03"
+  const year  = document.getElementById('lcTimelineYear').value;
+  const month = document.getElementById('lcTimelineMonth').value;
 
   let filtered = lcAllTimelineEvents;
   if (year || month) {
@@ -4012,7 +3974,6 @@ function renderLcTimeline() {
   const scanCount = filtered.filter(e => e.type === 'scan').length;
   const incCount  = filtered.filter(e => e.type === 'incident').length;
 
-  // Sub-label
   if (shown === 0) {
     document.getElementById('lcTimelineSub').textContent = 'No events match the selected period.';
   } else {
@@ -4021,7 +3982,6 @@ function renderLcTimeline() {
       incCount  + ' incident' + (incCount  !== 1 ? 's' : '') + ' — newest first';
   }
 
-  // Filter info — only show count when a filter is active
   const infoEl = document.getElementById('lcTimelineFilterInfo');
   if (year || month) {
     infoEl.textContent = 'Showing ' + shown + ' of ' + total + ' event' + (total !== 1 ? 's' : '');
@@ -4030,7 +3990,6 @@ function renderLcTimeline() {
     infoEl.textContent = '';
   }
 
-  // Render
   const contentEl = document.getElementById('lcTimelineContent');
   if (shown === 0) {
     contentEl.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:13px;">' +
@@ -4048,7 +4007,6 @@ function clearLcTimelineFilter() {
   renderLcTimeline();
 }
 
-// ── COLLAPSIBLE TOGGLE ───────────────────────────────────────────
 function toggleLcSection(bodyId, labelId) {
   const body  = document.getElementById(bodyId);
   const label = document.getElementById(labelId);
@@ -4130,22 +4088,20 @@ function loadClerkName() {
 }
 
 async function loadInventoryData() {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const [reqRes, invRes, retRes] = await Promise.all([
-      fetch(SUPABASE_URL + '/rest/v1/parts_requests?select=*&order=requested_time.desc',
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
-      fetch(SUPABASE_URL + '/rest/v1/parts_inventory?select=*&order=description.asc&limit=500',
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
-      fetch(SUPABASE_URL + '/rest/v1/parts_returns?select=*&order=return_time.desc',
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } })
-    ]);
-    allRequests  = await reqRes.json();
-    allInventory = await invRes.json();
-    allReturns   = await retRes.json();
-    loadClerkName();
-    renderInventory();
-  } catch(e) { showToast('Could not load inventory data.', 'error'); }
+  const today = new Date().toISOString().split('T')[0];
+  const [reqRes, invRes, retRes] = await Promise.all([
+    fetch(SUPABASE_URL + '/rest/v1/parts_requests?select=*&order=requested_time.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+    fetch(SUPABASE_URL + '/rest/v1/parts_inventory?select=*&order=description.asc&limit=500',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+    fetch(SUPABASE_URL + '/rest/v1/parts_returns?select=*&order=return_time.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } })
+  ]);
+  allRequests  = await reqRes.json();
+  allInventory = await invRes.json();
+  allReturns   = await retRes.json();
+  loadClerkName();
+  renderInventory();
 }
 
 function renderInventory() {
@@ -4820,9 +4776,6 @@ function renderCatalogueList(query) {
 function showAddPartForm() { showPartForm(null); }
 function showEditPartForm(partNo) { const part = allInventory.find(p => p.part_no === partNo); if (part) showPartForm(part); }
 
-// Escape a value for safe insertion into an HTML attribute.
-// Without this, values containing " or ' break the markup or the
-// inline onclick handler, producing "Invalid or unexpected token" errors.
 function escAttr(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;')
@@ -5012,9 +4965,6 @@ function showOrderStatusForm(partNo, desc) {
   overlay.id = 'orderStatusOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
 
-  // Stash partNo on the overlay so saveOrderStatus can read it back safely,
-  // avoiding embedding the part number into an inline onclick (which breaks
-  // for any part_no containing a quote).
   overlay.dataset.partNo = partNo;
 
   const statusButtons = ['Not ordered','Ordered','Received'].map(s =>
@@ -5073,20 +5023,13 @@ function saveOrderStatus() {
 }
 
 // ── PIN PROTECTION ────────────────────────────────────────────────────────────
-// Stock PIN — used for inventory actions (adjust stock, edit/delete parts, import CSV)
 const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
-
-// Mechanics PIN — used to unlock the Mechanics dashboard tab.
-// REPLACE THE PLACEHOLDER BELOW with your real hash before deploying.
-// To generate it, open this dashboard in a browser, open DevTools console, and run:
-//   await hashPin('YOUR_NEW_PIN')
-// Copy the 64-character string it returns and paste it as the value below.
 const PIN_HASH_MECHANICS = 'd82cfb4f5c0e89f0baa74e44dbc3c208ad65502db72476f31849360aa390f0d6';
 
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 30;
 let _pinCallback     = null;
-let _pinExpectedHash = PIN_HASH; // set per-call by requirePin
+let _pinExpectedHash = PIN_HASH;
 let _pinAttempts     = 0;
 let _pinLockUntil    = 0;
 
@@ -5095,9 +5038,6 @@ async function hashPin(pin) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-// requirePin(label, callback, expectedHash?)
-// expectedHash is optional — defaults to PIN_HASH (stock).
-// Pass PIN_HASH_MECHANICS to gate the Mechanics tab against a separate PIN.
 function requirePin(actionLabel, callback, expectedHash) {
   const now = Date.now();
   if (_pinLockUntil > now) {
@@ -5123,7 +5063,7 @@ function closePinOverlay() {
   document.getElementById('pinOverlay').style.display = 'none';
   document.getElementById('pinInput').value = '';
   _pinCallback     = null;
-  _pinExpectedHash = PIN_HASH; // reset to default
+  _pinExpectedHash = PIN_HASH;
 }
 
 async function submitPin() {
@@ -5380,38 +5320,44 @@ function exportLcCsv() {
   showToast('Exported ' + lcMovements.length + ' movements', 'success');
 }
 
-// ── DASHBOARD TAB SWITCHING ───────────────────────────────────────────────────
 // ═════════════════════════════════════════════════════════════════════════════
 // MECHANICS DASHBOARD (PIN-gated)
 // ═════════════════════════════════════════════════════════════════════════════
 
-let mDowntimeAll = [];   // all downtime_log records (filtered by date in-memory)
-let mPMAll       = [];   // all pm_log records
+let mDowntimeAll = [];
+let mPMAll       = [];
 let mLoadedOnce  = false;
 
-const FTF_DAYS = 14; // first-time-fix verification window
-const TEAM_MIN_INCIDENTS = 3; // min incidents to include in team-median sample
+const FTF_DAYS = 14;
+const TEAM_MIN_INCIDENTS = 3;
 
-async function loadMechanicsData() {
-  // Show empty state; section will populate after fetch
+// loadMechanicsData(forceRefresh):
+//   - no arg / falsy  -> normal tab-switch behavior: fetch once, then just
+//     repopulate the dropdown on subsequent switches (unchanged from before).
+//   - true            -> used by refreshCurrentTab()'s 30s/manual refresh
+//     path: bypasses the "already loaded" cache and re-fetches, then
+//     re-renders whichever mechanic is currently selected so the visible
+//     KPIs actually update instead of only refreshing the dropdown.
+async function loadMechanicsData(forceRefresh) {
   document.getElementById('mechEmpty').textContent = mLoadedOnce
     ? 'Select a mechanic above to view their performance profile'
     : 'Loading mechanic data...';
-  document.getElementById('mechKpiRow').style.display     = 'none';
-  document.getElementById('mRecSection').style.display      = 'none';
-  document.getElementById('mWorkloadSection').style.display = 'none';
-  document.getElementById('mAssetSection').style.display    = 'none';
-  document.getElementById('mPMSection').style.display       = 'none';
-  document.getElementById('mIncSection').style.display      = 'none';
 
-  if (mLoadedOnce) {
-    // Cached — just refresh the dropdown options
+  if (mLoadedOnce && !forceRefresh) {
     populateMechanicDropdown();
     return;
   }
 
+  if (!forceRefresh) {
+    document.getElementById('mechKpiRow').style.display     = 'none';
+    document.getElementById('mRecSection').style.display      = 'none';
+    document.getElementById('mWorkloadSection').style.display = 'none';
+    document.getElementById('mAssetSection').style.display    = 'none';
+    document.getElementById('mPMSection').style.display       = 'none';
+    document.getElementById('mIncSection').style.display      = 'none';
+  }
+
   try {
-    // High limit overrides Supabase's default 1000-row cap.
     const [dtRes, pmRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=20000',
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
@@ -5426,6 +5372,13 @@ async function loadMechanicsData() {
     populateMechanicYearDropdown();
     document.getElementById('mechEmpty').textContent =
       'Select a mechanic above to view their performance profile';
+
+    // If this was a background refresh and a mechanic is already selected,
+    // re-render their KPIs with the fresh data rather than leaving the
+    // panel showing stale numbers until the person re-selects manually.
+    if (forceRefresh && document.getElementById('mechSelect').value) {
+      selectMechanic();
+    }
   } catch(e) {
     document.getElementById('mechEmpty').textContent =
       'Failed to load mechanic data. Refresh and try again.';
@@ -5436,7 +5389,6 @@ async function loadMechanicsData() {
 function populateMechanicDropdown() {
   const sel = document.getElementById('mechSelect');
   const prev = sel.value;
-  // Distinct mechanics from downtime_log.mechanic only (per spec)
   const mechs = [...new Set(mDowntimeAll.map(d => d.mechanic).filter(Boolean))].sort();
   sel.innerHTML = '<option value="">— Select a mechanic —</option>' +
     mechs.map(m => '<option value="' + m + '">' + m + '</option>').join('');
@@ -5460,11 +5412,9 @@ function clearMechanicFilter() {
 }
 
 function applyMechanicFilter() {
-  // Re-render the currently selected mechanic with new date filter
   if (document.getElementById('mechSelect').value) selectMechanic();
 }
 
-// Apply year+month filter to a records array (returns filtered copy)
 function filterMechByDate(records, timeField) {
   const year  = document.getElementById('mechYear').value;
   const month = document.getElementById('mechMonth').value;
@@ -5479,10 +5429,6 @@ function filterMechByDate(records, timeField) {
   });
 }
 
-// ── METRIC COMPUTATION ───────────────────────────────────────────
-// Compute all metrics for a given mechanic against a record pool.
-// The pool is the date-filtered universe — used so first-time-fix
-// can detect recurrence using the same time scope.
 function computeMechMetrics(mechName, downtimePool, pmPool) {
   const myDt       = downtimePool.filter(d => d.mechanic === mechName);
   const myResolved = myDt.filter(d => d.status === 'Resolved');
@@ -5497,8 +5443,6 @@ function computeMechMetrics(mechName, downtimePool, pmPool) {
     .filter(d => d.repair_minutes != null && d.repair_minutes >= 0)
     .map(d => d.repair_minutes);
 
-  // First-time-fix: same-asset same-fault didn't recur within FTF_DAYS after resolution.
-  // Only assess incidents resolved more than FTF_DAYS ago (else we can't know yet).
   const FTF_MS = FTF_DAYS * 24 * 60 * 60 * 1000;
   const now    = Date.now();
   const assessable = myResolved.filter(d =>
@@ -5518,7 +5462,6 @@ function computeMechMetrics(mechName, downtimePool, pmPool) {
     if (came_back) recurred++;
   });
 
-  // Last active across both downtime and PM
   const lastDtTs = myDt.map(d => d.reported_time).filter(Boolean).sort().reverse()[0] || null;
   const lastPMTs = myPM.map(p => p.completed_date).filter(Boolean).sort().reverse()[0] || null;
   const lastActive = [lastDtTs, lastPMTs].filter(Boolean).sort().reverse()[0] || null;
@@ -5540,8 +5483,6 @@ function computeMechMetrics(mechName, downtimePool, pmPool) {
   };
 }
 
-// Team median across mechanics with at least TEAM_MIN_INCIDENTS incidents in scope.
-// We exclude the selected mechanic so we don't bias the comparison.
 function computeTeamMedians(downtimePool, pmPool, excludeMech) {
   const mechs = [...new Set(downtimePool.map(d => d.mechanic).filter(Boolean))]
     .filter(m => m !== excludeMech);
@@ -5565,7 +5506,6 @@ function computeTeamMedians(downtimePool, pmPool, excludeMech) {
   };
 }
 
-// ── MAIN RENDER ──────────────────────────────────────────────────
 function selectMechanic() {
   const mechName = document.getElementById('mechSelect').value;
   const sections = ['mechKpiRow','mRecSection','mWorkloadSection','mAssetSection','mPMSection','mIncSection'];
@@ -5577,7 +5517,6 @@ function selectMechanic() {
     return;
   }
 
-  // Apply date filter to the global pool, then compute
   const dtPool = filterMechByDate(mDowntimeAll, 'reported_time');
   const pmPool = filterMechByDate(mPMAll,       'completed_date');
   const m      = computeMechMetrics(mechName, dtPool, pmPool);
@@ -5592,7 +5531,6 @@ function selectMechanic() {
   renderMechPMs(m);
   renderMechIncidents(m, dtPool);
 
-  // Filter info
   const yr = document.getElementById('mechYear').value;
   const mo = document.getElementById('mechMonth').value;
   document.getElementById('mechFilterInfo').textContent = (yr || mo)
@@ -5600,7 +5538,6 @@ function selectMechanic() {
     : '';
 }
 
-// Helper — formats a number-vs-team comparison, ignoring nulls
 function teamCmp(myVal, teamVal, unit, lowerIsBetter) {
   if (myVal == null || teamVal == null) return 'team: insufficient data';
   const diff = myVal - teamVal;
@@ -5619,22 +5556,18 @@ function renderMechKPIs(m, team) {
     : mins >= 60 ? Math.floor(mins / 60) + 'h ' + Math.round(mins % 60) + 'm'
     : Math.round(mins) + 'm';
 
-  // Downtime closed
   document.getElementById('mKpiClosed').textContent = m.closed;
   document.getElementById('mKpiClosedSub').textContent =
     m.incidents > m.closed
       ? m.closed + ' of ' + m.incidents + ' resolved'
       : 'all resolved';
 
-  // Response
   document.getElementById('mKpiResponse').textContent = fmtMinsShort(m.avgResponse);
   document.getElementById('mKpiResponseSub').innerHTML = teamCmp(m.avgResponse, team.avgResponse, 'm', true);
 
-  // Repair
   document.getElementById('mKpiRepair').textContent = fmtMinsShort(m.avgRepair);
   document.getElementById('mKpiRepairSub').innerHTML = teamCmp(m.avgRepair, team.avgRepair, 'm', true);
 
-  // Hours on tools
   const hrs = m.totalRepairMin / 60;
   document.getElementById('mKpiHours').textContent = hrs >= 10 ? Math.round(hrs) + 'h' : hrs.toFixed(1) + 'h';
   document.getElementById('mKpiHoursSub').textContent =
@@ -5642,12 +5575,10 @@ function renderMechKPIs(m, team) {
       ? 'team median: ' + (team.totalRepairMin / 60).toFixed(1) + 'h'
       : 'total repair time';
 
-  // PMs
   document.getElementById('mKpiPMs').textContent = m.pmCount;
   document.getElementById('mKpiPMsSub').textContent =
     team.pmCount != null ? 'team median: ' + team.pmCount.toFixed(0) : 'preventive maintenance';
 
-  // First-Time-Fix Rate (color-coded card)
   const ftfCard = document.getElementById('mKpiFTFCard');
   ftfCard.classList.remove('green', 'orange', 'red');
   if (m.ftfRate == null) {
@@ -5664,14 +5595,12 @@ function renderMechKPIs(m, team) {
     else                      ftfCard.classList.add('red');
   }
 
-  // Recurring fixes (count, not rate)
   document.getElementById('mKpiRec').textContent = m.recurred;
   document.getElementById('mKpiRecSub').textContent =
     m.assessable > 0
       ? 'of ' + m.assessable + ' assessable fixes'
       : '14-day window';
 
-  // Last active
   document.getElementById('mKpiLast').textContent = m.lastActive ? formatShortDate(m.lastActive) : '—';
   if (m.lastActive) {
     const days = Math.floor((Date.now() - new Date(m.lastActive).getTime()) / (1000 * 60 * 60 * 24));
@@ -5684,27 +5613,17 @@ function renderMechKPIs(m, team) {
   document.getElementById('mechKpiRow').style.display = 'block';
 }
 
-// ── SECTION: RECURRING FIXES DETAIL ──────────────────────────────
-// Drills into the "Recurring Fixes" KPI: for each of this mechanic's
-// resolved incidents, find the matching recurrence (same asset + same
-// fault, within FTF_DAYS afterwards) and surface them in a table.
-// Useful for asking the actual question: is this person struggling on
-// a specific fault, a specific asset, or is it scattered?
 function renderMechRecurring(m, downtimePool) {
   const section = document.getElementById('mRecSection');
   const FTF_MS  = FTF_DAYS * 24 * 60 * 60 * 1000;
 
-  // Build pairs: [originalFix, theRecurrenceIncident]
-  // Only consider assessable fixes (resolved more than FTF_DAYS ago).
   const now   = Date.now();
   const pairs = [];
   m.myResolved.forEach(d => {
     if (!d.resolved_time) return;
     const rMs = new Date(d.resolved_time).getTime();
-    if ((now - rMs) < FTF_MS) return; // not yet assessable
+    if ((now - rMs) < FTF_MS) return;
 
-    // Find the EARLIEST recurrence within the window (could be more than one;
-    // we surface the closest one for "came back after" gap)
     let nextRecurrence = null;
     downtimePool.forEach(o => {
       if (o.id === d.id) return;
@@ -5727,7 +5646,6 @@ function renderMechRecurring(m, downtimePool) {
     return;
   }
 
-  // Sort: most recent first
   pairs.sort((a, b) => (b.fix.resolved_time || '').localeCompare(a.fix.resolved_time || ''));
 
   document.getElementById('mRecBadge').textContent =
@@ -5744,7 +5662,6 @@ function renderMechRecurring(m, downtimePool) {
     const fixMs   = new Date(p.fix.resolved_time).getTime();
     const gapDays = (recMs - fixMs) / (1000 * 60 * 60 * 24);
 
-    // Color-code gap severity
     let gapColor = '#555';
     let gapBg    = 'transparent';
     if (gapDays < 3)      { gapColor = '#C00000'; gapBg = '#FCEBEB'; }
@@ -5779,7 +5696,6 @@ function renderMechRecurring(m, downtimePool) {
   section.style.display = 'block';
 }
 
-// ── SECTION: WORKLOAD HEATMAP ────────────────────────────────────
 function renderMechWorkload(m) {
   const section = document.getElementById('mWorkloadSection');
   const badge   = document.getElementById('mWorkloadBadge');
@@ -5789,7 +5705,6 @@ function renderMechWorkload(m) {
     return;
   }
 
-  // Lines this mechanic has touched (in numeric order where possible)
   const myLines = [...new Set(m.myDt.map(d => d.line).filter(Boolean))].sort((a, b) => {
     const na = parseInt(String(a).replace(/\D/g, ''), 10);
     const nb = parseInt(String(b).replace(/\D/g, ''), 10);
@@ -5797,7 +5712,6 @@ function renderMechWorkload(m) {
     return String(a).localeCompare(String(b));
   });
 
-  // Fault rows = canonical list + any extras this mechanic has
   const knownFaults  = FAULT_TYPES;
   const customFaults = [...new Set(m.myDt.map(i => i.fault).filter(f => f && !knownFaults.includes(f)))];
   const allFaults    = [...knownFaults, ...customFaults];
@@ -5807,7 +5721,6 @@ function renderMechWorkload(m) {
                       ' across ' + myLines.length + ' line' + (myLines.length !== 1 ? 's' : '') +
                       ' and ' + usedFaults.length + ' fault type' + (usedFaults.length !== 1 ? 's' : '');
 
-  // Compute max for color scaling
   let maxCount = 0;
   usedFaults.forEach(ft => myLines.forEach(line => {
     const cnt = m.myDt.filter(d => d.fault === ft && d.line === line).length;
@@ -5829,7 +5742,6 @@ function renderMechWorkload(m) {
     html += `<td style="text-align:center;font-weight:700;font-size:11px;color:#555;">${rowTotal}</td></tr>`;
   });
 
-  // Column totals row
   html += '<tr><td class="hm-row-label" style="font-size:11px;font-weight:700;">Total</td>';
   myLines.forEach(line => {
     const lt = m.myDt.filter(d => d.line === line).length;
@@ -5844,8 +5756,6 @@ function renderMechWorkload(m) {
   section.style.display = 'block';
 }
 
-
-// ── SECTION: ASSET COVERAGE ──────────────────────────────────────
 function renderMechAssets(m) {
   const section = document.getElementById('mAssetSection');
   if (m.myDt.length === 0) { section.style.display = 'none'; return; }
@@ -5889,7 +5799,6 @@ function openAssetProfile(assetNo) {
   loadLifecycle();
 }
 
-// ── SECTION: PM LOG ──────────────────────────────────────────────
 function renderMechPMs(m) {
   const section = document.getElementById('mPMSection');
   if (m.myPM.length === 0) { section.style.display = 'none'; return; }
@@ -5917,7 +5826,6 @@ function renderMechPMs(m) {
   section.style.display = 'block';
 }
 
-// ── SECTION: INCIDENTS LOG ───────────────────────────────────────
 function renderMechIncidents(m, downtimePool) {
   const section = document.getElementById('mIncSection');
   if (m.myDt.length === 0) { section.style.display = 'none'; return; }
@@ -5961,6 +5869,7 @@ function renderMechIncidents(m, downtimePool) {
   section.style.display = 'block';
 }
 
+// ── DASHBOARD TAB SWITCHING ───────────────────────────────────────────────────
 function switchDashTab(tab) {
   // Mechanics tab is PIN-gated. Unlock persists for the current page session
   // only (lost on refresh), avoiding PIN-prompt-on-every-click friction.
@@ -5972,6 +5881,10 @@ function switchDashTab(tab) {
     }, PIN_HASH_MECHANICS);
     return;
   }
+
+  // Track the active tab so refreshCurrentTab() (header button + 30s timer)
+  // knows which data source to refresh instead of always hitting scan_log.
+  currentDashTab = tab;
 
   const tabs = ['assets','downtime','profile','inventory','linechange','mechanics'];
   document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
