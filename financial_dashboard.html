@@ -353,6 +353,28 @@ function r(mins) { return (mins * RATE).toFixed(0); }
 function fmt(val) { return 'R' + Number(val).toLocaleString('en-ZA'); }
 function fmtMins(m) { const h=Math.floor(m/60),mn=Math.round(m%60); return h>0?h+'h '+mn+'m':mn+'m'; }
 
+// Null-safe DOM helpers — a missing/renamed element (e.g. from a manual edit)
+// logs a warning instead of throwing and killing the rest of renderAll().
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (!el) { console.warn('setText: element not found ->', id); return; }
+  el.textContent = val;
+}
+function setClass(id, val) {
+  const el = document.getElementById(id);
+  if (!el) { console.warn('setClass: element not found ->', id); return; }
+  el.className = val;
+}
+function setHTML(id, val) {
+  const el = document.getElementById(id);
+  if (!el) { console.warn('setHTML: element not found ->', id); return; }
+  el.innerHTML = val;
+}
+function getVal(id, fallback) {
+  const el = document.getElementById(id);
+  return el ? el.value : fallback;
+}
+
 // Shared helper: does a record's line belong to the currently active section?
 function inActiveSection(rec) {
   const sLines = SECTIONS[activeSection];
@@ -390,14 +412,14 @@ function loadSettings() {
     document.getElementById('rateInput').value = RATE;
     document.getElementById('monthlyBudget').value = MONTHLY_BUDGET;
     document.getElementById('dailyTarget').value = DAILY_TARGET;
-    document.getElementById('kpiDailyTarget').textContent = DAILY_TARGET.toLocaleString('en-ZA');
+    setText('kpiDailyTarget', DAILY_TARGET.toLocaleString('en-ZA'));
   } catch(e) {}
 }
 
 // ── DATA ──────────────────────────────────────────────────────────────
 async function loadData() {
   const btn = document.getElementById('refreshBtn');
-  btn.classList.add('spinning');
+  if (btn) btn.classList.add('spinning');
   try {
     const res = await fetch(
       SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=20000',
@@ -405,10 +427,9 @@ async function loadData() {
     );
     allData = await res.json();
     applyFilter();
-    document.getElementById('lastUpdated').textContent =
-      new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' });
+    setText('lastUpdated', new Date().toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' }));
   } catch(e) { showToast('Could not load data.', 'error'); }
-  btn.classList.remove('spinning');
+  if (btn) btn.classList.remove('spinning');
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────
@@ -427,7 +448,7 @@ function applyFilter() {
   const parts = [];
   if (from||to) parts.push((from||'…')+' to '+(to||'…'));
   if (activeSection!=='all') parts.push(activeSection.charAt(0).toUpperCase()+activeSection.slice(1)+' section');
-  document.getElementById('filterInfo').textContent = parts.length ? filtered.length+' incidents — '+parts.join(' | ') : filtered.length+' resolved incidents';
+  setText('filterInfo', parts.length ? filtered.length+' incidents — '+parts.join(' | ') : filtered.length+' resolved incidents');
 
   // Keep the section-scoped panel hints in sync
   const hint = SECTION_LABELS[activeSection];
@@ -495,31 +516,37 @@ function renderKPIs() {
   const monthCost = monthMins * RATE;
   const budgetPct = Math.round(monthCost / MONTHLY_BUDGET * 100);
 
-  document.getElementById('kpiTotal').textContent       = fmt(totalCost.toFixed(0));
-  document.getElementById('kpiTotalSub').textContent    = filtered.length + ' incidents · ' + fmtMins(totalMins);
-  document.getElementById('kpiToday').textContent       = fmt(todayCost.toFixed(0));
-  document.getElementById('kpiAvgIncident').textContent = fmt(avgCost.toFixed(0));
-  document.getElementById('kpiMins').textContent        = fmtMins(totalMins);
-  document.getElementById('kpiMinsSub').textContent     = filtered.length + ' resolved incidents';
-  document.getElementById('kpiBudget').textContent      = budgetPct + '%';
-  document.getElementById('kpiBudgetSub').textContent   = fmt(monthCost.toFixed(0)) + ' of ' + fmt(MONTHLY_BUDGET) + ' budget';
-  document.getElementById('kpiDailyTarget').textContent = DAILY_TARGET.toLocaleString('en-ZA');
+  setText('kpiTotal', fmt(totalCost.toFixed(0)));
+  setText('kpiTotalSub', filtered.length + ' incidents · ' + fmtMins(totalMins));
+  setText('kpiToday', fmt(todayCost.toFixed(0)));
+  setText('kpiAvgIncident', fmt(avgCost.toFixed(0)));
+  setText('kpiMins', fmtMins(totalMins));
+  setText('kpiMinsSub', filtered.length + ' resolved incidents');
+  setText('kpiBudget', budgetPct + '%');
+  setText('kpiBudgetSub', fmt(monthCost.toFixed(0)) + ' of ' + fmt(MONTHLY_BUDGET) + ' budget');
+  setText('kpiDailyTarget', DAILY_TARGET.toLocaleString('en-ZA'));
 
   // Today vs target
   const dailyStatusEl = document.getElementById('kpiDailyStatus');
   const dailySubEl    = document.getElementById('kpiDailyStatusSub');
-  if (todayCost <= DAILY_TARGET) {
-    dailyStatusEl.textContent = '✓ On track';
-    dailyStatusEl.style.color = '#3B6D11';
-    dailySubEl.textContent = fmt(todayCost.toFixed(0)) + ' vs R' + DAILY_TARGET.toLocaleString('en-ZA') + ' target';
+  const dailySubText  = fmt(todayCost.toFixed(0)) + ' vs R' + DAILY_TARGET.toLocaleString('en-ZA') + ' target';
+  if (dailyStatusEl) {
+    if (todayCost <= DAILY_TARGET) {
+      dailyStatusEl.textContent = '✓ On track';
+      dailyStatusEl.style.color = '#3B6D11';
+    } else {
+      dailyStatusEl.textContent = '↑ Over target';
+      dailyStatusEl.style.color = '#C00000';
+    }
   } else {
-    dailyStatusEl.textContent = '↑ Over target';
-    dailyStatusEl.style.color = '#C00000';
-    dailySubEl.textContent = fmt(todayCost.toFixed(0)) + ' vs R' + DAILY_TARGET.toLocaleString('en-ZA') + ' target';
+    console.warn('renderKPIs: element not found -> kpiDailyStatus');
   }
+  if (dailySubEl) { dailySubEl.textContent = dailySubText; }
+  else { console.warn('renderKPIs: element not found -> kpiDailyStatusSub'); }
 
   // Today delta vs yesterday
   const deltaEl = document.getElementById('kpiTodayDelta');
+  if (!deltaEl) { console.warn('renderKPIs: element not found -> kpiTodayDelta'); return; }
   if (yestCost === 0) { deltaEl.textContent = ''; return; }
   const diff = todayCost - yestCost;
   const pct  = Math.round(Math.abs(diff) / yestCost * 100);
@@ -544,7 +571,9 @@ function renderTrend() {
   const keys   = Object.keys(byPeriod).sort();
   const costs  = keys.map(k => (byPeriod[k] * RATE).toFixed(0));
   const labels = keys.map(k => { const p=k.split('-'); return p[2]+'/'+p[1]; });
-  const ctx = document.getElementById('trendChart').getContext('2d');
+  const trendChartEl = document.getElementById('trendChart');
+  if (!trendChartEl) { console.warn('render: canvas not found -> trendChart'); return; }
+  const ctx = trendChartEl.getContext('2d');
   if (trendChart) trendChart.destroy();
   trendChart = new Chart(ctx, {
     type: 'line',
@@ -583,7 +612,9 @@ function renderTodayVsYest() {
   const yestRecs  = allData.filter(rec => rec.status==='Resolved' && (rec.reported_time||'').startsWith(yest)  && inActiveSection(rec));
   const todayCost = todayRecs.reduce((s,rec) => s+(rec.total_downtime_minutes||0),0) * RATE;
   const yestCost  = yestRecs.reduce((s,rec)  => s+(rec.total_downtime_minutes||0),0) * RATE;
-  const ctx = document.getElementById('todayVsYestChart').getContext('2d');
+  const todayVsYestChartEl = document.getElementById('todayVsYestChart');
+  if (!todayVsYestChartEl) { console.warn('render: canvas not found -> todayVsYestChart'); return; }
+  const ctx = todayVsYestChartEl.getContext('2d');
   if (todayVsYestChart) todayVsYestChart.destroy();
   todayVsYestChart = new Chart(ctx, {
     type: 'bar',
@@ -611,7 +642,9 @@ function renderLineChart() {
   const sLines = SECTIONS[activeSection];
   const ALL = sLines || Array.from({length:24},(_,i)=>'Line '+(i+1));
   const costs = ALL.map(l => (filtered.filter(rec=>rec.line===l).reduce((s,rec)=>s+(rec.total_downtime_minutes||0),0)*RATE).toFixed(0));
-  const ctx = document.getElementById('lineChart').getContext('2d');
+  const lineChartEl = document.getElementById('lineChart');
+  if (!lineChartEl) { console.warn('render: canvas not found -> lineChart'); return; }
+  const ctx = lineChartEl.getContext('2d');
   if (lineChart) lineChart.destroy();
   lineChart = new Chart(ctx, {
     type: 'bar',
@@ -648,7 +681,9 @@ function renderSectionChart() {
     { label:'Blue (L19–24)', lines:SECTIONS.blue,   color:'#1B4F8A' },
   ];
   const costs = sections.map(s => (dateFiltered.filter(rec=>s.lines.includes(rec.line)).reduce((sum,rec)=>sum+(rec.total_downtime_minutes||0),0)*RATE).toFixed(0));
-  const ctx = document.getElementById('sectionChart').getContext('2d');
+  const sectionChartEl = document.getElementById('sectionChart');
+  if (!sectionChartEl) { console.warn('render: canvas not found -> sectionChart'); return; }
+  const ctx = sectionChartEl.getContext('2d');
   if (sectionChart) sectionChart.destroy();
   sectionChart = new Chart(ctx, {
     type: 'doughnut',
@@ -669,7 +704,9 @@ function renderTypeChart() {
     byType[rec.machine_type] = (byType[rec.machine_type]||0) + (rec.total_downtime_minutes||0);
   });
   const sorted = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const ctx = document.getElementById('typeChart').getContext('2d');
+  const typeChartEl = document.getElementById('typeChart');
+  if (!typeChartEl) { console.warn('render: canvas not found -> typeChart'); return; }
+  const ctx = typeChartEl.getContext('2d');
   if (typeChart) typeChart.destroy();
   typeChart = new Chart(ctx, {
     type: 'bar',
@@ -695,7 +732,9 @@ function renderFaultChart() {
     byFault[rec.fault] = (byFault[rec.fault]||0) + (rec.total_downtime_minutes||0);
   });
   const sorted = Object.entries(byFault).sort((a,b)=>b[1]-a[1]);
-  const ctx = document.getElementById('faultChart').getContext('2d');
+  const faultChartEl = document.getElementById('faultChart');
+  if (!faultChartEl) { console.warn('render: canvas not found -> faultChart'); return; }
+  const ctx = faultChartEl.getContext('2d');
   if (faultChart) faultChart.destroy();
   faultChart = new Chart(ctx, {
     type: 'bar',
@@ -725,6 +764,7 @@ function renderTop10() {
   const sorted = Object.entries(byAsset).sort((a,b)=>b[1].mins-a[1].mins).slice(0,10);
   const max = sorted[0] ? sorted[0][1].mins : 1;
   const tbody = document.getElementById('top10Body');
+  if (!tbody) { console.warn('renderTop10: element not found -> top10Body'); return; }
   if (sorted.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">No data for selected period</div></td></tr>'; return; }
   const rankColors = ['#C00000','#ED7D31','#C9A84C'];
   tbody.innerHTML = sorted.map(([asset, d], i) => {
@@ -764,7 +804,7 @@ function renderBudget() {
     { label: 'Period total vs budget',val: periodCost, max: MONTHLY_BUDGET,  color: periodCost > MONTHLY_BUDGET ? '#C00000' : '#1F3864' },
   ];
 
-  document.getElementById('budgetSection').innerHTML = rows.map(row => {
+  setHTML('budgetSection', rows.map(row => {
     const pct = Math.min(100, Math.round(row.val / row.max * 100));
     return `<div class="budget-row">
       <div class="budget-label" style="font-size:12px;color:#555;">${row.label}</div>
@@ -774,7 +814,7 @@ function renderBudget() {
       <div class="budget-text" style="color:${row.color};">R${Math.round(row.val).toLocaleString('en-ZA')}</div>
     </div>
     <div style="font-size:10px;color:#aaa;margin-bottom:14px;text-align:right;">${pct}% of R${row.max.toLocaleString('en-ZA')}</div>`;
-  }).join('');
+  }).join(''));
 }
 
 // ── MONTHLY SUMMARY ───────────────────────────────────────────────────
@@ -791,9 +831,9 @@ function renderMonthly() {
     byMonth[m] += rec.total_downtime_minutes||0;
   });
   const months = Object.keys(byMonth).sort().reverse();
-  if (months.length === 0) { document.getElementById('monthlyGrid').innerHTML = '<div class="empty">No monthly data for this section</div>'; return; }
+  if (months.length === 0) { setHTML('monthlyGrid', '<div class="empty">No monthly data for this section</div>'); return; }
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('monthlyGrid').innerHTML = months.map(m => {
+  setHTML('monthlyGrid', months.map(m => {
     const [yr, mo] = m.split('-');
     const mins = byMonth[m];
     const cost = mins * RATE;
@@ -803,7 +843,7 @@ function renderMonthly() {
       <div class="month-cost" style="color:${overBudget?'#C00000':'#1F3864'};">R${Math.round(cost).toLocaleString('en-ZA')}</div>
       <div class="month-mins">${fmtMins(mins)}</div>
     </div>`;
-  }).join('');
+  }).join(''));
 }
 
 // ── EXPORT CSV ────────────────────────────────────────────────────────
@@ -830,6 +870,7 @@ function exportCSV() {
 // ── TOAST ─────────────────────────────────────────────────────────────
 function showToast(msg, type) {
   const t = document.getElementById('toast');
+  if (!t) { console.warn('showToast: element not found -> toast'); return; }
   t.textContent = msg; t.className = 'toast ' + type + ' show';
   setTimeout(() => t.classList.remove('show'), 3200);
 }
