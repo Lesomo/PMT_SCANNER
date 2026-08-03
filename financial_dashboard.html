@@ -123,7 +123,11 @@ table.fin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 /* TOAST */
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(10px); padding: 11px 22px; border-radius: 10px; font-size: 13px; font-weight: 600; color: white; opacity: 0; transition: all 0.3s; z-index: 9999; }
 .toast.success { background: #3B6D11; }
+.toast.error { background: #C00000; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* SECTION HINT */
+.section-hint { font-size: 10px; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 </style>
 </head>
 <body>
@@ -256,7 +260,7 @@ table.fin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     </div>
     <div class="panel">
       <div class="panel-title">Today vs yesterday</div>
-      <div class="panel-sub">Cost comparison by hour or total</div>
+      <div class="panel-sub">Cost comparison — <span class="section-hint" id="todayVsYestSectionHint">all sections</span></div>
       <div class="chart-wrap h280"><canvas id="todayVsYestChart"></canvas></div>
     </div>
   </div>
@@ -265,12 +269,12 @@ table.fin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   <div class="chart-row cols-2" style="margin-bottom:14px;">
     <div class="panel">
       <div class="panel-title">Cost per line</div>
-      <div class="panel-sub">Total downtime cost by production line</div>
+      <div class="panel-sub">Total downtime cost by production line — selected period & section</div>
       <div class="chart-wrap h240"><canvas id="lineChart"></canvas></div>
     </div>
     <div class="panel">
       <div class="panel-title">Cost per section</div>
-      <div class="panel-sub">Green · Yellow · Purple · Blue</div>
+      <div class="panel-sub">Green · Yellow · Purple · Blue — selected period</div>
       <div class="chart-wrap h240"><canvas id="sectionChart"></canvas></div>
     </div>
   </div>
@@ -303,7 +307,7 @@ table.fin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     </div>
     <div class="panel">
       <div class="panel-title">Budget & targets</div>
-      <div class="panel-sub">Progress against financial controls</div>
+      <div class="panel-sub">Progress against financial controls — <span class="section-hint" id="budgetSectionHint">all sections</span></div>
       <div id="budgetSection"></div>
     </div>
   </div>
@@ -311,7 +315,7 @@ table.fin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   <!-- ROW 5: Monthly summary -->
   <div class="panel" style="margin-bottom:14px;">
     <div class="panel-title">Monthly cost summary</div>
-    <div class="panel-sub">Total downtime cost per calendar month — all time</div>
+    <div class="panel-sub">Total downtime cost per calendar month — all time, <span class="section-hint" id="monthlySectionHint">all sections</span></div>
     <div class="month-grid" id="monthlyGrid"><div class="empty"><span class="spinner-inline"></span></div></div>
   </div>
 
@@ -330,6 +334,7 @@ const SECTIONS = {
   purple: ['Line 14','Line 15','Line 16','Line 17','Line 18'],
   blue:   ['Line 19','Line 20','Line 21','Line 22','Line 23','Line 24'],
 };
+const SECTION_LABELS = { all: 'all sections', green: 'Green section', yellow: 'Yellow section', purple: 'Purple section', blue: 'Blue section' };
 const SECTION_COLORS = { all:'#1F3864', green:'#2D7D46', yellow:'#C9A84C', purple:'#6B3FA0', blue:'#1B4F8A' };
 const PALETTE = ['#1F3864','#2E5597','#ED7D31','#C9A84C','#70AD47','#2D7D46','#6B3FA0','#C00000','#1B4F8A','#888'];
 
@@ -347,6 +352,22 @@ let sectionChart = null, typeChart = null, faultChart = null;
 function r(mins) { return (mins * RATE).toFixed(0); }
 function fmt(val) { return 'R' + Number(val).toLocaleString('en-ZA'); }
 function fmtMins(m) { const h=Math.floor(m/60),mn=Math.round(m%60); return h>0?h+'h '+mn+'m':mn+'m'; }
+
+// Shared helper: does a record's line belong to the currently active section?
+function inActiveSection(rec) {
+  const sLines = SECTIONS[activeSection];
+  return !sLines || sLines.includes(rec.line);
+}
+
+// Shared helper: does a record fall inside the currently selected date range?
+function inDateRange(rec) {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const d = (rec.reported_time||'').split('T')[0];
+  if (from && d < from) return false;
+  if (to   && d > to)   return false;
+  return true;
+}
 
 // ── SETTINGS ──────────────────────────────────────────────────────────
 function toggleSettings() {
@@ -395,18 +416,26 @@ function applyFilter() {
   const from = document.getElementById('dateFrom').value;
   const to   = document.getElementById('dateTo').value;
   const sLines = SECTIONS[activeSection];
-  filtered = allData.filter(r => {
-    if (r.status !== 'Resolved') return false;
-    const d = (r.reported_time||'').split('T')[0];
+  filtered = allData.filter(rec => {
+    if (rec.status !== 'Resolved') return false;
+    const d = (rec.reported_time||'').split('T')[0];
     if (from && d < from) return false;
     if (to   && d > to)   return false;
-    if (sLines && !sLines.includes(r.line)) return false;
+    if (sLines && !sLines.includes(rec.line)) return false;
     return true;
   });
   const parts = [];
   if (from||to) parts.push((from||'…')+' to '+(to||'…'));
   if (activeSection!=='all') parts.push(activeSection.charAt(0).toUpperCase()+activeSection.slice(1)+' section');
   document.getElementById('filterInfo').textContent = parts.length ? filtered.length+' incidents — '+parts.join(' | ') : filtered.length+' resolved incidents';
+
+  // Keep the section-scoped panel hints in sync
+  const hint = SECTION_LABELS[activeSection];
+  ['todayVsYestSectionHint','budgetSectionHint','monthlySectionHint'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = hint;
+  });
+
   renderAll();
 }
 
@@ -449,12 +478,12 @@ function renderKPIs() {
   const today = new Date().toISOString().split('T')[0];
   const yest  = new Date(Date.now()-86400000).toISOString().split('T')[0];
 
-  const totalMins  = filtered.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
+  const totalMins  = filtered.reduce((s,rec) => s+(rec.total_downtime_minutes||0), 0);
   const totalCost  = totalMins * RATE;
-  const todayRecs  = filtered.filter(r => (r.reported_time||'').startsWith(today));
-  const yestRecs   = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(yest) && (!SECTIONS[activeSection]||SECTIONS[activeSection].includes(r.line)));
-  const todayMins  = todayRecs.reduce((s,r) => s+(r.total_downtime_minutes||0),0);
-  const yestMins   = yestRecs.reduce((s,r) => s+(r.total_downtime_minutes||0),0);
+  const todayRecs  = filtered.filter(rec => (rec.reported_time||'').startsWith(today));
+  const yestRecs   = allData.filter(rec => rec.status==='Resolved' && (rec.reported_time||'').startsWith(yest) && inActiveSection(rec));
+  const todayMins  = todayRecs.reduce((s,rec) => s+(rec.total_downtime_minutes||0),0);
+  const yestMins   = yestRecs.reduce((s,rec) => s+(rec.total_downtime_minutes||0),0);
   const todayCost  = todayMins * RATE;
   const yestCost   = yestMins * RATE;
   const avgMins    = filtered.length > 0 ? totalMins / filtered.length : 0;
@@ -462,7 +491,7 @@ function renderKPIs() {
 
   // Monthly budget — current month
   const thisMonth = today.substring(0,7);
-  const monthMins = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(thisMonth) && (!SECTIONS[activeSection]||SECTIONS[activeSection].includes(r.line))).reduce((s,r) => s+(r.total_downtime_minutes||0),0);
+  const monthMins = allData.filter(rec => rec.status==='Resolved' && (rec.reported_time||'').startsWith(thisMonth) && inActiveSection(rec)).reduce((s,rec) => s+(rec.total_downtime_minutes||0),0);
   const monthCost = monthMins * RATE;
   const budgetPct = Math.round(monthCost / MONTHLY_BUDGET * 100);
 
@@ -502,15 +531,15 @@ function renderKPIs() {
 // ── TREND ─────────────────────────────────────────────────────────────
 function renderTrend() {
   const byPeriod = {};
-  filtered.forEach(r => {
-    if (!r.reported_time) return;
-    let key = r.reported_time.split('T')[0];
+  filtered.forEach(rec => {
+    if (!rec.reported_time) return;
+    let key = rec.reported_time.split('T')[0];
     if (trendMode === 'weekly') {
       const d = new Date(key); const day = d.getDay();
       const mon = new Date(d); mon.setDate(d.getDate() - (day===0?6:day-1));
       key = mon.toISOString().split('T')[0];
     }
-    byPeriod[key] = (byPeriod[key]||0) + (r.total_downtime_minutes||0);
+    byPeriod[key] = (byPeriod[key]||0) + (rec.total_downtime_minutes||0);
   });
   const keys   = Object.keys(byPeriod).sort();
   const costs  = keys.map(k => (byPeriod[k] * RATE).toFixed(0));
@@ -545,14 +574,15 @@ function renderTrend() {
 }
 
 // ── TODAY VS YESTERDAY ────────────────────────────────────────────────
+// Deliberately calendar-scoped (ignores the date-range picker, since "today"/
+// "yesterday" are fixed points in time) but DOES respect the active section.
 function renderTodayVsYest() {
   const today = new Date().toISOString().split('T')[0];
   const yest  = new Date(Date.now()-86400000).toISOString().split('T')[0];
-  const sLines = SECTIONS[activeSection];
-  const todayRecs = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(today) && (!sLines||sLines.includes(r.line)));
-  const yestRecs  = allData.filter(r => r.status==='Resolved' && (r.reported_time||'').startsWith(yest)  && (!sLines||sLines.includes(r.line)));
-  const todayCost = todayRecs.reduce((s,r) => s+(r.total_downtime_minutes||0),0) * RATE;
-  const yestCost  = yestRecs.reduce((s,r)  => s+(r.total_downtime_minutes||0),0) * RATE;
+  const todayRecs = allData.filter(rec => rec.status==='Resolved' && (rec.reported_time||'').startsWith(today) && inActiveSection(rec));
+  const yestRecs  = allData.filter(rec => rec.status==='Resolved' && (rec.reported_time||'').startsWith(yest)  && inActiveSection(rec));
+  const todayCost = todayRecs.reduce((s,rec) => s+(rec.total_downtime_minutes||0),0) * RATE;
+  const yestCost  = yestRecs.reduce((s,rec)  => s+(rec.total_downtime_minutes||0),0) * RATE;
   const ctx = document.getElementById('todayVsYestChart').getContext('2d');
   if (todayVsYestChart) todayVsYestChart.destroy();
   todayVsYestChart = new Chart(ctx, {
@@ -580,7 +610,7 @@ function renderTodayVsYest() {
 function renderLineChart() {
   const sLines = SECTIONS[activeSection];
   const ALL = sLines || Array.from({length:24},(_,i)=>'Line '+(i+1));
-  const costs = ALL.map(l => (filtered.filter(r=>r.line===l).reduce((s,r)=>s+(r.total_downtime_minutes||0),0)*RATE).toFixed(0));
+  const costs = ALL.map(l => (filtered.filter(rec=>rec.line===l).reduce((s,rec)=>s+(rec.total_downtime_minutes||0),0)*RATE).toFixed(0));
   const ctx = document.getElementById('lineChart').getContext('2d');
   if (lineChart) lineChart.destroy();
   lineChart = new Chart(ctx, {
@@ -605,14 +635,19 @@ function renderLineChart() {
 }
 
 // ── COST PER SECTION ──────────────────────────────────────────────────
+// FIX: previously read straight from allData and ignored the date-range
+// picker entirely. Now respects dateFrom/dateTo (it intentionally still
+// shows all 4 sections side by side regardless of the active section tab,
+// since that's the whole point of this comparison chart).
 function renderSectionChart() {
+  const dateFiltered = allData.filter(rec => rec.status === 'Resolved' && inDateRange(rec));
   const sections = [
     { label:'Green (L1–6)',   lines:SECTIONS.green,  color:'#2D7D46' },
     { label:'Yellow (L7–11)', lines:SECTIONS.yellow, color:'#C9A84C' },
     { label:'Purple (L14–18)',lines:SECTIONS.purple, color:'#6B3FA0' },
     { label:'Blue (L19–24)', lines:SECTIONS.blue,   color:'#1B4F8A' },
   ];
-  const costs = sections.map(s => (allData.filter(r=>r.status==='Resolved' && s.lines.includes(r.line)).reduce((sum,r)=>sum+(r.total_downtime_minutes||0),0)*RATE).toFixed(0));
+  const costs = sections.map(s => (dateFiltered.filter(rec=>s.lines.includes(rec.line)).reduce((sum,rec)=>sum+(rec.total_downtime_minutes||0),0)*RATE).toFixed(0));
   const ctx = document.getElementById('sectionChart').getContext('2d');
   if (sectionChart) sectionChart.destroy();
   sectionChart = new Chart(ctx, {
@@ -629,9 +664,9 @@ function renderSectionChart() {
 // ── COST PER TYPE ─────────────────────────────────────────────────────
 function renderTypeChart() {
   const byType = {};
-  filtered.forEach(r => {
-    if (!r.machine_type) return;
-    byType[r.machine_type] = (byType[r.machine_type]||0) + (r.total_downtime_minutes||0);
+  filtered.forEach(rec => {
+    if (!rec.machine_type) return;
+    byType[rec.machine_type] = (byType[rec.machine_type]||0) + (rec.total_downtime_minutes||0);
   });
   const sorted = Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const ctx = document.getElementById('typeChart').getContext('2d');
@@ -655,9 +690,9 @@ function renderTypeChart() {
 // ── COST PER FAULT ────────────────────────────────────────────────────
 function renderFaultChart() {
   const byFault = {};
-  filtered.forEach(r => {
-    if (!r.fault) return;
-    byFault[r.fault] = (byFault[r.fault]||0) + (r.total_downtime_minutes||0);
+  filtered.forEach(rec => {
+    if (!rec.fault) return;
+    byFault[rec.fault] = (byFault[rec.fault]||0) + (rec.total_downtime_minutes||0);
   });
   const sorted = Object.entries(byFault).sort((a,b)=>b[1]-a[1]);
   const ctx = document.getElementById('faultChart').getContext('2d');
@@ -681,11 +716,11 @@ function renderFaultChart() {
 // ── TOP 10 ASSETS ─────────────────────────────────────────────────────
 function renderTop10() {
   const byAsset = {};
-  filtered.forEach(r => {
-    if (!r.asset_no) return;
-    if (!byAsset[r.asset_no]) byAsset[r.asset_no] = { machine_type: r.machine_type||'—', line: r.line||'—', incidents: 0, mins: 0 };
-    byAsset[r.asset_no].incidents++;
-    byAsset[r.asset_no].mins += r.total_downtime_minutes||0;
+  filtered.forEach(rec => {
+    if (!rec.asset_no) return;
+    if (!byAsset[rec.asset_no]) byAsset[rec.asset_no] = { machine_type: rec.machine_type||'—', line: rec.line||'—', incidents: 0, mins: 0 };
+    byAsset[rec.asset_no].incidents++;
+    byAsset[rec.asset_no].mins += rec.total_downtime_minutes||0;
   });
   const sorted = Object.entries(byAsset).sort((a,b)=>b[1].mins-a[1].mins).slice(0,10);
   const max = sorted[0] ? sorted[0][1].mins : 1;
@@ -709,14 +744,15 @@ function renderTop10() {
 }
 
 // ── BUDGET PROGRESS ───────────────────────────────────────────────────
+// Today/month rows are deliberately calendar-scoped (ignore the date-range
+// picker) but DO respect the active section tab via inActiveSection().
 function renderBudget() {
   const today = new Date().toISOString().split('T')[0];
   const thisMonth = today.substring(0,7);
-  const sLines = SECTIONS[activeSection];
 
-  const todayMins  = allData.filter(r=>r.status==='Resolved'&&(r.reported_time||'').startsWith(today)&&(!sLines||sLines.includes(r.line))).reduce((s,r)=>s+(r.total_downtime_minutes||0),0);
-  const monthMins  = allData.filter(r=>r.status==='Resolved'&&(r.reported_time||'').startsWith(thisMonth)&&(!sLines||sLines.includes(r.line))).reduce((s,r)=>s+(r.total_downtime_minutes||0),0);
-  const periodMins = filtered.reduce((s,r)=>s+(r.total_downtime_minutes||0),0);
+  const todayMins  = allData.filter(rec=>rec.status==='Resolved'&&(rec.reported_time||'').startsWith(today)&&inActiveSection(rec)).reduce((s,rec)=>s+(rec.total_downtime_minutes||0),0);
+  const monthMins  = allData.filter(rec=>rec.status==='Resolved'&&(rec.reported_time||'').startsWith(thisMonth)&&inActiveSection(rec)).reduce((s,rec)=>s+(rec.total_downtime_minutes||0),0);
+  const periodMins = filtered.reduce((s,rec)=>s+(rec.total_downtime_minutes||0),0);
 
   const todayCost  = todayMins  * RATE;
   const monthCost  = monthMins  * RATE;
@@ -742,16 +778,20 @@ function renderBudget() {
 }
 
 // ── MONTHLY SUMMARY ───────────────────────────────────────────────────
+// FIX: previously ignored the active section tab entirely, always showing
+// plant-wide monthly cost even when a section was selected. Now filtered by
+// inActiveSection(). Still deliberately "all time" (no date-range bounds),
+// since that's the stated purpose of this panel.
 function renderMonthly() {
   const byMonth = {};
-  allData.filter(r => r.status==='Resolved').forEach(r => {
-    if (!r.reported_time) return;
-    const m = r.reported_time.substring(0,7);
+  allData.filter(rec => rec.status==='Resolved' && inActiveSection(rec)).forEach(rec => {
+    if (!rec.reported_time) return;
+    const m = rec.reported_time.substring(0,7);
     if (!byMonth[m]) byMonth[m] = 0;
-    byMonth[m] += r.total_downtime_minutes||0;
+    byMonth[m] += rec.total_downtime_minutes||0;
   });
   const months = Object.keys(byMonth).sort().reverse();
-  if (months.length === 0) { document.getElementById('monthlyGrid').innerHTML = '<div class="empty">No monthly data yet</div>'; return; }
+  if (months.length === 0) { document.getElementById('monthlyGrid').innerHTML = '<div class="empty">No monthly data for this section</div>'; return; }
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   document.getElementById('monthlyGrid').innerHTML = months.map(m => {
     const [yr, mo] = m.split('-');
@@ -770,10 +810,10 @@ function renderMonthly() {
 function exportCSV() {
   if (filtered.length === 0) { showToast('No data to export.', 'error'); return; }
   const headers = ['Asset','Machine type','Line','Fault','Error code','Downtime (min)','Cost (R)','Date','Reported time','Resolved time'];
-  const rows = filtered.map(r => [
-    r.asset_no||'', r.machine_type||'', r.line||'', r.fault||'', r.error_code||'',
-    r.total_downtime_minutes||0, ((r.total_downtime_minutes||0)*RATE).toFixed(2),
-    (r.reported_time||'').split('T')[0], r.reported_time||'', r.resolved_time||''
+  const rows = filtered.map(rec => [
+    rec.asset_no||'', rec.machine_type||'', rec.line||'', rec.fault||'', rec.error_code||'',
+    rec.total_downtime_minutes||0, ((rec.total_downtime_minutes||0)*RATE).toFixed(2),
+    (rec.reported_time||'').split('T')[0], rec.reported_time||'', rec.resolved_time||''
   ].map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','));
   const csv   = [headers.join(','), ...rows].join('\r\n');
   const blob  = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
