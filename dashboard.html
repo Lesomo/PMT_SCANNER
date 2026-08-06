@@ -811,13 +811,6 @@ tbody td {
         <button id="sectionPurple" onclick="setSectionFilter('purple')" class="section-btn"        style="--sc:#6B3FA0;">Purple (L14–18)</button>
         <button id="sectionBlue"   onclick="setSectionFilter('blue')"   class="section-btn"        style="--sc:#1B4F8A;">Blue (L19–24)</button>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:12px;font-weight:700;color:#555;white-space:nowrap;">Eff. target:</span>
-        <input type="number" id="effTargetInput" value="90" min="50" max="100" step="1"
-          style="width:64px;padding:5px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;"
-          onchange="setEfficiencyTarget(this.value)">
-        <span style="font-size:12px;color:#888;">%</span>
-      </div>
     </div>
 
     <!-- Downtime KPIs -->
@@ -848,14 +841,23 @@ tbody td {
         <div class="dt-kpi-sub">mins between failures</div>
       </div>
       <div class="dt-kpi green">
-        <div class="dt-kpi-label">Efficiency today</div>
-        <div class="dt-kpi-value" id="dtKpiEfficiency">—</div>
-        <div class="dt-kpi-sub">uptime % current shift</div>
+        <div class="dt-kpi-label">Target today</div>
+        <div class="dt-kpi-value" id="dtKpiTarget">—</div>
+        <div class="dt-kpi-sub">assets within allowance</div>
       </div>
       <div class="dt-kpi green">
-        <div class="dt-kpi-label">Avg efficiency</div>
-        <div class="dt-kpi-value" id="dtKpiAvgEfficiency">—</div>
+        <div class="dt-kpi-label">Avg target</div>
+        <div class="dt-kpi-value" id="dtKpiAvgTarget">—</div>
         <div class="dt-kpi-sub">selected period</div>
+      </div>
+    </div>
+
+    <!-- Downtime allowance breaches — response vs repair split -->
+    <div id="allowanceBreachSection" style="display:none;margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-title">Downtime allowance breaches</div>
+        <div class="chart-sub">Assets that exceeded the daily target — split by response vs repair time</div>
+        <div id="allowanceBreachList"></div>
       </div>
     </div>
 
@@ -916,9 +918,9 @@ tbody td {
         <div class="chart-wrap tall"><canvas id="dtTrendChart"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Efficiency trend</div>
-        <div class="chart-sub">Daily operating efficiency % — weekends excluded</div>
-        <div class="chart-wrap tall"><canvas id="dtEfficiencyChart"></canvas></div>
+        <div class="chart-title">Downtime overage trend</div>
+        <div class="chart-sub">Total minutes exceeding the daily allowance — weekends excluded</div>
+        <div class="chart-wrap tall"><canvas id="dtOverageChart"></canvas></div>
       </div>
     </div>
 
@@ -2432,9 +2434,11 @@ let allDowntime = [];
 let filteredDowntime = [];
 let dtLineChart = null;
 let dtTrendChart = null;
-let dtEfficiencyChart = null;
+let dtOverageChart = null;
 let activeDtSection = 'all';
-let EFFICIENCY_TARGET = 90;
+// Fixed for now — not exposed in the UI. Change this single value to adjust
+// the target for every asset/day, factory-wide.
+const ALLOWANCE_PCT = 2.7;
 
 const SECTIONS = {
   all:    null,
@@ -2459,25 +2463,54 @@ function setSectionFilter(section) {
   applyDtFilter();
 }
 
-function setEfficiencyTarget(val) {
-  const t = parseInt(val);
-  if (!isNaN(t) && t >= 50 && t <= 100) {
-    EFFICIENCY_TARGET = t;
-    try { localStorage.setItem('pmt_eff_target', t); } catch(e) {}
-    renderDtKPIs();
-    renderDtEfficiencyChart();
-  }
+// Allowance, in minutes, for one asset for one calendar date — null on days
+// with no shift (weekends). This is the denominator-free replacement for
+// the old population-based "efficiency" metric: it only ever needs to know
+// the shift length for that date, never how many machines exist.
+function getAllowanceMinutes(dateStr) {
+  const sm = getShiftMinutes(dateStr);
+  if (sm == null) return null;
+  return sm * (ALLOWANCE_PCT / 100);
 }
 
-function loadEfficiencyTarget() {
-  try {
-    const saved = localStorage.getItem('pmt_eff_target');
-    if (saved) {
-      EFFICIENCY_TARGET = parseInt(saved) || 90;
-      const input = document.getElementById('effTargetInput');
-      if (input) input.value = EFFICIENCY_TARGET;
+// Groups downtime_log rows by (asset_no, reported-date), summing total /
+// response / repair minutes across however many incidents that asset had
+// that day. hasGap flags a group where at least one Resolved incident is
+// missing investigate_time — its response/repair split can't be trusted,
+// though the total is still correct.
+function computeAssetDayTotals(records) {
+  const map = {};
+  records.forEach(r => {
+    if (!r.asset_no || !r.reported_time) return;
+    const date = r.reported_time.split('T')[0];
+    const key = r.asset_no + '|' + date;
+    if (!map[key]) {
+      map[key] = { asset_no: r.asset_no, date, line: r.line, total: 0, response: 0, repair: 0, hasGap: false };
     }
-  } catch(e) {}
+    map[key].total    += r.total_downtime_minutes || 0;
+    map[key].response += r.response_minutes || 0;
+    map[key].repair   += r.repair_minutes || 0;
+    if (r.status === 'Resolved' && !r.investigate_time) map[key].hasGap = true;
+    if (r.line) map[key].line = r.line;
+  });
+  return Object.values(map);
+}
+
+// Live snapshot for an in-progress (Open/Investigating) incident, so
+// "today's" compliance reflects ongoing breaches, not just closed ones.
+function liveDowntimeSnapshot(r, nowISO) {
+  if (r.status === 'Resolved') {
+    return { total: r.total_downtime_minutes || 0, response: r.response_minutes || 0, repair: r.repair_minutes || 0 };
+  }
+  if (!r.reported_time) return { total: 0, response: 0, repair: 0 };
+  if (r.status === 'Investigating' && r.investigate_time) {
+    const response = shiftAwareMinutes(r.reported_time, r.investigate_time);
+    const repair    = shiftAwareMinutes(r.investigate_time, nowISO);
+    return { total: response + repair, response, repair };
+  }
+  // Still Open — no mechanic yet, so all elapsed time counts as response.
+  const response = shiftAwareMinutes(r.reported_time, nowISO);
+  return { total: response, response, repair: 0 };
 }
 
 async function loadDowntimeData() {
@@ -2540,7 +2573,7 @@ function renderDowntime() {
   renderOpenIncidents();
   renderDtLineChart();
   renderDtTrendChart();
-  renderDtEfficiencyChart();
+  renderDtOverageChart();
   renderFaultHeatmap();
   renderFaultTable();
   renderIncidentReports();
@@ -2639,6 +2672,10 @@ function renderDtKPIs() {
   const shiftMins = getShiftMinutes(today);
   const noShift = shiftMins === null;
 
+  // NOTE — MTBF still uses the old population-based "operatingMins" concept
+  // (shift length minus summed downtime across every line). That has the
+  // same denominator problem the old Efficiency metric had — it's out of
+  // scope for this fix but flagged here since it shares the root cause.
   const resolvedDowntimeToday = todayResolved.reduce((s,r) => s+(r.total_downtime_minutes||0), 0);
   const openDowntimeToday     = todayOpen.reduce((s,r) => {
     if (!r.reported_time) return s;
@@ -2650,18 +2687,29 @@ function renderDtKPIs() {
   const operatingMins = shiftMins != null ? Math.max(0, shiftMins - totalDowntimeToday) : 0;
   const failures = todayResolved.length;
   const mtbf = failures > 0 ? Math.round(operatingMins / failures) : null;
-  const efficiency = noShift ? null : shiftMins > 0 ? Math.round((operatingMins / shiftMins) * 100) : 100;
+
+  // ── COMPLIANCE (replaces the old population-based Efficiency metric) ──
+  // Denominator-free by design: each asset with any downtime today is
+  // checked against its own allowance, never against a factory-wide
+  // machine count. Uses a live snapshot so an ongoing Open/Investigating
+  // incident already counts toward today's number, not just resolved ones.
+  const nowISO = new Date().toISOString();
+  const todayAgg = {};
+  sectionAll.filter(r => (r.reported_time||'').startsWith(today)).forEach(r => {
+    const snap = liveDowntimeSnapshot(r, nowISO);
+    if (!r.asset_no) return;
+    if (!todayAgg[r.asset_no]) todayAgg[r.asset_no] = { total: 0 };
+    todayAgg[r.asset_no].total += snap.total;
+  });
+  const allowanceToday  = getAllowanceMinutes(today);
+  const todayAssets     = Object.values(todayAgg);
+  const todayTotalCount = todayAssets.length;
+  const todayOnTarget  = allowanceToday == null ? 0 : todayAssets.filter(a => a.total <= allowanceToday).length;
+  const targetToday = todayTotalCount === 0 ? 100 : Math.round((todayOnTarget / todayTotalCount) * 100);
 
   const allDates = filteredDowntime.map(r => (r.reported_time||'').split('T')[0]).filter(Boolean);
   const minDate  = allDates.length ? allDates.reduce((a,b) => a<b?a:b) : today;
   const maxDate  = today;
-
-  const dayMap = {};
-  filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
-    const d = r.reported_time.split('T')[0];
-    if (!dayMap[d]) dayMap[d] = 0;
-    dayMap[d] += r.total_downtime_minutes || 0;
-  });
 
   const workingDays = [];
   const cursor = new Date(minDate);
@@ -2672,24 +2720,30 @@ function renderDtKPIs() {
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  const dayEfficiencies = workingDays.map(d => {
-    const sm     = getShiftMinutes(d);
-    if (!sm) return null;
-    const dtMins = dayMap[d] || 0;
-    return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
+  const periodAssetDay = computeAssetDayTotals(filteredDowntime.filter(r => r.status === 'Resolved'));
+  const byDate = {};
+  periodAssetDay.forEach(a => { (byDate[a.date] = byDate[a.date] || []).push(a); });
+
+  const dayTargetRates = workingDays.map(d => {
+    const allowance = getAllowanceMinutes(d);
+    if (allowance == null) return null;
+    const assets = byDate[d] || [];
+    if (assets.length === 0) return 100; // no incidents that day — trivially compliant
+    const compliant = assets.filter(a => a.total <= allowance).length;
+    return Math.round((compliant / assets.length) * 100);
   }).filter(v => v !== null);
 
-  const avgEfficiency = dayEfficiencies.length > 0
-    ? Math.round(dayEfficiencies.reduce((a,b) => a+b, 0) / dayEfficiencies.length)
+  const avgTarget = dayTargetRates.length > 0
+    ? Math.round(dayTargetRates.reduce((a,b) => a+b, 0) / dayTargetRates.length)
     : null;
 
   const sectionLabel = activeDtSection === 'all' ? 'factory-wide' : SECTION_LABELS[activeDtSection];
   document.getElementById('dtKpiOpen').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = sectionLabel;
   document.getElementById('dtKpiTotal').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent    = sectionLabel;
   document.getElementById('dtKpiMtbf').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent     = 'today — ' + sectionLabel;
-  document.getElementById('dtKpiEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent =
-    'today incl. open — ' + sectionLabel + ' | target: ' + EFFICIENCY_TARGET + '%';
-  document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent =
+  document.getElementById('dtKpiTarget').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent =
+    (todayTotalCount > 0 ? todayOnTarget + '/' + todayTotalCount + ' assets — ' : '') + sectionLabel;
+  document.getElementById('dtKpiAvgTarget').closest('.dt-kpi').querySelector('.dt-kpi-sub').textContent =
     workingDays.length + ' working days — ' + sectionLabel;
 
   document.getElementById('dtKpiOpen').textContent           = open.length;
@@ -2697,16 +2751,17 @@ function renderDtKPIs() {
   document.getElementById('dtKpiResponse').textContent       = avgResponse != null ? avgResponse + ' min' : '—';
   document.getElementById('dtKpiRepair').textContent         = avgRepair   != null ? avgRepair   + ' min' : '—';
   document.getElementById('dtKpiMtbf').textContent           = noShift ? 'No shift' : mtbf != null ? mtbf + ' min' : 'No failures';
-  document.getElementById('dtKpiEfficiency').textContent     = noShift ? 'No shift' : efficiency + '%';
-  document.getElementById('dtKpiAvgEfficiency').textContent  = avgEfficiency != null ? avgEfficiency + '%' : '—';
+  document.getElementById('dtKpiTarget').textContent     = noShift ? 'No shift' : targetToday + '%';
+  document.getElementById('dtKpiAvgTarget').textContent  = avgTarget != null ? avgTarget + '%' : '—';
 
-  const effEl = document.getElementById('dtKpiEfficiency').closest('.dt-kpi');
-  effEl.style.borderLeftColor = noShift ? '#888' : efficiency >= EFFICIENCY_TARGET ? '#70AD47' : efficiency >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000';
+  const targetEl = document.getElementById('dtKpiTarget').closest('.dt-kpi');
+  targetEl.style.borderLeftColor = noShift ? '#888' : targetToday >= 90 ? '#70AD47' : targetToday >= 70 ? '#ED7D31' : '#C00000';
 
-  const avgEl = document.getElementById('dtKpiAvgEfficiency').closest('.dt-kpi');
-  avgEl.style.borderLeftColor = avgEfficiency == null ? '#888' : avgEfficiency >= EFFICIENCY_TARGET ? '#70AD47' : avgEfficiency >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000';
+  const avgTargetEl = document.getElementById('dtKpiAvgTarget').closest('.dt-kpi');
+  avgTargetEl.style.borderLeftColor = avgTarget == null ? '#888' : avgTarget >= 90 ? '#70AD47' : avgTarget >= 70 ? '#ED7D31' : '#C00000';
 
   renderRepeatAlerts();
+  renderAllowanceBreaches();
 }
 
 function switchOffenderView(name) {
@@ -2993,17 +3048,19 @@ function faultCellClass(count, max) {
   return 'c-high-maint';
 }
 
-function renderDtEfficiencyChart() {
-  const dayMap = {};
-  filteredDowntime.filter(r => r.status === 'Resolved' && r.reported_time).forEach(r => {
-    const d = r.reported_time.split('T')[0];
-    if (!dayMap[d]) dayMap[d] = 0;
-    dayMap[d] += r.total_downtime_minutes || 0;
+function renderDtOverageChart() {
+  const periodAssetDay = computeAssetDayTotals(filteredDowntime.filter(r => r.status === 'Resolved'));
+  const dayOverage = {};
+  periodAssetDay.forEach(a => {
+    const allowance = getAllowanceMinutes(a.date);
+    if (allowance == null) return; // no shift that day
+    const overage = Math.max(0, a.total - allowance);
+    dayOverage[a.date] = (dayOverage[a.date] || 0) + overage;
   });
 
   const allDates = filteredDowntime.map(r => (r.reported_time||'').split('T')[0]).filter(Boolean);
   if (allDates.length === 0) {
-    if (dtEfficiencyChart) { dtEfficiencyChart.destroy(); dtEfficiencyChart = null; }
+    if (dtOverageChart) { dtOverageChart.destroy(); dtOverageChart = null; }
     return;
   }
   const minDate = allDates.reduce((a,b) => a<b?a:b);
@@ -3019,86 +3076,109 @@ function renderDtEfficiencyChart() {
   }
 
   if (days.length === 0) {
-    if (dtEfficiencyChart) { dtEfficiencyChart.destroy(); dtEfficiencyChart = null; }
+    if (dtOverageChart) { dtOverageChart.destroy(); dtOverageChart = null; }
     return;
   }
 
-  const efficiencies = days.map(d => {
-    const sm     = getShiftMinutes(d);
-    const dtMins = dayMap[d] || 0;
-    return Math.round(((sm - Math.min(dtMins, sm)) / sm) * 100);
-  });
-
+  const overageMins = days.map(d => Math.round(dayOverage[d] || 0));
   const labels = days.map(d => {
     const p = d.split('-');
     return p[2] + '/' + p[1];
   });
 
-  const ctx = document.getElementById('dtEfficiencyChart').getContext('2d');
-  if (dtEfficiencyChart) dtEfficiencyChart.destroy();
-  dtEfficiencyChart = new Chart(ctx, {
-    type: 'line',
+  const ctx = document.getElementById('dtOverageChart').getContext('2d');
+  if (dtOverageChart) dtOverageChart.destroy();
+  dtOverageChart = new Chart(ctx, {
+    type: 'bar',
     data: {
       labels,
-      datasets: [
-        {
-          label: 'Efficiency %',
-          data: efficiencies,
-          borderColor: '#70AD47',
-          backgroundColor: 'rgba(112,173,71,0.1)',
-          borderWidth: 2,
-          pointRadius: 5,
-          pointBackgroundColor: efficiencies.map(e =>
-            e >= EFFICIENCY_TARGET ? '#70AD47' : e >= EFFICIENCY_TARGET - 10 ? '#ED7D31' : '#C00000'
-          ),
-          fill: true,
-          tension: 0.3
-        },
-        {
-          label: 'Target ' + EFFICIENCY_TARGET + '%',
-          data: days.map(() => EFFICIENCY_TARGET),
-          borderColor: '#2E5597',
-          borderWidth: 1.5,
-          borderDash: [6, 4],
-          pointRadius: 0,
-          fill: false,
-          tension: 0
-        }
-      ]
+      datasets: [{
+        label: 'Overage (min)',
+        data: overageMins,
+        backgroundColor: overageMins.map(m => m === 0 ? '#C0DD97' : m < 60 ? '#ED7D31' : '#C00000'),
+        borderRadius: 4
+      }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: true,
-          labels: { font: { size: 11 }, color: '#888', boxWidth: 24, padding: 12 }
-        },
+        legend: { display: false },
         tooltip: {
-          callbacks: {
-            label: item => item.datasetIndex === 0
-              ? ' ' + item.raw + '% efficiency'
-              : ' Target: ' + EFFICIENCY_TARGET + '%'
-          }
+          callbacks: { label: item => ' ' + item.raw + ' min over allowance' }
         }
       },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { font: { size: 10 }, color: '#888' }
+          ticks: { font: { size: 10 }, color: '#888', maxRotation: 45, minRotation: 45 }
         },
         y: {
-          min: 0, max: 100,
+          beginAtZero: true,
           grid: { color: '#f0f2f5' },
-          ticks: {
-            font: { size: 10 }, color: '#888',
-            callback: val => val + '%'
-          }
+          ticks: { font: { size: 10 }, color: '#888' }
         }
       }
     }
   });
 }
+
+function renderAllowanceBreaches() {
+  const section = document.getElementById('allowanceBreachSection');
+  const el      = document.getElementById('allowanceBreachList');
+  if (!section || !el) return;
+
+  const periodAssetDay = computeAssetDayTotals(filteredDowntime.filter(r => r.status === 'Resolved'));
+  const breaches = periodAssetDay
+    .map(a => {
+      const allowance = getAllowanceMinutes(a.date);
+      if (allowance == null) return null; // no shift that day
+      const overage = a.total - allowance;
+      if (overage <= 0) return null;
+      return Object.assign({}, a, { allowance, overage });
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.overage - a.overage);
+
+  if (breaches.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  const CAP = 100;
+  const display = breaches.slice(0, CAP);
+  const overflow = breaches.length - display.length;
+
+  const rows = display.map(b => {
+    const splitTotal = b.response + b.repair;
+    const respPct = splitTotal > 0 ? Math.round((b.response / splitTotal) * 100) : 0;
+    const repPct  = splitTotal > 0 ? 100 - respPct : 0;
+    const gapNote = b.hasGap
+      ? ' <span title="Missing investigate time on at least one incident — response/repair split may be inaccurate" style="color:#ED7D31;font-size:11px;">&#9888; partial data</span>'
+      : '';
+    return `<div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <div><strong style="color:#1F3864;">${escAttr(b.asset_no)}</strong>
+          <span style="font-size:11px;color:#888;">${escAttr(b.line || '—')} &middot; ${formatShortDate(b.date)}</span>${gapNote}
+        </div>
+        <div style="font-size:12px;color:#C00000;font-weight:700;">+${fmtMins(Math.round(b.overage))} over</div>
+      </div>
+      <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:6px;background:#f0f2f5;">
+        <div style="width:${respPct}%;background:#2E5597;" title="Response: ${fmtMins(b.response)}"></div>
+        <div style="width:${repPct}%;background:#ED7D31;" title="Repair: ${fmtMins(b.repair)}"></div>
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:4px;">
+        Response: ${fmtMins(b.response)} &nbsp;|&nbsp; Repair: ${fmtMins(b.repair)} &nbsp;|&nbsp; Allowance: ${fmtMins(Math.round(b.allowance))}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = rows + (overflow > 0
+    ? `<div style="text-align:center;padding:10px;color:#888;font-size:12px;font-style:italic;">${overflow} more breach${overflow !== 1 ? 'es' : ''} not shown — narrow the date filter to see more.</div>`
+    : '');
+}
+
 
 function renderFaultHeatmap() {
   const container = document.getElementById('faultHeatmapContainer');
@@ -5024,7 +5104,7 @@ function saveOrderStatus() {
 
 // ── PIN PROTECTION ────────────────────────────────────────────────────────────
 const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
-const PIN_HASH_MECHANICS ='1ee4e10c0c7e1bd5ff9cd70d1f3c03521abf21ea7ee45aa92deab16f87af4dbb';
+const PIN_HASH_MECHANICS = 'd82cfb4f5c0e89f0baa74e44dbc3c208ad65502db72476f31849360aa390f0d6';
 
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 30;
@@ -5899,7 +5979,6 @@ function switchDashTab(tab) {
 
 // ── INITIALISATION ────────────────────────────────────────────────────────────
 loadData();
-loadEfficiencyTarget();
 startAutoRefresh();
 fetchStorageUsage();
 </script>
