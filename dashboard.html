@@ -852,12 +852,18 @@ tbody td {
       </div>
     </div>
 
-    <!-- Downtime allowance breaches — response vs repair split -->
-    <div id="allowanceBreachSection" style="display:none;margin-bottom:16px;">
+    <!-- Downtime allowance overview — reacts to date/section filters -->
+    <div id="allowanceSummarySection" style="display:none;margin-bottom:16px;">
       <div class="chart-card">
-        <div class="chart-title">Downtime allowance breaches</div>
-        <div class="chart-sub">Assets that exceeded the daily target — split by response vs repair time</div>
-        <div id="allowanceBreachList"></div>
+        <div class="chart-title">Downtime allowance overview</div>
+        <div class="chart-sub">Asset-days that exceeded the daily allowance — selected period and section</div>
+        <div style="display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:center;margin-bottom:16px;">
+          <div style="position:relative;height:160px;">
+            <canvas id="allowanceSummaryChart"></canvas>
+          </div>
+          <div id="allowanceSummaryStat" style="font-size:14px;color:#555;line-height:1.6;"></div>
+        </div>
+        <div id="allowanceSummaryTable" style="overflow-x:auto;"></div>
       </div>
     </div>
 
@@ -2435,6 +2441,7 @@ let filteredDowntime = [];
 let dtLineChart = null;
 let dtTrendChart = null;
 let dtOverageChart = null;
+let allowanceChart = null;
 let activeDtSection = 'all';
 // Fixed for now — not exposed in the UI. Change this single value to adjust
 // the target for every asset/day, factory-wide.
@@ -2761,7 +2768,7 @@ function renderDtKPIs() {
   avgTargetEl.style.borderLeftColor = avgTarget == null ? '#888' : avgTarget >= 90 ? '#70AD47' : avgTarget >= 70 ? '#ED7D31' : '#C00000';
 
   renderRepeatAlerts();
-  renderAllowanceBreaches();
+  renderAllowanceSummary();
 }
 
 function switchOffenderView(name) {
@@ -3123,60 +3130,86 @@ function renderDtOverageChart() {
   });
 }
 
-function renderAllowanceBreaches() {
-  const section = document.getElementById('allowanceBreachSection');
-  const el      = document.getElementById('allowanceBreachList');
-  if (!section || !el) return;
+function renderAllowanceSummary() {
+  const section = document.getElementById('allowanceSummarySection');
+  if (!section) return;
 
+  // Same per-asset-per-day aggregation as before — repeat short incidents
+  // on one asset in one day still sum together against that day's allowance.
   const periodAssetDay = computeAssetDayTotals(filteredDowntime.filter(r => r.status === 'Resolved'));
-  const breaches = periodAssetDay
+  const rows = periodAssetDay
     .map(a => {
       const allowance = getAllowanceMinutes(a.date);
       if (allowance == null) return null; // no shift that day
-      const overage = a.total - allowance;
-      if (overage <= 0) return null;
-      return Object.assign({}, a, { allowance, overage });
+      return Object.assign({}, a, { allowance, overage: a.total - allowance });
     })
-    .filter(Boolean)
-    .sort((a, b) => b.overage - a.overage);
+    .filter(Boolean);
 
-  if (breaches.length === 0) {
+  if (rows.length === 0) {
     section.style.display = 'none';
     return;
   }
   section.style.display = 'block';
 
-  const CAP = 100;
-  const display = breaches.slice(0, CAP);
+  const breaches     = rows.filter(r => r.overage > 0).sort((a, b) => b.overage - a.overage);
+  const withinCount  = rows.length - breaches.length;
+  const refAllowance = Math.round(getAllowanceMinutes(getTodayStr()) || getShiftMinutes(rows[0].date) * (ALLOWANCE_PCT / 100));
+
+  document.getElementById('allowanceSummaryStat').innerHTML =
+    '<strong style="font-size:24px;color:' + (breaches.length > 0 ? '#C00000' : '#3B6D11') + ';">' + breaches.length + '</strong>' +
+    ' of <strong>' + rows.length + '</strong> asset-days exceeded the allowance (~' + refAllowance + ' min/day)' +
+    '<br><span style="font-size:12px;color:#888;">' + withinCount + ' stayed within it — matching the selected date range and section filter</span>';
+
+  const ctx = document.getElementById('allowanceSummaryChart').getContext('2d');
+  if (allowanceChart) allowanceChart.destroy();
+  allowanceChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Within allowance', 'Exceeded allowance'],
+      datasets: [{
+        data: [withinCount, breaches.length],
+        backgroundColor: ['#70AD47', '#C00000'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: item => ' ' + item.label + ': ' + item.raw } }
+      }
+    }
+  });
+
+  const tableEl = document.getElementById('allowanceSummaryTable');
+  if (breaches.length === 0) {
+    tableEl.innerHTML = '<div style="text-align:center;padding:16px;color:#888;font-size:13px;">No asset exceeded the allowance in this period — nice.</div>';
+    return;
+  }
+
+  const CAP = 50;
+  const display  = breaches.slice(0, CAP);
   const overflow = breaches.length - display.length;
 
-  const rows = display.map(b => {
-    const splitTotal = b.response + b.repair;
-    const respPct = splitTotal > 0 ? Math.round((b.response / splitTotal) * 100) : 0;
-    const repPct  = splitTotal > 0 ? 100 - respPct : 0;
-    const gapNote = b.hasGap
-      ? ' <span title="Missing investigate time on at least one incident — response/repair split may be inaccurate" style="color:#ED7D31;font-size:11px;">&#9888; partial data</span>'
-      : '';
-    return `<div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
-        <div><strong style="color:#1F3864;">${escAttr(b.asset_no)}</strong>
-          <span style="font-size:11px;color:#888;">${escAttr(b.line || '—')} &middot; ${formatShortDate(b.date)}</span>${gapNote}
-        </div>
-        <div style="font-size:12px;color:#C00000;font-weight:700;">+${fmtMins(Math.round(b.overage))} over</div>
-      </div>
-      <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:6px;background:#f0f2f5;">
-        <div style="width:${respPct}%;background:#2E5597;" title="Response: ${fmtMins(b.response)}"></div>
-        <div style="width:${repPct}%;background:#ED7D31;" title="Repair: ${fmtMins(b.repair)}"></div>
-      </div>
-      <div style="font-size:11px;color:#888;margin-top:4px;">
-        Response: ${fmtMins(b.response)} &nbsp;|&nbsp; Repair: ${fmtMins(b.repair)} &nbsp;|&nbsp; Allowance: ${fmtMins(Math.round(b.allowance))}
-      </div>
-    </div>`;
-  }).join('');
-
-  el.innerHTML = rows + (overflow > 0
-    ? `<div style="text-align:center;padding:10px;color:#888;font-size:12px;font-style:italic;">${overflow} more breach${overflow !== 1 ? 'es' : ''} not shown — narrow the date filter to see more.</div>`
-    : '');
+  let html = '<table class="sl-table"><thead><tr><th>Asset</th><th>Line</th><th>Date</th><th class="num">Total</th><th class="num">Allowance</th><th class="num">Over by</th></tr></thead><tbody>';
+  display.forEach(b => {
+    html += '<tr>' +
+      '<td><strong>' + escAttr(b.asset_no) + '</strong></td>' +
+      '<td style="font-size:12px;color:#555;">' + escAttr(b.line || '—') + '</td>' +
+      '<td style="font-size:12px;color:#888;">' + formatShortDate(b.date) + '</td>' +
+      '<td style="text-align:center;">' + fmtMins(Math.round(b.total)) + '</td>' +
+      '<td style="text-align:center;color:#888;">' + fmtMins(Math.round(b.allowance)) + '</td>' +
+      '<td style="text-align:center;font-weight:700;color:#C00000;">+' + fmtMins(Math.round(b.overage)) + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  if (overflow > 0) {
+    html += '<div style="text-align:center;padding:10px;color:#888;font-size:12px;font-style:italic;">' +
+      overflow + ' more not shown — narrow the date filter to see the rest.</div>';
+  }
+  tableEl.innerHTML = html;
 }
 
 
@@ -5104,7 +5137,7 @@ function saveOrderStatus() {
 
 // ── PIN PROTECTION ────────────────────────────────────────────────────────────
 const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
-const PIN_HASH_MECHANICS = '4644';
+const PIN_HASH_MECHANICS = 'd82cfb4f5c0e89f0baa74e44dbc3c208ad65502db72476f31849360aa390f0d6';
 
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 30;
