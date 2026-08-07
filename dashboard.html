@@ -852,20 +852,6 @@ tbody td {
       </div>
     </div>
 
-    <!-- Downtime allowance overview — reacts to date/section filters -->
-    <div id="allowanceSummarySection" style="display:none;margin-bottom:16px;">
-      <div class="chart-card">
-        <div class="chart-title">Downtime allowance overview</div>
-        <div class="chart-sub">Asset-days that exceeded the daily allowance — selected period and section</div>
-        <div style="display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:center;margin-bottom:16px;">
-          <div style="position:relative;height:160px;">
-            <canvas id="allowanceSummaryChart"></canvas>
-          </div>
-          <div id="allowanceSummaryStat" style="font-size:14px;color:#555;line-height:1.6;"></div>
-        </div>
-        <div id="allowanceSummaryTable" style="overflow-x:auto;"></div>
-      </div>
-    </div>
 
     <!-- Repeat incidents alert -->
     <div id="repeatAlertsSection" style="display:none;margin-bottom:16px;">
@@ -980,6 +966,29 @@ tbody td {
             <span id="incReportsCountInfo" style="font-size:12px;color:#888;"></span>
           </div>
           <div id="incReportsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DOWNTIME ALLOWANCE OVERVIEW — reacts to date/section filters ═══ -->
+    <div id="allowanceSummarySection" style="display:none;">
+      <div class="lc-collapse-card">
+        <div class="lc-collapse-header" onclick="toggleLcSection('allowanceSummaryBody','allowanceSummaryExpandLbl')">
+          <div class="lc-collapse-title">
+            <span>Downtime allowance overview</span>
+            <span id="allowanceSummaryBadge" class="lc-collapse-badge" style="background:#FCE4D6;color:#843C0C;"></span>
+          </div>
+          <span class="lc-expand-lbl" id="allowanceSummaryExpandLbl">Expand &#9660;</span>
+        </div>
+        <div class="lc-collapse-body" id="allowanceSummaryBody">
+          <div class="chart-sub" style="margin-bottom:14px;">Asset-days that exceeded the 15-minute daily allowance — selected period and section.</div>
+          <div style="display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:center;margin-bottom:16px;">
+            <div style="position:relative;height:160px;">
+              <canvas id="allowanceSummaryChart"></canvas>
+            </div>
+            <div id="allowanceSummaryStat" style="font-size:14px;color:#555;line-height:1.6;"></div>
+          </div>
+          <div id="allowanceSummaryTable" style="overflow-x:auto;"></div>
         </div>
       </div>
     </div>
@@ -2443,9 +2452,10 @@ let dtTrendChart = null;
 let dtOverageChart = null;
 let allowanceChart = null;
 let activeDtSection = 'all';
-// Fixed for now — not exposed in the UI. Change this single value to adjust
-// the target for every asset/day, factory-wide.
-const ALLOWANCE_PCT = 2.7;
+// Fixed for now — not exposed in the UI. Flat allowance, same every weekday
+// (Mon–Fri) regardless of shift length — change this single value to adjust
+// the standard factory-wide.
+const ALLOWANCE_MINUTES = 15;
 
 const SECTIONS = {
   all:    null,
@@ -2476,8 +2486,8 @@ function setSectionFilter(section) {
 // the shift length for that date, never how many machines exist.
 function getAllowanceMinutes(dateStr) {
   const sm = getShiftMinutes(dateStr);
-  if (sm == null) return null;
-  return sm * (ALLOWANCE_PCT / 100);
+  if (sm == null) return null; // weekend — no shift, no allowance
+  return ALLOWANCE_MINUTES;
 }
 
 // Groups downtime_log rows by (asset_no, reported-date), summing total /
@@ -3151,13 +3161,15 @@ function renderAllowanceSummary() {
   }
   section.style.display = 'block';
 
-  const breaches     = rows.filter(r => r.overage > 0).sort((a, b) => b.overage - a.overage);
-  const withinCount  = rows.length - breaches.length;
-  const refAllowance = Math.round(getAllowanceMinutes(getTodayStr()) || getShiftMinutes(rows[0].date) * (ALLOWANCE_PCT / 100));
+  const breaches    = rows.filter(r => r.overage > 0).sort((a, b) => b.overage - a.overage);
+  const withinCount = rows.length - breaches.length;
+
+  document.getElementById('allowanceSummaryBadge').textContent =
+    breaches.length + ' breach' + (breaches.length !== 1 ? 'es' : '');
 
   document.getElementById('allowanceSummaryStat').innerHTML =
     '<strong style="font-size:24px;color:' + (breaches.length > 0 ? '#C00000' : '#3B6D11') + ';">' + breaches.length + '</strong>' +
-    ' of <strong>' + rows.length + '</strong> asset-days exceeded the allowance (~' + refAllowance + ' min/day)' +
+    ' of <strong>' + rows.length + '</strong> asset-days exceeded the allowance (' + ALLOWANCE_MINUTES + ' min/day)' +
     '<br><span style="font-size:12px;color:#888;">' + withinCount + ' stayed within it — matching the selected date range and section filter</span>';
 
   const ctx = document.getElementById('allowanceSummaryChart').getContext('2d');
@@ -5137,7 +5149,7 @@ function saveOrderStatus() {
 
 // ── PIN PROTECTION ────────────────────────────────────────────────────────────
 const PIN_HASH = 'd8ed8ca27d83a63df6982905ea53b4613b9d7974edcee06f301cf43d63177f47';
-const PIN_HASH_MECHANICS = '46444';
+const PIN_HASH_MECHANICS = 'd82cfb4f5c0e89f0baa74e44dbc3c208ad65502db72476f31849360aa390f0d6';
 
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 30;
