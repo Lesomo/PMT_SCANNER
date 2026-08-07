@@ -36,26 +36,6 @@ body {
 .header-sub { font-size: 12px; opacity: 0.6; margin-top: 1px; }
 .header-right { display: flex; align-items: center; gap: 10px; }
 
-.live-badge {
-  display: flex; align-items: center; gap: 6px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.live-dot {
-  width: 7px; height: 7px;
-  background: #70AD47;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-.live-dot.paused { background: #aaa; animation: none; }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
 .refresh-btn {
   background: rgba(255,255,255,0.15);
   border: 1px solid rgba(255,255,255,0.25);
@@ -72,18 +52,6 @@ body {
 .refresh-btn svg { width: 14px; height: 14px; }
 .refresh-btn.spinning svg { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-.auto-toggle {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 8px;
-  color: white;
-  padding: 7px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.auto-toggle.active { background: rgba(112,173,71,0.4); border-color: #70AD47; }
 
 /* MAIN LAYOUT */
 .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
@@ -620,11 +588,6 @@ tbody td {
     </div>
   </div>
   <div class="header-right">
-    <div class="live-badge">
-      <div class="live-dot" id="liveDot"></div>
-      <span id="liveLabel">Live</span>
-    </div>
-    <button class="auto-toggle active" id="autoToggle" onclick="toggleAuto()">Auto 30s</button>
     <button class="refresh-btn" id="exportBtn" onclick="exportCSV()" style="background:rgba(112,173,71,0.25);border-color:rgba(112,173,71,0.5);">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -660,7 +623,7 @@ tbody td {
   <div class="dash-panel active" id="panel-assets">
 
   <!-- FILTER BAR -->
-  <div class="filter-bar">
+  <div class="filter-bar" style="position:sticky;top:60px;z-index:90;">
     <label>Filter by date:</label>
     <input type="date" id="dateFrom" onchange="applyFilter()">
     <span class="filter-sep">to</span>
@@ -789,7 +752,8 @@ tbody td {
   <!-- ═══ DOWNTIME PANEL ═══ -->
   <div class="dash-panel" id="panel-downtime">
 
-    <!-- Downtime filters — two-row layout -->
+    <!-- Downtime filters — two-row layout, sticky as one unit -->
+    <div style="position:sticky;top:60px;z-index:90;background:#f0f2f5;padding-top:2px;">
 
     <!-- Row 1: Date filter -->
     <div class="filter-bar" style="margin-bottom:10px;">
@@ -811,6 +775,8 @@ tbody td {
         <button id="sectionPurple" onclick="setSectionFilter('purple')" class="section-btn"        style="--sc:#6B3FA0;">Purple (L14–18)</button>
         <button id="sectionBlue"   onclick="setSectionFilter('blue')"   class="section-btn"        style="--sc:#1B4F8A;">Blue (L19–24)</button>
       </div>
+    </div>
+
     </div>
 
     <!-- Downtime KPIs -->
@@ -1007,7 +973,7 @@ tbody td {
   <!-- ═══ ASSET PROFILE PANEL ═══ -->
   <div class="dash-panel" id="panel-profile">
 
-    <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-card" style="margin-bottom:16px;position:sticky;top:60px;z-index:90;">
       <div class="chart-title">Asset profile search</div>
       <div class="chart-sub">Type an asset number to see its full intelligence card — status, downtime, parts, PM history and timeline</div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap;">
@@ -1206,7 +1172,7 @@ tbody td {
   <div class="dash-panel" id="panel-inventory">
 
     <!-- Clerk name selector (remembered per device) -->
-    <div class="filter-bar" style="margin-bottom:16px;">
+    <div class="filter-bar" style="margin-bottom:16px;position:sticky;top:60px;z-index:90;">
       <label>Clerk on duty:</label>
       <select id="clerkNameSelect" onchange="saveClerkName()" style="padding:8px 36px 8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;min-width:160px;">
         <option value="">— Select your name —</option>
@@ -1485,7 +1451,7 @@ tbody td {
   <!-- LINE CHANGE PANEL -->
   <div class="dash-panel" id="panel-linechange">
 
-    <div class="filter-bar" style="margin-bottom:14px;">
+    <div class="filter-bar" style="margin-bottom:14px;position:sticky;top:60px;z-index:90;">
       <label>Line:</label>
       <select id="lcLine" onchange="loadLineChange()" style="padding:7px 11px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;min-width:120px;">
         <option value="">All lines</option>
@@ -1574,7 +1540,7 @@ tbody td {
   <div class="dash-panel" id="panel-mechanics">
 
     <!-- Search + filter bar -->
-    <div class="search-section">
+    <div class="search-section" style="position:sticky;top:60px;z-index:90;">
       <div class="chart-title">Mechanic profile</div>
       <div class="chart-sub">Performance overview &mdash; coaching-focused, no leaderboards</div>
 
@@ -1780,8 +1746,6 @@ const ALL_LOCS = [
 
 let allData = [];
 let filteredData = [];
-let autoInterval = null;
-let autoEnabled = true;
 let locationChart = null;
 let statusChart = null;
 
@@ -2284,33 +2248,6 @@ function renderTable() {
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
-}
-
-// ── AUTO REFRESH ──────────────────────────────────────────────────────────────
-function toggleAuto() {
-  autoEnabled = !autoEnabled;
-  const btn   = document.getElementById('autoToggle');
-  const dot   = document.getElementById('liveDot');
-  const label = document.getElementById('liveLabel');
-
-  if (autoEnabled) {
-    btn.classList.add('active');
-    btn.textContent = 'Auto 30s';
-    dot.classList.remove('paused');
-    label.textContent = 'Live';
-    startAutoRefresh();
-  } else {
-    btn.classList.remove('active');
-    btn.textContent = 'Auto off';
-    dot.classList.add('paused');
-    label.textContent = 'Paused';
-    clearInterval(autoInterval);
-  }
-}
-
-function startAutoRefresh() {
-  clearInterval(autoInterval);
-  autoInterval = setInterval(refreshCurrentTab, 30000);
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -6051,7 +5988,6 @@ function switchDashTab(tab) {
 
 // ── INITIALISATION ────────────────────────────────────────────────────────────
 loadData();
-startAutoRefresh();
 fetchStorageUsage();
 </script>
 
@@ -6077,5 +6013,22 @@ fetchStorageUsage();
     </div>
   </div>
 </div>
+
+<!-- BACK TO TOP — dashboard-wide, appears after scrolling past the header -->
+<button id="backToTopBtn" onclick="scrollToTop()" title="Back to top"
+  style="display:none;position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#1F3864;color:white;border:none;box-shadow:0 4px 14px rgba(0,0,0,0.3);cursor:pointer;z-index:150;align-items:center;justify-content:center;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5,12 12,5 19,12"/></svg>
+</button>
+<script>
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('backToTopBtn');
+  if (!btn) return;
+  const show = window.scrollY > 400;
+  btn.style.display = show ? 'flex' : 'none';
+});
+</script>
 </body>
 </html>
