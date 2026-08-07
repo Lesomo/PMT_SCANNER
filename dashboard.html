@@ -982,11 +982,21 @@ tbody td {
         </div>
         <div class="lc-collapse-body" id="allowanceSummaryBody">
           <div class="chart-sub" style="margin-bottom:14px;">Asset-days that exceeded the 15-minute daily allowance — selected period and section.</div>
-          <div style="display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:center;margin-bottom:16px;">
-            <div style="position:relative;height:160px;">
+          <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+            <div style="position:relative;height:160px;width:160px;flex-shrink:0;">
               <canvas id="allowanceSummaryChart"></canvas>
             </div>
-            <div id="allowanceSummaryStat" style="font-size:14px;color:#555;line-height:1.6;"></div>
+            <div id="allowanceSummaryStat" style="font-size:14px;color:#555;line-height:1.6;flex:1;min-width:200px;"></div>
+            <div class="dt-kpi" style="border-left-color:#2E5597;min-width:150px;">
+              <div class="dt-kpi-label">Total downtime</div>
+              <div class="dt-kpi-value" id="allowanceKpiDowntime" style="font-size:22px;">—</div>
+              <div class="dt-kpi-sub">selected period &amp; section</div>
+            </div>
+            <div class="dt-kpi" style="min-width:150px;">
+              <div class="dt-kpi-label">Target achieved</div>
+              <div class="dt-kpi-value" id="allowanceKpiTargetAchieved" style="font-size:22px;">—</div>
+              <div class="dt-kpi-sub">asset-days within allowance</div>
+            </div>
           </div>
           <div id="allowanceSummaryTable" style="overflow-x:auto;"></div>
         </div>
@@ -2817,8 +2827,12 @@ function renderTopOffenders() {
     return;
   }
 
-  const byInc = [...assets].sort((a,b) => b.incidents - a.incidents).slice(0, 10);
-  const byDt  = [...assets].sort((a,b) => b.total_downtime - a.total_downtime).slice(0, 10);
+  // Primary sort by the chosen metric; ties resolve using the other metric
+  // (rather than falling back to insertion order, which was really "most
+  // recently active" — an unstated, unintuitive tiebreaker for a ranking
+  // meant to reflect who's costing the most).
+  const byInc = [...assets].sort((a,b) => b.incidents - a.incidents || b.total_downtime - a.total_downtime).slice(0, 10);
+  const byDt  = [...assets].sort((a,b) => b.total_downtime - a.total_downtime || b.incidents - a.incidents).slice(0, 10);
 
   document.getElementById('offenderByIncidents').innerHTML = offenderTable(byInc, 'incidents');
   document.getElementById('offenderByDowntime').innerHTML  = offenderTable(byDt, 'downtime');
@@ -3163,6 +3177,19 @@ function renderAllowanceSummary() {
 
   const breaches    = rows.filter(r => r.overage > 0).sort((a, b) => b.overage - a.overage);
   const withinCount = rows.length - breaches.length;
+
+  // Both KPIs are derived from the same `rows` used for the donut/table,
+  // so they always agree with what's directly below them — no separate
+  // query or different date/section scope to drift out of sync.
+  const totalDowntimeMins = rows.reduce((s, r) => s + r.total, 0);
+  const targetAchievedPct = Math.round((withinCount / rows.length) * 100);
+
+  document.getElementById('allowanceKpiDowntime').textContent = fmtMins(Math.round(totalDowntimeMins));
+
+  const targetAchievedEl = document.getElementById('allowanceKpiTargetAchieved');
+  targetAchievedEl.textContent = targetAchievedPct + '%';
+  targetAchievedEl.closest('.dt-kpi').style.borderLeftColor =
+    targetAchievedPct >= 90 ? '#70AD47' : targetAchievedPct >= 70 ? '#ED7D31' : '#C00000';
 
   document.getElementById('allowanceSummaryBadge').textContent =
     breaches.length + ' breach' + (breaches.length !== 1 ? 'es' : '');
