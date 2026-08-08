@@ -782,13 +782,18 @@ async function submitDowntime() {
 
     const res = await fetch(SUPABASE_URL + '/rest/v1/downtime_log', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=minimal' },
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Prefer': 'return=representation' },
       body: JSON.stringify(payload)
     });
 
     if (res.ok || res.status === 201) {
-      // Send push notification to all subscribed mechanics
-      sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault);
+      // Send push notification to all subscribed mechanics, deep-linked to this job
+      let newJobId = null;
+      try {
+        const created = await res.json();
+        newJobId = Array.isArray(created) && created.length ? created[0].id : null;
+      } catch(e) {}
+      sendIncidentNotification(payload.asset_no, payload.machine_type, payload.line, payload.fault, newJobId);
       document.getElementById('supSuccessView').style.display = 'block';
       document.getElementById('supSuccessDetail').textContent =
         currentAssetNo + ' (' + currentMachineType + ') — ' + payload.line + ' — ' + payload.fault;
@@ -863,9 +868,13 @@ async function loadMechanicScreen() {
 
 async function fetchJobs() {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00';
+    // Only fetch what the mechanic screen actually needs: jobs still
+    // open/investigating (regardless of date) plus jobs resolved today.
+    // Previously this pulled the entire table history on every load.
+    const filter = 'or=(status.in.(Open,Investigating),and(status.eq.Resolved,resolved_time.gte.' + todayStart + '))';
     const res = await fetch(
-      SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc',
+      SUPABASE_URL + '/rest/v1/downtime_log?select=*&' + filter + '&order=reported_time.desc',
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
     );
     allJobs = await res.json();
@@ -1797,10 +1806,15 @@ function dismissNotifPrompt() {
   try { localStorage.setItem('pmt_notif_dismissed', '1'); } catch(e) {}
 }
 
-async function sendIncidentNotification(assetNo, machineType, line, fault) {
+async function sendIncidentNotification(assetNo, machineType, line, fault, jobId) {
   try {
     const title   = '🔴 Machine Down — ' + line;
     const message = 'Asset: ' + assetNo + (machineType ? ' (' + machineType + ')' : '') + ' | ' + fault;
+    // Deep-link straight to this job's detail view when we have an id;
+    // fall back to the generic app URL if the insert didn't return one.
+    const url = jobId
+      ? 'https://lesomo.github.io/PMT_SCANNER/downtime.html?job=' + jobId
+      : 'https://lesomo.github.io/PMT_SCANNER/downtime.html';
 
     // Call Supabase Edge Function which proxies to OneSignal (avoids CORS)
     const res = await fetch(SUPABASE_URL + '/functions/v1/send-notification', {
@@ -1809,7 +1823,7 @@ async function sendIncidentNotification(assetNo, machineType, line, fault) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + SUPABASE_KEY,
       },
-      body: JSON.stringify({ title, message, url: 'https://lesomo.github.io/PMT_SCANNER/downtime.html' })
+      body: JSON.stringify({ title, message, url })
     });
 
     if (res.ok) {
@@ -1825,6 +1839,23 @@ async function sendIncidentNotification(assetNo, machineType, line, fault) {
 // Show notification prompt on load
 window.addEventListener('load', () => {
   setTimeout(checkNotificationPrompt, 1500);
+});
+
+// Deep-link: if opened from a "Machine Down" push notification (?job=<id>),
+// skip the role selector and land straight on that job's detail view.
+window.addEventListener('load', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const jobParam = params.get('job');
+  if (!jobParam) return;
+  const jobId = parseInt(jobParam, 10);
+  if (!jobId) return;
+
+  await loadMechanicScreen(); // shows mechanic screen + runs fetchJobs()
+  if (allJobs.some(j => j.id === jobId)) {
+    openJobDetail(jobId);
+  } else {
+    showToast('That job card could not be found — it may already be closed.', 'error');
+  }
 });
 </script>
 </body>
