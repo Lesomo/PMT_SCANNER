@@ -9,6 +9,7 @@
 
 const MACHINE_TYPES = [
   { code: 'BLNDST',          desc: 'BLIND STITCH MACHINE' },
+  { code: 'BLT LOOP',        desc: 'BELT LOOP'},
   { code: 'BRTCK',           desc: 'BARTACKING MACHINE' },
   { code: 'BTN W/P',         desc: 'BUTTON WRAP' },
   { code: 'BTNHOLE',         desc: 'BUTTONHOLE MACHINE' },
