@@ -16,7 +16,7 @@ const MACHINE_TYPES = [
   { code: 'EYELET BTNHOLE',  desc: 'EYELET BUTTON HOLE' },
   { code: 'BTNSEW CHAINST',  desc: 'BUTTON SEW-ON CHAIN STITCH' },
   { code: 'BTNSEW LOCKST',   desc: 'BUTTON SEW-ON LOCK STITCH' },
-  { code: 'COVERSEAM',       desc: 'COVERSEAM MACHINE' },
+  { code: 'COVERSM',       desc: 'COVERSEAM MACHINE' },
   { code: 'BNDR',            desc: 'COVERSEAM BINDER' },
   { code: 'CYLBED',          desc: 'CYLINDERBED COVERSEAM' },
   { code: 'CYLBED with Tr',  desc: 'CYLINDERBED SPREADER & TRIMMER' },
