@@ -2479,7 +2479,7 @@ function liveDowntimeSnapshot(r, nowISO) {
 
 async function loadDowntimeData() {
   const res = await fetch(
-    SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=5000',
+    SUPABASE_URL + '/rest/v1/downtime_log?select=*&order=reported_time.desc&limit=6000',
     { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
   );
   allDowntime = await res.json();
@@ -5228,7 +5228,7 @@ async function loadLineChange() {
 
   document.getElementById('lcTableWrap').innerHTML = '<div style="text-align:center;padding:30px;color:#bbb;">Loading...</div>';
 
-  let url = SUPABASE_URL + '/rest/v1/scan_log?select=id,asset_no,machine_type,location,status,mechanic,scan_timestamp&order=asset_no.asc,scan_timestamp.asc&limit=5000';
+  let url = SUPABASE_URL + '/rest/v1/scan_log?select=id,asset_no,machine_type,location,status,mechanic,scan_timestamp&order=asset_no.asc,scan_timestamp.asc&limit=6000';
   if (dateFrom) url += '&scan_timestamp=gte.' + dateFrom + 'T00:00:00';
   if (dateTo)   url += '&scan_timestamp=lte.' + dateTo   + 'T23:59:59';
 
